@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Football Game</title>
+    <style>
+    html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+    body {
+        background: #1e824c;
+        color: #fff;
+        font-family: Arial, sans-serif;
+        text-align: center;
+        width: 100vw;
+        height: 100vh;
+    }
+    h1 {
+        margin-top: 10px;
+        margin-bottom: 10px;
+        letter-spacing: 2px;
+        text-shadow: 2px 2px 8px #000;
+    }
+    #scoreboard {
+        font-size: 1.5em;
+        z-index: 2;
+        position: fixed;
+        left: 24px;
+        top: 24px;
+        min-width: 180px;
+        min-height: 54px;
+        background: rgba(0,0,0,0.32);
+        border-radius: 12px;
+        border: 2px solid #fff2;
+        box-shadow: 0 2px 8px #0008;
+        padding: 10px 24px 10px 24px;
+        pointer-events: none;
+        text-align: left;
+        text-shadow: 1px 1px 4px #000;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+    }
+    .player-label {
+        border-radius: 8px;
+        padding: 2px 10px;
+        background: rgba(30,130,76,0.7);
+        border: 1px solid #fff2;
+        box-shadow: 0 2px 8px #0008;
+        transition: background 0.2s;
+    }
+    #replayBtn, #muteBtn {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        z-index: 20;
+        font-size: 1.2em;
+        background: #2980b9;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 18px;
+        margin-left: 10px;
+        cursor: pointer;
+        box-shadow: 0 2px 8px #0008;
+        opacity: 0.92;
+        transition: background 0.2s, opacity 0.2s;
+    }
+    #replayBtn:hover, #muteBtn:hover {
+        background: #f39c12;
+        opacity: 1;
+    }
+    #overlay {
+        user-select: none;
+    }
+    #help {
+        position: fixed;
+        left: 0;
+        bottom: 0;
+        width: 100vw;
+        background: rgba(0,0,0,0.25);
+        color: #fff;
+        font-size: 1.1em;
+        padding: 8px 0 8px 0;
+        z-index: 15;
+        text-shadow: 1px 1px 4px #000;
+        pointer-events: none;
+    }
+    </style>
+</head>
+<body>
+    <h1>Football Game</h1>
+    <div id="scoreboard">
+        <div id="scoreline" style="font-size:2em;font-weight:bold;letter-spacing:2px;">
+            <span style="color:#f39c12;">You</span>
+            <span id="score-user">0</span>
+            <span style="color:#fff;">-</span>
+            <span id="score-cpu">0</span>
+            <span style="color:#e74c3c;">CPU</span>
+        </div>
+        <span id="info" style="font-size:1em;">Time: <b>90</b>s</span>
+        <span id="debug" style="display:block;font-size:0.8em;margin-top:2px;"></span>
+    </div>
+    <div id="overlay" style="position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:10;display:none;align-items:center;justify-content:center;background:rgba(30,130,76,0.7);color:#fff;font-size:3em;font-family:Arial,sans-serif;text-shadow:2px 2px 8px #000;"></div>
+    <button id="replayBtn" style="display:none;">Replay</button>
+    <button id="muteBtn">🔊</button>
+    <div id="help">Controls: Arrow keys/WASD = Move | Space = Pass / Shoot / Tackle | R = Replay | M = Mute</div>
+    <script type="module">
+    // --- 3D Football Game (modular, extensible, ~2000 lines) ---
+    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.module.js';
+
+    // --- Utility Functions ---
+    function clamp(val, min, max) { return Math.max(min, Math.min(max, val)); }
+    function lerp(a, b, t) { return a + (b - a) * t; }
+    function randRange(a, b) { return a + Math.random() * (b - a); }
+
+    // --- Game Constants ---
+    const FIELD_LENGTH = 160;
+    const FIELD_WIDTH = 80;
+    const GOAL_WIDTH = 24;
+    const GOAL_DEPTH = 8;
+    const PLAYER_RADIUS = 3;
+    const PLAYER_HEIGHT = 8;
+    const BALL_RADIUS = 2.2;
+const TEAM_SIZE = 2;
+    const GAME_TIME = 90; // seconds
+    const REPLAY_FRAMES = 300; // 5s at 60fps
+
+    // --- Game Classes ---
+    class Game {
+        // Returns {teamIdx, playerIdx} if a player is in possession, else null
+        getPossession() {
+            let minDist = Infinity, poss = null;
+            for (let t = 0; t < 2; ++t) {
+                for (let p = 0; p < TEAM_SIZE; ++p) {
+                    let player = this.teams[t].players[p];
+                    let d = player.mesh.position.distanceTo(this.ball.mesh.position);
+                    if (d < PLAYER_RADIUS + BALL_RADIUS + 1.2 && d < minDist) {
+                        minDist = d;
+                        poss = { teamIdx: t, playerIdx: p };
+                    }
+                }
+            }
+            return poss;
+        }
+        constructor() {
+            this.scene = new THREE.Scene();
+            this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            this.camera.position.set(0, 120, 180);
+            this.camera.lookAt(0, 0, 0);
+            this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+            this.renderer.setSize(window.innerWidth, window.innerHeight);
+            this.renderer.setClearColor(0x1e824c);
+            this.renderer.shadowMap.enabled = true;
+            document.body.appendChild(this.renderer.domElement);
+            window.addEventListener('resize', () => this.onWindowResize());
+
+            // Lighting
+            this.scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(0, 120, 100);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 1024;
+            dirLight.shadow.mapSize.height = 1024;
+            dirLight.shadow.camera.near = 10;
+            dirLight.shadow.camera.far = 300;
+            dirLight.shadow.camera.left = -100;
+            dirLight.shadow.camera.right = 100;
+            dirLight.shadow.camera.top = 100;
+            dirLight.shadow.camera.bottom = -100;
+            this.scene.add(dirLight);
+
+            // Field
+            this.field = new Field(this.scene);
+
+            // Ball
+            this.ball = new Ball(this.scene);
+
+            // Teams
+            this.teams = [
+                new Team(this.scene, 0, 0xf39c12, 'You'),
+                new Team(this.scene, 1, 0xe74c3c, 'CPU')
+            ];
+            this.teams[0].isUser = true;
+            this.teams[1].isUser = false;
+
+            // Game State
+            this.score = [0, 0];
+            this.time = GAME_TIME;
+            this.state = 'playing'; // kickoff, playing, goal, end, replay
+            this.lastGoalTeam = null;
+            this.selectedPlayerIdx = 0;
+
+            // Controls
+            this.controls = {};
+            document.addEventListener('keydown', e => this.onKeyDown(e));
+            document.addEventListener('keyup', e => this.onKeyUp(e));
+
+            // Sound
+            this.sounds = this.initSounds();
+            this.muted = false;
+            document.getElementById('muteBtn').onclick = () => this.toggleMute();
+
+            // Replay
+            this.replayBuffer = [];
+            this.isReplaying = false;
+            document.getElementById('replayBtn').onclick = () => this.startReplay();
+
+            // UI
+            this.updateUI();
+            this.showOverlay('Kickoff!');
+
+            // Start
+            this.resetPositions();
+            // Start with user team in possession (kickoff)
+            this.kickoffTeam = 0; // 0 = user, 1 = CPU
+            this.state = 'kickoff';
+            setTimeout(() => {
+                this.hideOverlay();
+                this.state = 'playing';
+                // Place ball at user's feet and give initial nudge
+                let user = this.teams[0].players[0];
+                let kickoffPos = user.mesh.position.clone().add(new THREE.Vector3(PLAYER_RADIUS + BALL_RADIUS + 0.5, 0, 0));
+                this.ball.setPosition(kickoffPos.x, this.ball.mesh.position.y, kickoffPos.z);
+                this.ball.velocity.set(8, 0, 0); // gentle nudge forward
+            }, 1500);
+            // Play melody at game start
+            if (this.sounds.melody) this.sounds.melody.play();
+            this.animate();
+            this.lastFrame = performance.now();
+        }
+        initSounds() {
+            // Drum-like web audio API sounds (softer, percussive) and a melody
+            const ctx = window.AudioContext ? new window.AudioContext() : null;
+            function drum(type, dur, vol=0.2, freq=120) {
+                if (!ctx) return { play:()=>{} };
+                return {
+                    play: () => {
+                        if (window.game && window.game.muted) return;
+                        let o = ctx.createOscillator();
+                        let g = ctx.createGain();
+                        let b = ctx.createBiquadFilter();
+                        o.type = type; // 'sine', 'triangle', 'square', 'sawtooth'
+                        o.frequency.setValueAtTime(freq, ctx.currentTime);
+                        // Pitch drop for drum effect
+                        o.frequency.linearRampToValueAtTime(40, ctx.currentTime + dur/1000);
+                        g.gain.setValueAtTime(vol, ctx.currentTime);
+                        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur/1000);
+                        b.type = 'lowpass';
+                        b.frequency.value = 800;
+                        o.connect(b).connect(g).connect(ctx.destination);
+                        o.start();
+                        o.stop(ctx.currentTime + dur/1000);
+                    }
+                };
+            }
+            // Little melody: array of [freq, duration(ms)]
+            function melody(notes, vol=0.13, type='triangle', tempo=1.0) {
+                if (!ctx) return { play:()=>{} };
+                return {
+                    play: () => {
+                        if (window.game && window.game.muted) return;
+                        let now = ctx.currentTime;
+                        let t = now;
+                        for (let i = 0; i < notes.length; ++i) {
+                            let [freq, dur] = notes[i];
+                            let o = ctx.createOscillator();
+                            let g = ctx.createGain();
+                            o.type = type;
+                            o.frequency.setValueAtTime(freq, t);
+                            g.gain.setValueAtTime(vol, t);
+                            g.gain.linearRampToValueAtTime(0.001, t + dur/1000*tempo);
+                            o.connect(g).connect(ctx.destination);
+                            o.start(t);
+                            o.stop(t + dur/1000*tempo);
+                            t += dur/1000*tempo;
+                        }
+                    }
+                };
+            }
+            // Simple football-y tune (C E G E | F D C)
+            const mainMelody = [
+                [261.63, 180], [329.63, 180], [392.00, 180], [329.63, 180],
+                [349.23, 180], [293.66, 180], [261.63, 320]
+            ];
+            return {
+                goal: drum('triangle', 320, 0.22, 180), // deeper drum
+                kick: drum('sine', 90, 0.13, 120),      // soft kick drum
+                pass: drum('triangle', 70, 0.10, 200),  // snare-like
+                whistle: drum('triangle', 420, 0.16, 400), // higher, short
+                end: drum('sine', 900, 0.16, 80),        // long, deep
+                melody: melody(mainMelody, 0.13, 'triangle', 1.0)
+            };
+        }
+        toggleMute() {
+            this.muted = !this.muted;
+            document.getElementById('muteBtn').textContent = this.muted ? '🔇' : '🔊';
+        }
+
+        onWindowResize() {
+            this.camera.aspect = window.innerWidth / window.innerHeight;
+            this.camera.updateProjectionMatrix();
+            this.renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        updateUI() {
+            // Update scoreboard in top-left corner
+            let scoreboard = document.getElementById('scoreboard');
+            if (!scoreboard) return;
+            scoreboard.innerHTML = `
+                <div style="display:flex;align-items:center;justify-content:flex-start;gap:18px;">
+                  <div style="background:#222b;padding:8px 18px 8px 12px;border-radius:12px 0 12px 0;box-shadow:0 2px 8px #0008;min-width:120px;">
+                    <span style=\"color:#f39c12;font-weight:bold;font-size:1.2em;\">You</span>
+                    <span style=\"color:#fff;font-size:1.2em;margin:0 8px;\">${this.score[0]}</span>
+                    <span style=\"color:#fff;font-size:1.1em;\">-</span>
+                    <span style=\"color:#e74c3c;font-weight:bold;font-size:1.2em;margin-left:8px;\">CPU</span>
+                    <span style=\"color:#fff;font-size:1.2em;margin-left:8px;\">${this.score[1]}</span>
+                  </div>
+                </div>
+                <div style=\"margin-top:2px;font-size:1.1em;color:#fff;text-shadow:1px 1px 4px #000;letter-spacing:1px;\">Time: <b>${Math.floor(this.time)}</b>s</div>
+                <span id=\"debug\" style=\"display:block;font-size:0.8em;margin-top:2px;\"></span>
+            `;
+            // Keep debug info updated
+            let dbg = document.getElementById('debug');
+            if (dbg) dbg.textContent = this.debugMsg || '';
+        }
+        showOverlay(msg) {
+            let overlay = document.getElementById('overlay');
+            if (overlay) {
+                overlay.innerHTML = msg;
+                overlay.style.display = 'flex';
+            }
+        }
+        hideOverlay() {
+            let overlay = document.getElementById('overlay');
+            if (overlay) overlay.style.display = 'none';
+        }
+        debug(msg) {
+            let dbg = document.getElementById('debug');
+            if (dbg) dbg.textContent = msg;
+        }
+
+        onKeyDown(e) {
+            this.controls[e.key.toLowerCase()] = true;
+            if (e.key.toLowerCase() === 'r') this.startReplay();
+            if (e.key.toLowerCase() === 'm') this.toggleMute();
+        }
+        onKeyUp(e) {
+            this.controls[e.key.toLowerCase()] = false;
+        }
+
+        resetPositions() {
+            // Place ball at center
+            this.ball.setPosition(0, BALL_RADIUS + 1, 0);
+            this.ball.velocity.set(0, 0, 0);
+            // Place players
+            this.teams[0].resetPositions(-FIELD_LENGTH/4);
+            this.teams[1].resetPositions(FIELD_LENGTH/4);
+            this.selectedPlayerIdx = 0;
+        }
+
+        switchPlayer() {
+            // Switch to closest player to ball
+            let minDist = 9999, idx = 0;
+            for (let i = 0; i < TEAM_SIZE; ++i) {
+                let d = this.teams[0].players[i].mesh.position.distanceTo(this.ball.mesh.position);
+                if (d < minDist) { minDist = d; idx = i; }
+            }
+            this.selectedPlayerIdx = idx;
+        }
+
+        handleInput(dt) {
+            // User controls for selected player
+            let player = this.teams[0].players[this.selectedPlayerIdx];
+            let move = new THREE.Vector3();
+            if (this.controls['arrowup'] || this.controls['w']) move.z -= 1;
+            if (this.controls['arrowdown'] || this.controls['s']) move.z += 1;
+            if (this.controls['arrowleft'] || this.controls['a']) move.x -= 1;
+            if (this.controls['arrowright'] || this.controls['d']) move.x += 1;
+            if (move.length() > 0) move.normalize();
+            player.move(move, dt);
+
+            // Only allow actions if player is close to the ball
+            const distToBall = player.mesh.position.distanceTo(this.ball.mesh.position);
+            const canKick = distToBall < PLAYER_RADIUS + BALL_RADIUS + 2;
+
+            // --- Possession Dribbling (ball moves around player in movement direction) ---
+            // Only the selected user player can dribble; possession follows selectedPlayerIdx
+            let selected = this.teams[0].players[this.selectedPlayerIdx];
+            let distToBallSelected = selected.mesh.position.distanceTo(this.ball.mesh.position);
+            // Prevent dribbling if recently tackled (cooldown or _tackledTimer)
+            let canDribble = selected.cooldown <= 0 && (!selected._tackledTimer);
+            if (distToBallSelected < PLAYER_RADIUS + BALL_RADIUS + 1.2 && canDribble) {
+                // Calculate selected player's velocity this frame
+                let prevPos = selected._prevPos || selected.mesh.position.clone();
+                let currPos = selected.mesh.position;
+                let vel = new THREE.Vector3().subVectors(currPos, prevPos).divideScalar(dt);
+                // Ball follows selected player velocity
+                this.ball.velocity.copy(vel);
+                // Ball stays offset in the direction of movement (full 360 degrees)
+                let moveDir = vel.clone();
+                if (moveDir.length() > 0.1) {
+                    moveDir.normalize();
+                    // Target position for the ball (in front of player, in movement direction)
+                    let offset = moveDir.multiplyScalar(PLAYER_RADIUS + BALL_RADIUS + 0.5);
+                    let targetPos = currPos.clone().add(offset);
+                    // Smoothly interpolate ball position toward target
+                    this.ball.mesh.position.lerp(targetPos, 0.32); // 0.32 = smoothing factor, tweak as needed
+                    // Ball rotates slowly while dribbling
+                    this.ball.mesh.rotation.y += 1.2 * dt; // slow spin
+                } else {
+                    // If not moving, keep ball in front (default: +X direction)
+                    let facing = new THREE.Vector3(1, 0, 0);
+                    let offset = facing.multiplyScalar(PLAYER_RADIUS + BALL_RADIUS + 0.5);
+                    let targetPos = currPos.clone().add(offset);
+                    this.ball.mesh.position.lerp(targetPos, 0.32);
+                }
+                // Save for next frame
+                selected._prevPos = currPos.clone();
+            } else {
+                // Clear _prevPos for all user players if not in possession
+                for (let i = 0; i < TEAM_SIZE; ++i) {
+                    delete this.teams[0].players[i]._prevPos;
+                }
+            }
+
+            // --- One-button action (space) ---
+            if (this.controls[' ']) {
+                let cpuTeam = this.teams[1];
+                // Find closest CPU player to ball
+                let cpuIdx = 0, cpuDist = 9999;
+                for (let i = 0; i < TEAM_SIZE; ++i) {
+                    let d = cpuTeam.players[i].mesh.position.distanceTo(this.ball.mesh.position);
+                    if (d < cpuDist) { cpuDist = d; cpuIdx = i; }
+                }
+                let cpu = cpuTeam.players[cpuIdx];
+
+                // Tackle: if CPU is closer to ball, tackle
+                if (canKick && cpuDist < distToBall + 0.5) {
+                    let tackleDir = new THREE.Vector3().subVectors(player.mesh.position, cpu.mesh.position).normalize();
+                    this.ball.velocity.addScaledVector(tackleDir, 18 * dt);
+                    this.ball.spin += randRange(-0.12, 0.12);
+                    player.cooldown = 0.18;
+                    cpu.cooldown = 0.7; // Disable tackled CPU for a short time
+                    cpu._tackledTimer = 0.7; // Custom timer for extra safety
+                    if (this.sounds.kick) this.sounds.kick.play();
+                }
+                // Pass: if teammate is open, pass and switch
+                else if (canKick) {
+                    // Find open teammate (ahead and in space)
+                    let teammates = this.teams[0].players;
+                    let bestIdx = this.selectedPlayerIdx, bestScore = -Infinity;
+                    for (let i = 0; i < TEAM_SIZE; ++i) {
+                        if (i === this.selectedPlayerIdx) continue;
+                        let mate = teammates[i];
+                        // Prefer teammates ahead of the ball and away from CPU
+                        let ahead = mate.mesh.position.x - this.ball.mesh.position.x;
+                        let awayFromCPU = 0;
+                        for (let j = 0; j < TEAM_SIZE; ++j) {
+                            awayFromCPU += mate.mesh.position.distanceTo(this.teams[1].players[j].mesh.position);
+                        }
+                        let openScore = ahead * 2 + awayFromCPU;
+                        if (openScore > bestScore) { bestScore = openScore; bestIdx = i; }
+                    }
+                    // If teammate is open enough, pass and switch
+                    if (bestIdx !== this.selectedPlayerIdx && bestScore > 10) {
+                        // Pass to teammate
+                        let toMate = new THREE.Vector3().subVectors(teammates[bestIdx].mesh.position, player.mesh.position).normalize();
+                        this.ball.velocity.copy(toMate.multiplyScalar(28));
+                        this.ball.spin = randRange(-0.5, 0.5);
+                        player.cooldown = 0.5;
+                        if (this.sounds.pass) this.sounds.pass.play();
+                        this.selectedPlayerIdx = bestIdx;
+                    } else {
+                        // Otherwise, shoot if near goal, else do nothing (dribble is handled above)
+                        let nearGoal = (player.mesh.position.x > FIELD_LENGTH/2 - 24);
+                        if (nearGoal) {
+                            player.shoot(this.ball);
+                            if (this.sounds.kick) this.sounds.kick.play();
+                        }
+                    }
+                }
+                this.controls[' '] = false;
+            }
+
+            // Teammate AI: move to useful attacking/support position
+            let teammates = this.teams[0].players;
+            for (let i = 0; i < TEAM_SIZE; ++i) {
+                if (i === this.selectedPlayerIdx) continue;
+                let mate = teammates[i];
+                // Don't move if tackled/disabled
+                if (mate.cooldown > 0 || mate._tackledTimer) continue;
+                // Move to a position ahead of the ball, in space, and not too close to CPU or user
+                let ball = this.ball.mesh.position;
+                let targetX = Math.min(ball.x + 18, FIELD_LENGTH/2 - 8);
+                let targetZ = clamp(ball.z + (i === 0 ? -18 : 18), -FIELD_WIDTH/2 + 8, FIELD_WIDTH/2 - 8);
+                // Avoid clustering with CPU or user
+                let avoid = new THREE.Vector3();
+                for (let j = 0; j < TEAM_SIZE; ++j) {
+                    avoid.add(new THREE.Vector3().subVectors(mate.mesh.position, this.teams[1].players[j].mesh.position));
+                    if (j !== this.selectedPlayerIdx) avoid.add(new THREE.Vector3().subVectors(mate.mesh.position, teammates[j].mesh.position));
+                }
+                avoid.multiplyScalar(0.2);
+                let supportTarget = new THREE.Vector3(targetX, PLAYER_HEIGHT/2, targetZ).add(avoid);
+                let toTarget = new THREE.Vector3().subVectors(supportTarget, mate.mesh.position);
+                if (toTarget.length() > 1) toTarget.normalize();
+                mate.move(toTarget, dt);
+            }
+        }
+
+        updateAI(dt) {
+            // Advanced AI for CPU team: both players coordinate to win and score
+            let cpuTeam = this.teams[1];
+            let userTeam = this.teams[0];
+            let userGoalX = -FIELD_LENGTH/2;
+            let ballPos = this.ball.mesh.position;
+            // Find closest CPU to ball
+            let closestIdx = 0, minDist = Infinity;
+            for (let i = 0; i < TEAM_SIZE; ++i) {
+                let d = cpuTeam.players[i].mesh.position.distanceTo(ballPos);
+                if (d < minDist) { minDist = d; closestIdx = i; }
+            }
+            // Find user in possession (if any)
+            let userPossIdx = -1;
+            let poss = this.getPossession();
+            if (poss && poss.teamIdx === 0) userPossIdx = poss.playerIdx;
+            // Assign roles: one attacks (closest), one supports/defends
+            for (let i = 0; i < TEAM_SIZE; ++i) {
+                let cpu = cpuTeam.players[i];
+                let cpuPos = cpu.mesh.position;
+                let distToBall = cpuPos.distanceTo(ballPos);
+                let cpuToBall = new THREE.Vector3().subVectors(ballPos, cpuPos);
+                // Defensive: avoid NaN
+                if (!isFinite(cpuToBall.x) || !isFinite(cpuToBall.y) || !isFinite(cpuToBall.z)) cpuToBall.set(1,0,0);
+                // --- AI Tackling: if user is in possession and close, attempt tackle ---
+                let canTackle = false;
+                let userPlayer = null;
+                if (userPossIdx !== -1) {
+                    userPlayer = userTeam.players[userPossIdx];
+                    let distToUser = cpuPos.distanceTo(userPlayer.mesh.position);
+                    // Only tackle if close, not on cooldown, and user is not tackled
+                    if (distToUser < PLAYER_RADIUS*2.1 && cpu.cooldown <= 0 && !cpu._tackledTimer && userPlayer.cooldown <= 0 && !userPlayer._tackledTimer) {
+                        canTackle = true;
+                    }
+                }
+                if (canTackle) {
+                    // Tackle: knock ball away, disable user for 0.7s, cpu for 0.18s
+                    let tackleDir = new THREE.Vector3().subVectors(cpuPos, userPlayer.mesh.position).normalize();
+                    this.ball.velocity.addScaledVector(tackleDir, 18 * dt);
+                    this.ball.spin += randRange(-0.12, 0.12);
+                    cpu.cooldown = 0.18;
+                    cpu._tackledTimer = 0.18;
+                    userPlayer.cooldown = 0.7;
+                    userPlayer._tackledTimer = 0.7;
+                    if (this.sounds.kick) this.sounds.kick.play();
+                    continue; // After tackle, don't move this frame
+                }
+                if (i === closestIdx) {
+                    // Attacker: go for the ball and try to score
+                    let isInShootingZone = (ballPos.x < -FIELD_LENGTH/2 + 18) && (Math.abs(ballPos.z) < GOAL_WIDTH/2);
+                    if (distToBall < PLAYER_RADIUS + BALL_RADIUS + 2.5) {
+                        // Dribble or shoot
+                        let toGoal = new THREE.Vector3(userGoalX - ballPos.x, 0, -ballPos.z).normalize();
+                        let behindBall = new THREE.Vector3().copy(ballPos).addScaledVector(toGoal, -PLAYER_RADIUS-1.5);
+                        let moveDir = new THREE.Vector3().subVectors(behindBall, cpuPos);
+                        if (moveDir.length() > 1) moveDir.normalize();
+                        cpu.move(moveDir, dt);
+                        // Dribble: nudge the ball forward
+                        if (cpuPos.distanceTo(behindBall) < 2.2) {
+                            this.ball.velocity.addScaledVector(toGoal, 16 * dt);
+                            this.ball.spin += randRange(-0.07, 0.07);
+                            cpu.cooldown = 0.12;
+                        }
+                        // If in shooting zone, shoot
+                        if (isInShootingZone) {
+                            cpu.shoot(this.ball, true, true);
+                            if (this.sounds.kick) this.sounds.kick.play();
+                        }
+                    } else if (distToBall < 30) {
+                        // Move directly toward the ball
+                        let toBall = new THREE.Vector3().subVectors(ballPos, cpuPos);
+                        if (toBall.length() > 2) toBall.normalize();
+                        cpu.move(toBall, dt);
+                    } else {
+                        // Move to a good attacking position
+                        let attackX = lerp(ballPos.x, userGoalX + 12, 0.3);
+                        let attackZ = clamp(ballPos.z, -FIELD_WIDTH/2+10, FIELD_WIDTH/2-10);
+                        let target = new THREE.Vector3(attackX, PLAYER_HEIGHT/2, attackZ);
+                        let toTarget = new THREE.Vector3().subVectors(target, cpuPos);
+                        if (toTarget.length() > 2) toTarget.normalize();
+                        cpu.move(toTarget, dt);
+                    }
+                } else {
+                    // Support/defend: get open for a pass or block user
+                    // If CPU team has possession, get open for a pass
+                    let cpuPoss = this.getPossession();
+                    if (cpuPoss && cpuPoss.teamIdx === 1) {
+                        // Move to a position ahead of the ball, but not too close to attacker
+                        let aheadX = Math.max(ballPos.x - 12, userGoalX + 8);
+                        let aheadZ = clamp(ballPos.z + (i === 0 ? -12 : 12), -FIELD_WIDTH/2+8, FIELD_WIDTH/2-8);
+                        // Avoid clustering with attacker
+                        let attacker = cpuTeam.players[closestIdx];
+                        let avoid = new THREE.Vector3().subVectors(cpu.mesh.position, attacker.mesh.position).multiplyScalar(0.3);
+                        let supportTarget = new THREE.Vector3(aheadX, PLAYER_HEIGHT/2, aheadZ).add(avoid);
+                        let toTarget = new THREE.Vector3().subVectors(supportTarget, cpuPos);
+                        if (toTarget.length() > 1) toTarget.normalize();
+                        cpu.move(toTarget, dt);
+                    } else {
+                        // Defend: mark the closest user player to the ball
+                        let closestUserIdx = 0, minUserDist = Infinity;
+                        for (let j = 0; j < TEAM_SIZE; ++j) {
+                            let d = userTeam.players[j].mesh.position.distanceTo(ballPos);
+                            if (d < minUserDist) { minUserDist = d; closestUserIdx = j; }
+                        }
+                        let mark = userTeam.players[closestUserIdx];
+                        let markTarget = mark.mesh.position.clone();
+                        // Stay between user and goal
+                        let defendX = lerp(markTarget.x, FIELD_LENGTH/2-10, 0.5);
+                        let defendZ = clamp(markTarget.z, -FIELD_WIDTH/2+10, FIELD_WIDTH/2-10);
+                        let defendPos = new THREE.Vector3(defendX, PLAYER_HEIGHT/2, defendZ);
+                        let toDefend = new THREE.Vector3().subVectors(defendPos, cpuPos);
+                        if (toDefend.length() > 1) toDefend.normalize();
+                        cpu.move(toDefend, dt);
+                    }
+                }
+            }
+        }
+
+        checkGoal() {
+            let pos = this.ball.mesh.position;
+            // Use the actual goal meshes for collision (allow ball to touch goal plane)
+            const leftGoal = this.scene.goals && this.scene.goals.left;
+            const rightGoal = this.scene.goals && this.scene.goals.right;
+            // Left goal (You score on CPU)
+            if (leftGoal && pos.x - BALL_RADIUS <= leftGoal.position.x + 1.5 &&
+                Math.abs(pos.z) <= (GOAL_WIDTH+2)/2 &&
+                pos.x < 0) {
+                if (this.state === 'playing') this.scoreGoal(1);
+            }
+            // Right goal (CPU scores on You)
+            if (rightGoal && pos.x + BALL_RADIUS >= rightGoal.position.x - 1.5 &&
+                Math.abs(pos.z) <= (GOAL_WIDTH+2)/2 &&
+                pos.x > 0) {
+                if (this.state === 'playing') this.scoreGoal(0);
+            }
+        }
+
+        scoreGoal(teamIdx) {
+            this.score[teamIdx]++;
+            this.updateUI();
+            this.state = 'goal';
+            this.showOverlay((teamIdx === 0 ? 'You' : 'CPU') + ' scored!');
+            if (this.sounds.goal) this.sounds.goal.play();
+            // Play melody after a goal
+            if (this.sounds.melody) this.sounds.melody.play();
+            document.getElementById('replayBtn').style.display = 'inline-block';
+            // Freeze ball and players
+            this.ball.velocity.set(0,0,0);
+            for (let t of this.teams) for (let p of t.players) p.cooldown = 1;
+            setTimeout(() => {
+                this.resetPositions();
+                this.hideOverlay();
+                this.state = 'playing';
+                document.getElementById('replayBtn').style.display = 'none';
+            }, 2000);
+        }
+
+        update(dt) {
+            if (this.state === 'playing') {
+                this.handleInput(dt);
+                this.updateAI(dt);
+                this.ball.update(dt);
+                for (let t of this.teams) for (let p of t.players) p.update(dt);
+                this.checkGoal();
+                this.time -= dt;
+                if (this.time <= 0) {
+                    this.time = 0;
+                    this.state = 'end';
+                    this.showOverlay('Game Over!<br>Final Score: ' + this.score[0] + ' - ' + this.score[1]);
+                    if (this.sounds.end) this.sounds.end.play();
+                    document.getElementById('replayBtn').style.display = 'inline-block';
+                }
+                // Save replay frame
+                this.saveReplayFrame();
+            } else if (this.state === 'replay') {
+                this.playReplayFrame(dt);
+            }
+        }
+
+        saveReplayFrame() {
+            // Save positions of all objects for replay
+            if (this.isReplaying) return;
+            if (!this.replayBuffer) this.replayBuffer = [];
+            if (this.replayBuffer.length > REPLAY_FRAMES) this.replayBuffer.shift();
+            this.replayBuffer.push({
+                ball: this.ball.mesh.position.clone(),
+                ballVel: this.ball.velocity.clone(),
+                ballSpin: this.ball.spin,
+                players: this.teams.map(t => t.players.map(p => p.mesh.position.clone())),
+                time: this.time,
+                score: [...this.score]
+            });
+        }
+
+        startReplay() {
+            if (!this.replayBuffer || this.replayBuffer.length < 2) return;
+            this.isReplaying = true;
+            this.state = 'replay';
+            this.replayIdx = 0;
+            this.showOverlay('Replay');
+            document.getElementById('replayBtn').style.display = 'none';
+        }
+
+        playReplayFrame(dt) {
+            if (!this.replayBuffer || this.replayIdx >= this.replayBuffer.length) {
+                this.isReplaying = false;
+                this.state = 'playing';
+                this.hideOverlay();
+                return;
+            }
+            let f = this.replayBuffer[this.replayIdx];
+            this.ball.mesh.position.copy(f.ball);
+            this.ball.velocity.copy(f.ballVel);
+            this.ball.spin = f.ballSpin;
+            for (let t = 0; t < this.teams.length; ++t) {
+                for (let p = 0; p < this.teams[t].players.length; ++p) {
+                    this.teams[t].players[p].mesh.position.copy(f.players[t][p]);
+                }
+            }
+            this.time = f.time;
+            this.score = [...f.score];
+            this.updateUI();
+            this.replayIdx++;
+        }
+
+        animate() {
+            let now = performance.now();
+            let dt = Math.min((now - this.lastFrame) / 1000, 0.05);
+            this.lastFrame = now;
+            try {
+                this.update(dt);
+                // Camera follows selected player or ball in replay
+                let camTarget;
+                if (this.state === 'replay') {
+                    camTarget = new THREE.Vector3(this.ball.mesh.position.x, 60, this.ball.mesh.position.z + 80);
+                } else {
+                    let player = this.teams[0].players[this.selectedPlayerIdx];
+                    camTarget = new THREE.Vector3(player.mesh.position.x, 60, player.mesh.position.z + 80);
+                }
+                this.camera.position.lerp(camTarget, 0.08);
+                this.camera.lookAt(this.ball.mesh.position.x, 0, this.ball.mesh.position.z);
+                // Draw player/bot names
+                this.drawLabels();
+                // Debug info
+                this.debug('Ball: ' + this.ball.mesh.position.x.toFixed(1) + ',' + this.ball.mesh.position.z.toFixed(1) + '  Vel:' + this.ball.velocity.length().toFixed(2));
+                this.renderer.render(this.scene, this.camera);
+            } catch (e) {
+                this.showOverlay('Error: ' + e.message);
+                throw e;
+            }
+            requestAnimationFrame(() => this.animate());
+        }
+        drawLabels() {
+            // Remove old labels
+            let old = document.querySelectorAll('.player-label');
+            old.forEach(e => e.remove());
+            // Project 3D to 2D
+            // Draw label for each player, but 'You' only for the controlled player
+            for (let t = 0; t < 2; ++t) {
+                for (let pIdx = 0; pIdx < TEAM_SIZE; ++pIdx) {
+                    let p = this.teams[t].players[pIdx];
+                    let pos = p.mesh.position.clone();
+                    pos.project(this.camera);
+                    let x = (pos.x * 0.5 + 0.5) * window.innerWidth;
+                    let y = (-pos.y * 0.5 + 0.5) * window.innerHeight;
+                    let label = document.createElement('div');
+                    label.className = 'player-label';
+                    label.style.position = 'absolute';
+                    label.style.left = (x-30) + 'px';
+                    label.style.top = (y-30) + 'px';
+                    if (t === 0 && pIdx === this.selectedPlayerIdx) {
+                        label.style.color = '#f39c12';
+                        label.style.fontWeight = 'bold';
+                        label.textContent = 'You';
+                    } else if (t === 0) {
+                        label.style.color = '#f39c12';
+                        label.textContent = 'Teammate';
+                    } else {
+                        label.style.color = '#e74c3c';
+                        label.textContent = 'CPU';
+                    }
+                    label.style.fontSize = '1.1em';
+                    label.style.pointerEvents = 'none';
+                    label.style.textShadow = '1px 1px 4px #000';
+                    document.body.appendChild(label);
+                }
+            }
+        }
+    }
+
+    class Field {
+        constructor(scene) {
+            // Field
+            const fieldGeo = new THREE.BoxGeometry(FIELD_LENGTH, 2, FIELD_WIDTH);
+            const fieldMat = new THREE.MeshLambertMaterial({ color: 0x27ae60 });
+            this.mesh = new THREE.Mesh(fieldGeo, fieldMat);
+            scene.add(this.mesh);
+            // Lines
+            const lineMat = new THREE.LineBasicMaterial({ color: 0xffffff });
+            const lines = new THREE.Group();
+            // Halfway line (across Z axis, halfway along X)
+            let halfwayLineGeo = new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(0, 1.1, -FIELD_WIDTH/2),
+                new THREE.Vector3(0, 1.1, FIELD_WIDTH/2)
+            ]);
+            lines.add(new THREE.Line(halfwayLineGeo, lineMat));
+            // Center circle (true circle on the pitch, not a ring mesh)
+            let centerCirclePoints = [];
+            const centerCircleRadius = 12.5;
+            for (let i = 0; i <= 64; ++i) {
+                let angle = (i / 64) * Math.PI * 2;
+                centerCirclePoints.push(new THREE.Vector3(
+                    Math.cos(angle) * centerCircleRadius,
+                    1.12,
+                    Math.sin(angle) * centerCircleRadius
+                ));
+            }
+            let centerCircleGeo = new THREE.BufferGeometry().setFromPoints(centerCirclePoints);
+            let centerCircle = new THREE.Line(centerCircleGeo, lineMat);
+            lines.add(centerCircle);
+            // Penalty boxes (at each end, along X axis)
+            let boxGeo1 = new THREE.BoxGeometry(18, 0.5, GOAL_WIDTH+8);
+            let boxMat1 = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent:true, opacity:0.12 });
+            let box1 = new THREE.Mesh(boxGeo1, boxMat1);
+            box1.position.set(-FIELD_LENGTH/2+9, 1.2, 0);
+            lines.add(box1);
+            let box2 = new THREE.Mesh(boxGeo1, boxMat1);
+            box2.position.set(FIELD_LENGTH/2-9, 1.2, 0);
+            lines.add(box2);
+            // Corner arcs: true quarter-circles in each corner (matching real football pitch corners)
+            const arcRadius = 4.25;
+            for (let signX of [-1,1]) for (let signZ of [-1,1]) {
+                // Each arc is a quarter circle, starting at the correct angle for the corner
+                let thetaStart = (signX === -1 && signZ === -1) ? 0 :
+                                 (signX === 1 && signZ === -1) ? Math.PI/2 :
+                                 (signX === 1 && signZ === 1) ? Math.PI :
+                                 (signX === -1 && signZ === 1) ? 3*Math.PI/2 : 0;
+                let arcGeo = new THREE.BufferGeometry();
+                let arcPoints = [];
+                for (let i = 0; i <= 16; ++i) {
+                    let angle = thetaStart + (Math.PI/2) * (i/16);
+                    arcPoints.push(new THREE.Vector3(
+                        Math.cos(angle) * arcRadius + signX*FIELD_LENGTH/2,
+                        1.12,
+                        Math.sin(angle) * arcRadius + signZ*FIELD_WIDTH/2
+                    ));
+                }
+                arcGeo.setFromPoints(arcPoints);
+                let arc = new THREE.Line(arcGeo, lineMat);
+                lines.add(arc);
+            }
+            scene.add(lines);
+            // Goals: left (You, orange), right (CPU, red)
+            this.addGoal(scene, -FIELD_LENGTH/2, 0xf39c12, 'left'); // You (orange)
+            this.addGoal(scene, FIELD_LENGTH/2, 0xe74c3c, 'right'); // CPU (red)
+            // Nets (simple)
+            this.addNet(scene, -FIELD_LENGTH/2, 0xf39c12);
+            this.addNet(scene, FIELD_LENGTH/2, 0xe74c3c);
+        }
+        addGoal(scene, x, color, side) {
+            // Make goal a slightly deeper box for better collision/visuals
+            const goalGeo = new THREE.BoxGeometry(3, 8, GOAL_WIDTH+2);
+            const goalMat = new THREE.MeshLambertMaterial({ color });
+            const goal = new THREE.Mesh(goalGeo, goalMat);
+            goal.position.set(x, 5, 0);
+            goal.userData = { isGoal: true, side: side };
+            scene.add(goal);
+            // Store for collision detection
+            if (!scene.goals) scene.goals = {};
+            scene.goals[side] = goal;
+        }
+        addNet(scene, x, color) {
+            // Simple net: transparent box
+            const netGeo = new THREE.BoxGeometry(4, 7, GOAL_WIDTH-2);
+            const netMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent:true, opacity:0.18, wireframe:true });
+            const net = new THREE.Mesh(netGeo, netMat);
+            net.position.set(x + (x<0?2:-2), 4.5, 0);
+            scene.add(net);
+        }
+    }
+
+    class Ball {
+        constructor(scene) {
+            const ballGeo = new THREE.SphereGeometry(BALL_RADIUS, 32, 32);
+            const ballMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+            this.mesh = new THREE.Mesh(ballGeo, ballMat);
+            this.mesh.position.set(0, BALL_RADIUS + 1, 0);
+            this.mesh.castShadow = true;
+            scene.add(this.mesh);
+            // Ball shadow
+            const shadowGeo = new THREE.CircleGeometry(BALL_RADIUS*1.1, 24);
+            const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, opacity:0.18, transparent:true });
+            this.shadow = new THREE.Mesh(shadowGeo, shadowMat);
+            this.shadow.position.set(0, 0.1, 0);
+            this.shadow.rotation.x = -Math.PI/2;
+            scene.add(this.shadow);
+            this.velocity = new THREE.Vector3();
+            this.spin = 0;
+            // Debug output for testing (safe)
+            try {
+                if (window && window.game && typeof window.game.debug === 'function') {
+                    window.game.debug('[Ball] Created at (0, ' + (BALL_RADIUS + 1) + ', 0)');
+                }
+            } catch (e) {}
+        }
+        setPosition(x, y, z) {
+            // Defensive: prevent NaN
+            if (!isFinite(x) || !isFinite(y) || !isFinite(z)) {
+                x = 0; y = BALL_RADIUS + 1; z = 0;
+                if (window && window.game && typeof window.game.debug === 'function') {
+                    window.game.debug('[Ball] setPosition received NaN, resetting to center!');
+                }
+            }
+            this.mesh.position.set(x, y, z);
+            if (this.shadow) this.shadow.position.set(x, 0.1, z);
+            // Debug output for testing (safe)
+            try {
+                if (window && window.game && typeof window.game.debug === 'function') {
+                    window.game.debug(`[Ball] setPosition(${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`);
+                }
+            } catch (e) {}
+        }
+        update(dt) {
+            // Curvy physics: add slight curve if spin exists
+            if (this.spin && (Math.abs(this.spin) > 0.01)) {
+                // Apply Magnus effect (curve)
+                let curve = this.spin * 12 * dt;
+                this.velocity.z += curve;
+                this.spin *= 0.98; // spin decays
+            }
+            // Defensive: prevent NaN in velocity
+            if (!isFinite(this.velocity.x) || !isFinite(this.velocity.y) || !isFinite(this.velocity.z)) {
+                this.velocity.set(0, 0, 0);
+                if (window && window.game && typeof window.game.debug === 'function') {
+                    window.game.debug('[Ball] velocity was NaN, reset to zero!');
+                }
+            }
+            // Move
+            this.mesh.position.addScaledVector(this.velocity, dt);
+            if (this.shadow) this.shadow.position.set(this.mesh.position.x, 0.1, this.mesh.position.z);
+            // Friction
+            this.velocity.multiplyScalar(0.98);
+            if (this.velocity.length() < 0.05) this.velocity.set(0, 0, 0);
+            // Bounds
+            this.mesh.position.x = clamp(this.mesh.position.x, -FIELD_LENGTH/2+BALL_RADIUS, FIELD_LENGTH/2-BALL_RADIUS);
+            this.mesh.position.z = clamp(this.mesh.position.z, -FIELD_WIDTH/2+BALL_RADIUS, FIELD_WIDTH/2-BALL_RADIUS);
+            // Defensive: prevent NaN in position after move
+            if (!isFinite(this.mesh.position.x) || !isFinite(this.mesh.position.y) || !isFinite(this.mesh.position.z)) {
+                this.mesh.position.set(0, BALL_RADIUS + 1, 0);
+                if (this.shadow) this.shadow.position.set(0, 0.1, 0);
+                if (window && window.game && typeof window.game.debug === 'function') {
+                    window.game.debug('[Ball] position became NaN, reset to center!');
+                }
+            }
+            // Debug output for testing (safe)
+            try {
+                if (window && window.game && typeof window.game.debug === 'function') {
+                    window.game.debug(`[Ball] update: pos=(${this.mesh.position.x.toFixed(2)}, ${this.mesh.position.y.toFixed(2)}, ${this.mesh.position.z.toFixed(2)}), vel=(${this.velocity.x.toFixed(2)}, ${this.velocity.y.toFixed(2)}, ${this.velocity.z.toFixed(2)}), spin=${this.spin.toFixed(2)}`);
+                }
+            } catch (e) {}
+        }
+    }
+
+    class Player {
+        constructor(scene, teamIdx, idx, color) {
+            // Enhanced model: head, body, legs
+            this.group = new THREE.Group();
+            // Body
+            const bodyGeo = new THREE.CylinderGeometry(PLAYER_RADIUS, PLAYER_RADIUS, PLAYER_HEIGHT, 16);
+            const bodyMat = new THREE.MeshStandardMaterial({ color });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.castShadow = true;
+            body.position.y = PLAYER_HEIGHT/2;
+            this.group.add(body);
+            // Head
+            const headGeo = new THREE.SphereGeometry(PLAYER_RADIUS*0.7, 16, 16);
+            const headMat = new THREE.MeshStandardMaterial({ color: 0xfbeee6 });
+            const head = new THREE.Mesh(headGeo, headMat);
+            head.position.y = PLAYER_HEIGHT + PLAYER_RADIUS*0.7;
+            head.castShadow = true;
+            this.group.add(head);
+            // Legs
+            for (let i = -1; i <= 1; i += 2) {
+                const legGeo = new THREE.CylinderGeometry(0.6, 0.6, PLAYER_HEIGHT/2, 8);
+                const legMat = new THREE.MeshStandardMaterial({ color: 0x222 });
+                const leg = new THREE.Mesh(legGeo, legMat);
+                leg.position.set(i*PLAYER_RADIUS*0.6, PLAYER_HEIGHT/4, 0);
+                leg.castShadow = true;
+                this.group.add(leg);
+            }
+            scene.add(this.group);
+            this.mesh = this.group;
+            this.teamIdx = teamIdx;
+            this.idx = idx;
+            this.speed = 32;
+            this.cooldown = 0;
+        }
+        setPosition(x, y, z) {
+            // Defensive: prevent NaN for Player
+            if (!isFinite(x) || !isFinite(y) || !isFinite(z)) {
+                x = 0; y = PLAYER_HEIGHT/2; z = 0;
+                if (window && window.game && typeof window.game.debug === 'function') {
+                    window.game.debug('[Player] setPosition received NaN, resetting to center!');
+                }
+            }
+            this.mesh.position.set(x, y, z);
+        }
+        move(dir, dt) {
+            if (dir.length() === 0) return;
+            dir.normalize();
+            let newX = this.mesh.position.x + dir.x * this.speed * dt;
+            let newZ = this.mesh.position.z + dir.z * this.speed * dt;
+            // Defensive: prevent NaN
+            if (!isFinite(newX)) newX = 0;
+            if (!isFinite(newZ)) newZ = 0;
+            this.mesh.position.x = clamp(newX, -FIELD_LENGTH/2+PLAYER_RADIUS, FIELD_LENGTH/2-PLAYER_RADIUS);
+            this.mesh.position.z = clamp(newZ, -FIELD_WIDTH/2+PLAYER_RADIUS, FIELD_WIDTH/2-PLAYER_RADIUS);
+        }
+        update(dt) {
+            if (this.cooldown > 0) this.cooldown -= dt;
+            if (this._tackledTimer !== undefined) {
+                this._tackledTimer -= dt;
+                if (this._tackledTimer <= 0) delete this._tackledTimer;
+            }
+        }
+        pass(ball, team) {
+            if (this.cooldown > 0) return;
+            // In 1v1, pass is a gentle nudge forward
+            let dir = new THREE.Vector3(this.teamIdx === 0 ? 1 : -1, 0, 0);
+            // Defensive: prevent NaN
+            if (!isFinite(dir.x) || !isFinite(dir.y) || !isFinite(dir.z)) dir.set(1,0,0);
+            ball.velocity.copy(dir.multiplyScalar(25));
+            if (!isFinite(ball.velocity.x) || !isFinite(ball.velocity.y) || !isFinite(ball.velocity.z)) ball.velocity.set(0,0,0);
+            ball.spin = randRange(-0.5, 0.5); // random slight curve
+            if (!isFinite(ball.spin)) ball.spin = 0;
+            this.cooldown = 0.5;
+        }
+        shoot(ball, isCPU, advancedAI) {
+            if (this.cooldown > 0) return;
+            // Shoot toward goal with possible curve
+            let goalX = this.teamIdx === 0 ? FIELD_LENGTH/2 : -FIELD_LENGTH/2;
+            let dx = goalX - this.mesh.position.x;
+            let dz = -this.mesh.position.z;
+            if (!isFinite(dx)) dx = 1;
+            if (!isFinite(dz)) dz = 0;
+            let dir = new THREE.Vector3(dx, 0, dz);
+            if (dir.length() === 0) dir.set(1,0,0);
+            dir.normalize();
+            let power = isCPU ? 45 : 55;
+            ball.velocity.copy(dir.multiplyScalar(power));
+            if (!isFinite(ball.velocity.x) || !isFinite(ball.velocity.y) || !isFinite(ball.velocity.z)) ball.velocity.set(0,0,0);
+            // Add curve for advanced AI or if player holds shift
+            if (advancedAI || (window.game && window.game.controls['shift'])) {
+                // Add spin for curve: right footed = curve left, left footed = curve right
+                ball.spin = (this.teamIdx === 0 ? 1 : -1) * randRange(0.7, 1.2);
+                if (!isFinite(ball.spin)) ball.spin = 0;
+            } else {
+                ball.spin = 0;
+            }
+            this.cooldown = 0.7;
+        }
+    }
+
+    class Team {
+        constructor(scene, teamIdx, color, name) {
+            this.players = [];
+            this.teamIdx = teamIdx;
+            this.name = name;
+            for (let i = 0; i < TEAM_SIZE; ++i) {
+                this.players.push(new Player(scene, teamIdx, i, color));
+            }
+            this.isUser = false;
+        }
+        resetPositions(xBase) {
+            for (let i = 0; i < TEAM_SIZE; ++i) {
+                let z;
+                if (TEAM_SIZE === 1) {
+                    z = 0;
+                } else {
+                    z = lerp(-FIELD_WIDTH/2+10, FIELD_WIDTH/2-10, i/(TEAM_SIZE-1));
+                }
+                this.players[i].setPosition(xBase, PLAYER_HEIGHT/2, z);
+            }
+        }
+    }
+
+    // --- Start Game ---
+    // Start the game immediately (for module scripts, window.onload may not fire as expected)
+    window.game = new Game();
+    </script>
+</body>
+</html>
