@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Simple Football Game</title>
     <link rel="stylesheet" href="assets/style.css">
+    <!-- Three.js ES Modules via CDN using import maps -->
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.154.0/build/three.module.js",
+        "three/examples/jsm/loaders/GLTFLoader.js": "https://cdn.jsdelivr.net/npm/three@0.154.0/examples/jsm/loaders/GLTFLoader.js"
+      }
+    }
+    </script>
 </head>
 <body>
     <h1>Football Game</h1>
@@ -30,7 +39,8 @@
     </div>
     <script type="module">
     // --- 3D Football Game (modular, extensible, ~2000 lines) ---
-    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.154.0/build/three.module.js';
+    import * as THREE from "three";
+    import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
     // --- Utility Functions ---
     function clamp(val, min, max) { return Math.max(min, Math.min(max, val)); }
@@ -42,6 +52,7 @@
     const FIELD_WIDTH = 80;
     const GOAL_WIDTH = 24;
     const GOAL_DEPTH = 8;
+    const GOAL_HEIGHT = 8; // Added missing constant
     const PLAYER_RADIUS = 3;
     const PLAYER_HEIGHT = 8;
     const BALL_RADIUS = 2.2;
@@ -51,6 +62,142 @@ const TEAM_SIZE = 3;
 
     // --- Game Classes ---
     class Game {
+        // Handles key up events
+        onKeyUp(e) {
+            this.debugFunctionEntry('onKeyUp', { key: e.key });
+            this.controls[e.key.toLowerCase()] = false;
+        }
+        // Draws player labels (stub for now)
+        drawLabels() {
+            // Highlight selected player with a ring
+            for (let [i, player] of this.teams[0].players.entries()) {
+                if (!player.highlightRing) {
+                    const ringGeom = new THREE.TorusGeometry(PLAYER_RADIUS+1.2, 0.5, 8, 32);
+                    const ringMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+                    const ring = new THREE.Mesh(ringGeom, ringMat);
+                    ring.position.y = 0.5;
+                    player.mesh.add(ring);
+                    player.highlightRing = ring;
+                }
+                player.highlightRing.visible = (i === this.selectedPlayerIdx);
+            }
+        }
+        // Resets all player positions to their starting locations
+        resetPositions() {
+            // User team
+            this.teams[0].resetPositions(-FIELD_LENGTH/2 + 18);
+            // CPU team
+            this.teams[1].resetPositions(FIELD_LENGTH/2 - 18 - (TEAM_SIZE-1)*8);
+            // Ball in center
+            this.ball.setPosition(0, this.ball.mesh.position.y, 0);
+            this.ball.velocity.set(0,0,0);
+        }
+        // --- Weather Effects ---
+        initWeather() {
+            // Randomly pick weather: 'clear', 'rain', 'snow', 'fog'
+            const weathers = ['clear', 'rain', 'snow', 'fog'];
+            this.weather = weathers[Math.floor(Math.random() * weathers.length)];
+            // Add weather indicator
+            let indicator = document.createElement('div');
+            indicator.id = 'weather-indicator';
+            indicator.style.position = 'fixed';
+            indicator.style.top = '12px';
+            indicator.style.right = '24px';
+            indicator.style.zIndex = '9999';
+            indicator.style.fontSize = '1.2em';
+            indicator.style.color = '#fff';
+            indicator.style.textShadow = '1px 1px 6px #000';
+            indicator.style.background = 'rgba(30,40,60,0.7)';
+            indicator.style.padding = '8px 18px';
+            indicator.style.borderRadius = '12px';
+            indicator.innerHTML = `Weather: <b>${this.weather.charAt(0).toUpperCase() + this.weather.slice(1)}</b>`;
+            document.body.appendChild(indicator);
+
+            // Add visual effects
+            if (this.weather === 'rain') this.addRain();
+            if (this.weather === 'snow') this.addSnow();
+            if (this.weather === 'fog') this.addFog();
+        }
+
+        addRain() {
+            // Simple rain particle system
+            const rainCount = 180;
+            this.rainDrops = [];
+            for (let i = 0; i < rainCount; ++i) {
+                let drop = document.createElement('div');
+                drop.className = 'rain-drop';
+                drop.style.position = 'fixed';
+                drop.style.left = Math.random()*100 + 'vw';
+                drop.style.top = Math.random()*100 + 'vh';
+                drop.style.width = '2px';
+                drop.style.height = (8+Math.random()*12) + 'px';
+                drop.style.background = 'rgba(180,220,255,0.7)';
+                drop.style.borderRadius = '1px';
+                drop.style.zIndex = '9998';
+                drop.style.pointerEvents = 'none';
+                document.body.appendChild(drop);
+                this.rainDrops.push(drop);
+            }
+            // Animate rain
+            setInterval(() => {
+                for (let drop of this.rainDrops) {
+                    let top = parseFloat(drop.style.top);
+                    top += 2 + Math.random()*3;
+                    if (top > 100) top = -Math.random()*10;
+                    drop.style.top = top + 'vh';
+                }
+            }, 40);
+        }
+
+        addSnow() {
+            // Simple snow particle system
+            const snowCount = 120;
+            this.snowFlakes = [];
+            for (let i = 0; i < snowCount; ++i) {
+                let flake = document.createElement('div');
+                flake.className = 'snow-flake';
+                flake.style.position = 'fixed';
+                flake.style.left = Math.random()*100 + 'vw';
+                flake.style.top = Math.random()*100 + 'vh';
+                flake.style.width = (3+Math.random()*3) + 'px';
+                flake.style.height = flake.style.width;
+                flake.style.background = 'rgba(255,255,255,0.85)';
+                flake.style.borderRadius = '50%';
+                flake.style.zIndex = '9998';
+                flake.style.pointerEvents = 'none';
+                document.body.appendChild(flake);
+                this.snowFlakes.push(flake);
+            }
+            // Animate snow
+            setInterval(() => {
+                for (let flake of this.snowFlakes) {
+                    let top = parseFloat(flake.style.top);
+                    top += 1 + Math.random()*1.5;
+                    if (top > 100) top = -Math.random()*10;
+                    flake.style.top = top + 'vh';
+                    let left = parseFloat(flake.style.left);
+                    left += Math.random()*0.8-0.4;
+                    if (left > 100) left = 0;
+                    if (left < 0) left = 100;
+                    flake.style.left = left + 'vw';
+                }
+            }, 60);
+        }
+
+        addFog() {
+            // Add fog overlay
+            let fog = document.createElement('div');
+            fog.id = 'fog-overlay';
+            fog.style.position = 'fixed';
+            fog.style.left = '0';
+            fog.style.top = '0';
+            fog.style.width = '100vw';
+            fog.style.height = '100vh';
+            fog.style.background = 'radial-gradient(circle at 50% 60%, rgba(200,200,220,0.22) 0%, rgba(200,200,220,0.12) 60%, rgba(200,200,220,0.04) 100%)';
+            fog.style.zIndex = '9997';
+            fog.style.pointerEvents = 'none';
+            document.body.appendChild(fog);
+        }
         // Debug: log function entry with arguments, one message per function per interval
         debugFunctionEntry(name, args) {
             let argStr = '';
@@ -219,8 +366,8 @@ const TEAM_SIZE = 3;
             }
             return poss;
         }
-        constructor() {
-        this.debugFunctionEntry('constructor');
+        constructor(userColor = 0xf39c12, cpuColor = 0xe74c3c) {
+            this.debugFunctionEntry('constructor');
             this.scene = new THREE.Scene();
             this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
             this.camera.position.set(0, 120, 180);
@@ -253,10 +400,10 @@ const TEAM_SIZE = 3;
             // Ball
             this.ball = new Ball(this.scene);
 
-            // Teams
+            // Teams (use selected colors)
             this.teams = [
-                new Team(this.scene, 0, 0xf39c12, 'You'),
-                new Team(this.scene, 1, 0xe74c3c, 'CPU')
+                new Team(this.scene, 0, userColor, 'You'),
+                new Team(this.scene, 1, cpuColor, 'CPU')
             ];
             this.teams[0].isUser = true;
             this.teams[1].isUser = false;
@@ -264,7 +411,7 @@ const TEAM_SIZE = 3;
             // Game State
             this.score = [0, 0];
             this.time = GAME_TIME;
-            this.state = 'playing'; // Only use 'playing', 'goal', 'end', 'replay', 'out', 'throw-in'
+            this.state = 'playing';
             this.lastGoalTeam = null;
             this.selectedPlayerIdx = 0;
 
@@ -278,6 +425,23 @@ const TEAM_SIZE = 3;
             this.muted = false;
             document.getElementById('muteBtn').onclick = () => this.toggleMute();
 
+            // Crowd sound with fallback and error handling
+            this.crowdAudio = new Audio();
+            this.crowdAudio.loop = true;
+            this.crowdAudio.volume = 0.18;
+            // Try main source
+            this.crowdAudio.src = 'https://cdn.pixabay.com/audio/2022/10/16/audio_12b6b7b2b2.mp3';
+            this.crowdAudio.onerror = () => {
+                // Fallback to another MP3 crowd sound
+                this.crowdAudio.src = 'https://cdn.freesound.org/previews/456/456119_5121236-lq.mp3';
+                this.crowdAudio.load();
+                this.crowdAudio.play().catch(() => {});
+            };
+            this.crowdAudio.play().catch(() => {});
+
+            // Weather
+            this.initWeather();
+
             // Replay
             this.replayBuffer = [];
             this.isReplaying = false;
@@ -285,12 +449,11 @@ const TEAM_SIZE = 3;
 
             // UI
             this.updateUI();
-            // INSTANT KICKOFF FIX: Start in 'playing' state, nudge ball, hide overlay, allow movement from frame 1
             this.resetPositions();
             let user = this.teams[0].players[0];
             let kickoffPos = user.mesh.position.clone().add(new THREE.Vector3(PLAYER_RADIUS + BALL_RADIUS + 0.5, 0, 0));
             this.ball.setPosition(kickoffPos.x, this.ball.mesh.position.y, kickoffPos.z);
-            this.ball.velocity.set(8, 0, 0); // gentle nudge forward
+            this.ball.velocity.set(8, 0, 0);
             this.state = 'playing';
             this.hideOverlay();
             if (this.sounds.melody) this.sounds.melody.play();
@@ -408,10 +571,15 @@ const TEAM_SIZE = 3;
         }
 
         onKeyDown(e) {
-        this.debugFunctionEntry('onKeyDown', { key: e.key });
+            this.debugFunctionEntry('onKeyDown', { key: e.key });
             this.controls[e.key.toLowerCase()] = true;
             if (e.key.toLowerCase() === 'r') this.startReplay();
             if (e.key.toLowerCase() === 'm') this.toggleMute();
+            // Player switch with Tab
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                this.selectedPlayerIdx = (this.selectedPlayerIdx + 1) % TEAM_SIZE;
+            }
             // Start power bar on space down (if not already active)
             if (e.key === ' ' && !this.powerBarActive && this.state === 'playing') {
                 this.powerBarActive = true;
@@ -419,27 +587,87 @@ const TEAM_SIZE = 3;
                 this.powerBarType = null;
             }
         }
-        onKeyUp(e) {
-        this.debugFunctionEntry('onKeyUp', { key: e.key });
-            this.controls[e.key.toLowerCase()] = false;
-            // On space up, trigger pass/shoot/tackle if power bar was active
-            if (e.key === ' ' && this.powerBarActive && this.state === 'playing') {
-                this.handlePowerBarAction();
-                this.powerBarActive = false;
-                this.powerBarValue = 0;
-                this.powerBarType = null;
-            }
-        }
+        animate() {
+            try {
+                // Calculate time delta
+                const now = performance.now();
+                const dt = this.lastFrame ? Math.min((now - this.lastFrame) / 1000, 0.08) : 1/60;
+                this.lastFrame = now;
 
-        resetPositions() {
-        this.debugFunctionEntry('resetPositions');
-            // Place ball at center
-            this.ball.setPosition(0, BALL_RADIUS + 1, 0);
-            this.ball.velocity.set(0, 0, 0);
-            // Place players
-            this.teams[0].resetPositions(-FIELD_LENGTH/4);
-            this.teams[1].resetPositions(FIELD_LENGTH/4);
-            this.selectedPlayerIdx = 0;
+                // Process input and update game objects
+                this.handleInput(dt);
+                // Update all players
+                for (let team of this.teams) {
+                    for (let player of team.players) {
+                        player.update(dt);
+                    }
+                }
+                // Update ball
+                this.ball.update();
+
+                // Goal detection
+                if (Math.abs(this.ball.mesh.position.x) > FIELD_LENGTH/2 - GOAL_DEPTH && Math.abs(this.ball.mesh.position.z) < GOAL_WIDTH/2) {
+                    let teamIdx = this.ball.mesh.position.x > 0 ? 0 : 1;
+                    if (this.state === 'playing') {
+                        this.scoreGoal(teamIdx);
+                        if (this.sounds.whistle) this.sounds.whistle.play();
+                    }
+                }
+
+                // Camera logic
+                let camTarget, camHeight = 60, camDist = 80;
+                if (this.state === 'replay') {
+                    camTarget = new THREE.Vector3(this.ball.mesh.position.x, camHeight, this.ball.mesh.position.z + camDist);
+                } else {
+                    let player = this.teams[0].players[this.selectedPlayerIdx];
+                    camTarget = new THREE.Vector3(player.mesh.position.x, camHeight, player.mesh.position.z + camDist);
+                }
+                // Dynamic zoom based on ball speed
+                let ballSpeed = this.ball.velocity.length();
+                camHeight = 60 + Math.min(ballSpeed * 2.5, 40);
+                camDist = 80 + Math.min(ballSpeed * 2.5, 40);
+                camTarget.y = camHeight;
+                camTarget.z = (this.state === 'replay') ? this.ball.mesh.position.z + camDist : this.teams[0].players[this.selectedPlayerIdx].mesh.position.z + camDist;
+                this.camera.position.lerp(camTarget, 0.08);
+                this.camera.lookAt(this.ball.mesh.position.x, 0, this.ball.mesh.position.z);
+                this.drawLabels();
+                this.logDebug('Ball: ' + this.ball.mesh.position.x.toFixed(1) + ',' + this.ball.mesh.position.z.toFixed(1) + '  Vel:' + this.ball.velocity.length().toFixed(2), 'ball');
+                this.renderer.render(this.scene, this.camera);
+            } catch (e) {
+                this.showOverlay('Error: ' + e.message);
+                throw e;
+            }
+            requestAnimationFrame(() => this.animate());
+        }
+        scoreGoal(teamIdx) {
+            this.debugFunctionEntry('scoreGoal', { teamIdx });
+            this.logDebug('scoreGoal called, teamIdx=' + teamIdx);
+            this.score[teamIdx]++;
+            this.updateUI();
+            this.state = 'goal';
+            let color = '#fff';
+            let player = this.teams[teamIdx] && this.teams[teamIdx].players && this.teams[teamIdx].players[0];
+            if (player && player.mesh && player.mesh.material && player.mesh.material.color && typeof player.mesh.material.color.getStyle === 'function') {
+                color = player.mesh.material.color.getStyle();
+            }
+            this.showOverlay(`<span style='color:${color};font-weight:bold;font-size:2em;'>${teamIdx === 0 ? 'You' : 'CPU'} scored!</span><br><span style='font-size:1.2em;'>🎉 GOAL! 🎉</span>`);
+            if (this.sounds.goal) this.sounds.goal.play();
+            // Play crowd cheer
+            if (this.crowdAudio) {
+                this.crowdAudio.currentTime = 0;
+                this.crowdAudio.volume = 0.45;
+                setTimeout(() => { this.crowdAudio.volume = 0.18; }, 1800);
+            }
+            if (this.sounds.melody) this.sounds.melody.play();
+            document.getElementById('replayBtn').style.display = 'inline-block';
+            this.ball.velocity.set(0,0,0);
+            for (let t of this.teams) for (let p of t.players) p.cooldown = 1;
+            setTimeout(() => {
+                this.resetPositions();
+                this.hideOverlay();
+                this.state = 'playing';
+                document.getElementById('replayBtn').style.display = 'none';
+            }, 2000);
         }
 
         switchPlayer() {
@@ -680,6 +908,28 @@ const TEAM_SIZE = 3;
             this.velocity.z *= 0.99;
             this.mesh.rotation.y += this.spin;
             this.spin *= 0.98;
+            // Ball boundary bounce
+            if (this.mesh.position.x < -FIELD_LENGTH/2 + BALL_RADIUS) {
+                this.mesh.position.x = -FIELD_LENGTH/2 + BALL_RADIUS;
+                this.velocity.x *= -0.7;
+            }
+            if (this.mesh.position.x > FIELD_LENGTH/2 - BALL_RADIUS) {
+                this.mesh.position.x = FIELD_LENGTH/2 - BALL_RADIUS;
+                this.velocity.x *= -0.7;
+            }
+            if (this.mesh.position.z < -FIELD_WIDTH/2 + BALL_RADIUS) {
+                this.mesh.position.z = -FIELD_WIDTH/2 + BALL_RADIUS;
+                this.velocity.z *= -0.7;
+            }
+            if (this.mesh.position.z > FIELD_WIDTH/2 - BALL_RADIUS) {
+                this.mesh.position.z = FIELD_WIDTH/2 - BALL_RADIUS;
+                this.velocity.z *= -0.7;
+            }
+            // Clamp Y to ground
+            if (this.mesh.position.y < 0) {
+                this.mesh.position.y = 0;
+                this.velocity.y = 0;
+            }
         }
     }
 
@@ -721,16 +971,36 @@ const TEAM_SIZE = 3;
             this.velocity = new THREE.Vector3();
             this.cooldown = 0;
             this._tackledTimer = 0;
+            this.stamina = 1.0; // 1.0 = full, 0 = exhausted
             scene.add(this.mesh);
         }
 
         createPlayer() {
-            const geometry = new THREE.CylinderGeometry(PLAYER_RADIUS, PLAYER_RADIUS, PLAYER_HEIGHT, 8);
-            const material = new THREE.MeshPhongMaterial({ color: this.color });
-            const cylinder = new THREE.Mesh(geometry, material);
-            cylinder.castShadow = true;
-            cylinder.receiveShadow = true;
-            return cylinder;
+            // Use animated human model (Soldier.glb from Three.js examples)
+            const group = new THREE.Group();
+            const loader = new GLTFLoader();
+            const modelUrl = 'https://threejs.org/examples/models/gltf/Soldier.glb';
+            loader.load(modelUrl, (gltf) => {
+                const model = gltf.scene;
+                model.scale.set(2.2, 2.2, 2.2);
+                model.traverse((obj) => {
+                    if (obj.isMesh) {
+                        obj.castShadow = true;
+                        obj.material = obj.material.clone();
+                        if (this.color && obj.material.color) {
+                            obj.material.color.set(this.color);
+                        }
+                    }
+                });
+                group.add(model);
+                // Animation
+                this.mixer = new THREE.AnimationMixer(model);
+                if (gltf.animations && gltf.animations.length > 0) {
+                    this.action = this.mixer.clipAction(gltf.animations[0]);
+                    this.action.play();
+                }
+            });
+            return group;
         }
 
         setPosition(x, y, z) {
@@ -738,7 +1008,14 @@ const TEAM_SIZE = 3;
         }
 
         move(direction, dt) {
-            const speed = 50;
+            // Stamina system: moving drains stamina, resting recovers
+            const baseSpeed = 50;
+            if (direction.length() > 0.1) {
+                this.stamina = Math.max(0, this.stamina - dt * 0.18);
+            } else {
+                this.stamina = Math.min(1, this.stamina + dt * 0.12);
+            }
+            const speed = baseSpeed * (0.5 + 0.5 * this.stamina);
             let forward = new THREE.Vector3(0, 0, -1).applyEuler(this.mesh.rotation, 'XYZ');
             let right = new THREE.Vector3(1, 0, 0).applyEuler(this.mesh.rotation, 'XYZ');
             forward.y = 0;
@@ -753,21 +1030,76 @@ const TEAM_SIZE = 3;
             this.mesh.rotation.y = Math.atan2(-forward.x, forward.z);
         }
 
-        update() {
-            if (this.cooldown > 0) this.cooldown -= 1/60;
+        update(dt=1/60) {
+            if (this.cooldown > 0) this.cooldown -= dt;
             if (this._tackledTimer) {
-                this._tackledTimer -= 1/60;
+                this._tackledTimer -= dt;
                 if (this._tackledTimer <= 0) this._tackledTimer = 0;
             }
-            this.mesh.position.add(this.velocity.clone().multiplyScalar(1/60));
-            this.velocity.y -= 0.2; // Gravity
+            // Only move in X/Z, keep Y at 0
+            let pos = this.mesh.position.clone();
+            pos.add(this.velocity.clone().multiplyScalar(dt));
+            pos.y = 0;
+            this.mesh.position.copy(pos);
             this.velocity.x *= 0.99;
             this.velocity.z *= 0.99;
+            // Animate model
+            if (this.mixer) this.mixer.update(dt);
         }
     }
 
     // --- Game Initialization ---
-    window.game = new Game();
+    // --- Main Menu UI ---
+function showMainMenu() {
+    let menu = document.createElement('div');
+    menu.id = 'main-menu';
+    menu.style.position = 'fixed';
+    menu.style.left = '0';
+    menu.style.top = '0';
+    menu.style.width = '100vw';
+    menu.style.height = '100vh';
+    menu.style.background = 'rgba(30,40,60,0.93)';
+    menu.style.display = 'flex';
+    menu.style.flexDirection = 'column';
+    menu.style.alignItems = 'center';
+    menu.style.justifyContent = 'center';
+    menu.style.zIndex = '9999';
+    menu.innerHTML = `
+        <div style="background:#222b;padding:32px 38px 28px 38px;border-radius:18px;box-shadow:0 4px 32px #000a;min-width:320px;display:flex;flex-direction:column;align-items:center;">
+            <h1 style='color:#fff;margin-bottom:18px;font-size:2.1em;'>Football Game</h1>
+            <div style='margin-bottom:18px;'>
+                <label style='color:#fff;font-size:1.1em;'>Your Team Colour: </label>
+                <input id='userColor' type='color' value='#f39c12' style='width:40px;height:32px;border:none;margin-left:8px;vertical-align:middle;'>
+            </div>
+            <div style='margin-bottom:24px;'>
+                <label style='color:#fff;font-size:1.1em;'>CPU Team Colour: </label>
+                <input id='cpuColor' type='color' value='#e74c3c' style='width:40px;height:32px;border:none;margin-left:8px;vertical-align:middle;'>
+            </div>
+            <button id='startBtn' style='font-size:1.2em;padding:10px 32px;border-radius:8px;background:#27ae60;color:#fff;border:none;box-shadow:0 2px 8px #0006;cursor:pointer;'>Start Game</button>
+        </div>
+    `;
+    document.body.appendChild(menu);
+    document.getElementById('startBtn').onclick = function() {
+        let userColor = document.getElementById('userColor').value;
+        let cpuColor = document.getElementById('cpuColor').value;
+        menu.remove();
+        startGame(userColor, cpuColor);
+    };
+}
+
+function startGame(userColor, cpuColor) {
+    // Convert hex to int
+    function hexToInt(hex) {
+        if (typeof hex === 'string' && hex.startsWith('#')) {
+            return parseInt(hex.slice(1), 16);
+        }
+        return hex;
+    }
+    window.game = new Game(hexToInt(userColor) || 0xf39c12, hexToInt(cpuColor) || 0xe74c3c);
+}
+
+window.onload = showMainMenu;
+    </script>
     </script>
 </body>
 </html>
