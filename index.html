@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Simple Football Game</title>
+<<<<<<< Updated upstream
     <link rel="stylesheet" href="assets/style.css">
     <!-- Three.js ES Modules via CDN using import maps -->
     <script type="importmap">
@@ -16,37 +17,57 @@
     </script>
 </head>
 <body>
+=======
+    <link rel="stylesheet" href="assets/style.css" />
+  </head>
+  <body>
+>>>>>>> Stashed changes
     <h1>Football Game</h1>
     <div id="scoreboard">
-        <div id="scoreline" class="scoreline">
-            <span class="score-user">You</span>
-            <span id="score-user">0</span>
-            <span class="score-separator">-</span>
-            <span id="score-cpu">0</span>
-            <span class="score-cpu">CPU</span>
-        </div>
-        <span id="info">Time: <b>90</b>s</span>
-        <span id="debug"></span>
+      <div id="scoreline" class="scoreline">
+        <span class="score-user">You</span>
+        <span id="score-user">0</span>
+        <span class="score-separator">-</span>
+        <span id="score-cpu">0</span>
+        <span class="score-cpu">CPU</span>
+      </div>
+      <span id="info">Time: <b>90</b>s</span>
+      <span id="debug"></span>
     </div>
     <div id="overlay"></div>
     <button id="replayBtn">Replay</button>
     <button id="muteBtn">🔊</button>
-    <div id="help">Controls: Arrow keys/WASD = Move | Space = Pass / Shoot / Tackle | R = Replay | M = Mute</div>
+    <div id="help">
+      Controls: Arrow keys/WASD = Move | Space = Pass / Shoot / Tackle | R =
+      Replay | M = Mute
+    </div>
     <div id="powerbar-container">
       <div id="powerbar-bg"></div>
       <div id="powerbar-fill"></div>
       <div id="powerbar-label">Power</div>
     </div>
     <script type="module">
+<<<<<<< Updated upstream
     // --- 3D Football Game (modular, extensible, ~2000 lines) ---
     import * as THREE from "three";
     import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+=======
+      // 3D Football Game using Three.js
+      import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.154.0/build/three.module.js";
+>>>>>>> Stashed changes
 
-    // --- Utility Functions ---
-    function clamp(val, min, max) { return Math.max(min, Math.min(max, val)); }
-    function lerp(a, b, t) { return a + (b - a) * t; }
-    function randRange(a, b) { return a + Math.random() * (b - a); }
+      // --- Utility Functions ---
+      function clamp(val, min, max) {
+        return Math.max(min, Math.min(max, val));
+      }
+      function lerp(a, b, t) {
+        return a + (b - a) * t;
+      }
+      function randRange(a, b) {
+        return a + Math.random() * (b - a);
+      }
 
+<<<<<<< Updated upstream
     // --- Game Constants ---
     const FIELD_LENGTH = 160;
     const FIELD_WIDTH = 80;
@@ -218,152 +239,509 @@ const TEAM_SIZE = 3;
                 }
             }
             this.logDebug('[FUNC] ' + name + '(' + argStr + ')', name);
+=======
+      // --- Game Constants ---
+      const FIELD_LENGTH = 105; // Standard football pitch length (meters)
+      const FIELD_WIDTH = 68;  // Standard football pitch width (meters)
+      const GOAL_WIDTH = 7.32; // Standard goal width (meters)
+      const GOAL_DEPTH = 2.44; // Standard goal depth (meters)
+      const PLAYER_RADIUS = 1.2;
+      const PLAYER_HEIGHT = 1.8;
+      const BALL_RADIUS = 0.22;
+      const TEAM_SIZE = 11;
+      const GAME_TIME = 90 * 60; // 90 minutes in seconds
+      const REPLAY_FRAMES = 18000; // 5 minutes at 60fps
+      const GOAL_HEIGHT = 2.44; // Standard goal height (meters)
+
+      // --- Game Classes ---
+      class Game {
+        constructor() {
+          this.debugFunctionEntry("constructor");
+          this.lastFrameTime = null;
+          this.scene = new THREE.Scene();
+          this.camera = new THREE.PerspectiveCamera(
+            60,
+            window.innerWidth / window.innerHeight,
+            0.1,
+            1000
+          );
+          this.camera.position.set(0, 160, 180); // Raise camera for better view
+          this.camera.lookAt(0, 0, 0);
+          this.renderer = new THREE.WebGLRenderer({
+            antialias: true,
+            alpha: false,
+          });
+          this.renderer.setSize(window.innerWidth, window.innerHeight);
+          this.renderer.setClearColor(0x1e824c);
+          this.renderer.shadowMap.enabled = true;
+          document.body.appendChild(this.renderer.domElement);
+          window.addEventListener("resize", () => this.onWindowResize());
+
+          // Lighting
+          this.scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+          const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+          dirLight.position.set(0, 120, 100);
+          dirLight.castShadow = true;
+          dirLight.shadow.mapSize.width = 1024;
+          dirLight.shadow.mapSize.height = 1024;
+          dirLight.shadow.camera.near = 10;
+          dirLight.shadow.camera.far = 300;
+          dirLight.shadow.camera.left = -100;
+          dirLight.shadow.camera.right = 100;
+          dirLight.shadow.camera.top = 100;
+          dirLight.shadow.camera.bottom = -100;
+          this.scene.add(dirLight);
+
+          // Field
+          this.field = new Field(this.scene);
+
+          // Ball
+          this.ball = new Ball(this.scene);
+
+          // Teams
+          this.teams = [
+            new Team(this.scene, 0, 0xf39c12, "You"),
+            new Team(this.scene, 1, 0xe74c3c, "CPU"),
+          ];
+          this.teams[0].isUser = true;
+          this.teams[1].isUser = false;
+
+          // Game State
+          this.score = [0, 0];
+          this.time = GAME_TIME;
+          this.state = "playing"; // Only use 'playing', 'goal', 'end', 'replay', 'out', 'throw-in'
+          this.lastGoalTeam = null;
+          this.selectedPlayerIdx = 0;
+
+          // Controls
+          this.controls = {};
+          document.addEventListener("keydown", (e) => this.onKeyDown(e));
+          document.addEventListener("keyup", (e) => this.onKeyUp(e));
+
+          // Sound
+          this.sounds = this.initSounds();
+          this.muted = false;
+          document.getElementById("muteBtn").onclick = () => this.toggleMute();
+
+          // Replay
+          this.replayBuffer = [];
+          this.isReplaying = false;
+          document.getElementById("replayBtn").onclick = () =>
+            this.startReplay();
+
+          // UI
+          this.updateUI();
+          // Start in 'playing' state, nudge ball, hide overlay, allow movement from frame 1
+          this.resetPositions();
+          let user = this.teams[0].players[0];
+          let kickoffPos = user.mesh.position
+            .clone()
+            .add(new THREE.Vector3(PLAYER_RADIUS + BALL_RADIUS + 0.5, 0, 0));
+          this.ball.setPosition(
+            kickoffPos.x,
+            this.ball.mesh.position.y,
+            kickoffPos.z
+          );
+          this.ball.velocity.set(8, 0, 0); // gentle nudge forward
+          this.state = "playing";
+          this.hideOverlay();
+          if (this.sounds.melody) this.sounds.melody.play();
+          this.lastFrame = performance.now();
+          this.animate();
+>>>>>>> Stashed changes
         }
-        // Debug helper: buffers all debug messages, flushes to browser console every 3 seconds
-        logDebug(msg, tag) {
-            if (!this._debugBuffer) this._debugBuffer = {};
-            if (!this._lastDebugTime) this._lastDebugTime = 0;
-            const now = performance.now();
-            // Only keep one message per tag per frame
-            if (!tag) tag = 'misc';
-            this._debugBuffer[tag] = msg;
-            // Only flush once per second
-            if (now - this._lastDebugTime > 1000) {
-                const messages = Object.values(this._debugBuffer);
-                if (messages.length > 0) {
-                    console.group('[Game Debug]');
-                    messages.forEach(m => console.debug(m));
-                    console.groupEnd();
+
+        animate() {
+          // Use requestAnimationFrame for smooth rendering
+          requestAnimationFrame(() => this.animate());
+          // Calculate time delta
+          const now = performance.now();
+          this.lastFrameTime = this.lastFrameTime || now;
+          const dt = Math.min((now - this.lastFrameTime) / 1000, 0.05); // cap delta for safety
+          this.lastFrameTime = now;
+          // Update game logic
+          this.handleInput(dt);
+
+          // Update ball physics
+          if (this.ball && typeof this.ball.update === "function") {
+            this.ball.update();
+          }
+          // Update all players
+          if (this.teams) {
+            for (const team of this.teams) {
+              for (const player of team.players) {
+                if (player && typeof player.update === "function") {
+                  player.update();
                 }
-                this._debugBuffer = {};
-                this._lastDebugTime = now;
+              }
             }
+          }
+          // Ball-player collision
+          this._handlePlayerBallCollisions();
+          // CPU AI movement
+          this._handleCPUMovement(dt);
+          // Goal and pitch boundary logic
+          this._handleGoalAndBoundaries();
+
+          // Render the scene
+          if (this.renderer && this.scene && this.camera) {
+            this.renderer.render(this.scene, this.camera);
+          }
+          // Update UI
+          this.updateUI();
+        }
+        // Handle goals and pitch boundaries
+        _handleGoalAndBoundaries() {
+          // Ball position
+          const ball = this.ball.mesh.position;
+          // Goal detection
+          // User goal (left)
+          if (
+            ball.x < -FIELD_LENGTH / 2 + GOAL_DEPTH &&
+            Math.abs(ball.z) < GOAL_WIDTH / 2 &&
+            ball.y < GOAL_HEIGHT
+          ) {
+            this._scoreGoal(1); // CPU scores
+            return;
+          }
+          // CPU goal (right)
+          if (
+            ball.x > FIELD_LENGTH / 2 - GOAL_DEPTH &&
+            Math.abs(ball.z) < GOAL_WIDTH / 2 &&
+            ball.y < GOAL_HEIGHT
+          ) {
+            this._scoreGoal(0); // User scores
+            return;
+          }
+          // Pitch boundaries (bounce or reset)
+          // Side boundaries (left/right)
+          if (ball.x < -FIELD_LENGTH / 2 + BALL_RADIUS) {
+            ball.x = -FIELD_LENGTH / 2 + BALL_RADIUS;
+            this.ball.velocity.x *= -0.7;
+          }
+          if (ball.x > FIELD_LENGTH / 2 - BALL_RADIUS) {
+            ball.x = FIELD_LENGTH / 2 - BALL_RADIUS;
+            this.ball.velocity.x *= -0.7;
+          }
+          // End boundaries (top/bottom)
+          if (ball.z < -FIELD_WIDTH / 2 + BALL_RADIUS) {
+            ball.z = -FIELD_WIDTH / 2 + BALL_RADIUS;
+            this.ball.velocity.z *= -0.7;
+          }
+          if (ball.z > FIELD_WIDTH / 2 - BALL_RADIUS) {
+            ball.z = FIELD_WIDTH / 2 - BALL_RADIUS;
+            this.ball.velocity.z *= -0.7;
+          }
+        }
+
+        // Score a goal for teamIdx (0=user, 1=cpu)
+        _scoreGoal(teamIdx) {
+          this.score[teamIdx]++;
+          this.lastGoalTeam = teamIdx;
+          this.state = "goal";
+          if (this.sounds.goal) this.sounds.goal.play();
+          this.showOverlay((teamIdx === 0 ? "You" : "CPU") + " scored!");
+          setTimeout(() => {
+            this.hideOverlay();
+            this.resetPositions();
+            this.state = "playing";
+          }, 1800);
+        }
+        // Ball-player collision: ball bounces off players
+
+        // Basic AI movement for CPU team
+
+        debugFunctionEntry(name, args) {
+          let argStr = "";
+          if (args && typeof args === "object") {
+            try {
+              argStr = Object.entries(args)
+                .map(([k, v]) => {
+                  if (
+                    typeof v === "object" &&
+                    v !== null &&
+                    "x" in v &&
+                    "z" in v
+                  ) {
+                    // Avoid nested template literals
+                    let x =
+                      v.x && typeof v.x.toFixed === "function"
+                        ? v.x.toFixed(2)
+                        : v.x;
+                    let z =
+                      v.z && typeof v.z.toFixed === "function"
+                        ? v.z.toFixed(2)
+                        : v.z;
+                    return k + "=" + "(" + x + "," + z + ")";
+                  }
+                  return k + "=" + v;
+                })
+                .join(", ");
+            } catch (e) {
+              console.error("debugFunctionEntry error:", e);
+              argStr = "[args error]";
+            }
+          }
+          this.logDebug("[FUNC] " + name + "(" + argStr + ")", name);
+        }
+        // Debug helper: buffers debug messages, flushes to browser console every 3 seconds
+        logDebug(msg, tag) {
+          if (!this._debugBuffer) this._debugBuffer = {};
+          if (!this._lastDebugTime) this._lastDebugTime = 0;
+          const now = performance.now();
+          // Only keep one message per tag per frame
+          if (!tag) tag = "misc";
+          this._debugBuffer[tag] = msg;
+          // Only flush once per second
+          if (now - this._lastDebugTime > 1000) {
+            const messages = Object.values(this._debugBuffer);
+            if (messages.length > 0) {
+              console.group("[Game Debug]");
+              messages.forEach((m) => console.debug(m));
+              console.groupEnd();
+            }
+            this._debugBuffer = {};
+            this._lastDebugTime = now;
+          }
         }
         // --- Game State ---
-        // (Removed duplicate constructor)
 
         // Helper for try/catch blocks
         safe(fn, fallback) {
-            try {
-                return fn();
-            } catch (e) {
-                console.error(e);
-                return fallback;
-            }
+          try {
+            return fn();
+          } catch (e) {
+            console.error(e);
+            return fallback;
+          }
         }
 
-        // --- Power Bar Action Handler ---
+        // Power Bar Action Handler
         handlePowerBarAction() {
-            this.debugFunctionEntry('handlePowerBarAction', { selectedPlayerIdx: this.selectedPlayerIdx });
-            this.logDebug('handlePowerBarAction called', 'handlePowerBarAction');
-            let player = this.teams[0].players[this.selectedPlayerIdx];
-            const distToBall = player.mesh.position.distanceTo(this.ball.mesh.position);
-            const canKick = distToBall < PLAYER_RADIUS + BALL_RADIUS + 2;
-            let cpuTeam = this.teams[1];
-            let cpuIdx = this._getClosestCPUPlayerIdx();
-            let cpu = cpuTeam.players[cpuIdx];
-            if (canKick && cpuIdx !== null && cpuDist < distToBall + 0.5) {
-                this._handleTackle(player, cpu);
-                return;
-            }
-            if (canKick) {
-                this._handleKickOrPass(player);
-            }
+          this.debugFunctionEntry("handlePowerBarAction", {
+            selectedPlayerIdx: this.selectedPlayerIdx,
+          });
+          this.logDebug("handlePowerBarAction called", "handlePowerBarAction");
+          let player = this.teams[0].players[this.selectedPlayerIdx];
+          const distToBall = player.mesh.position.distanceTo(this.ball.mesh.position);
+          const canKick = distToBall < PLAYER_RADIUS + BALL_RADIUS + 2;
+          let cpuTeam = this.teams[1];
+          let cpuIdx = this._getClosestCPUPlayerIdx();
+          let cpu = cpuTeam.players[cpuIdx];
+          if (canKick && cpuIdx !== null && this._cpuDist < distToBall + 0.5) {
+            this._handleTackle(player, cpu);
+            return;
+          }
+          if (canKick) {
+            this._handleKickOrPass(player, distToBall);
+          }
         }
 
         _getClosestCPUPlayerIdx() {
-            let cpuTeam = this.teams[1];
-            let cpuIdx = null, cpuDist = Infinity;
-            for (let i = 0; i < TEAM_SIZE; ++i) {
-                let d = cpuTeam.players[i].mesh.position.distanceTo(this.ball.mesh.position);
-                if (d < cpuDist) { cpuDist = d; cpuIdx = i; }
+          let cpuTeam = this.teams[1];
+          let cpuIdx = null,
+            cpuDist = Infinity;
+          for (let i = 0; i < TEAM_SIZE; ++i) {
+            let d = cpuTeam.players[i].mesh.position.distanceTo(
+              this.ball.mesh.position
+            );
+            if (d < cpuDist) {
+              cpuDist = d;
+              cpuIdx = i;
             }
-            this._cpuDist = cpuDist; // Store for use in handlePowerBarAction
-            return cpuIdx;
+          }
+          this._cpuDist = cpuDist; // Store for use in handlePowerBarAction
+          return cpuIdx;
         }
 
         _handleTackle(player, cpu) {
-            let tackleDir = new THREE.Vector3().subVectors(player.mesh.position, cpu.mesh.position).normalize();
-            this.ball.velocity.addScaledVector(tackleDir, 18);
-            this.ball.spin += randRange(-0.12, 0.12);
-            player.cooldown = 0.18;
-            cpu.cooldown = 0.7;
-            cpu._tackledTimer = 0.7;
-            if (this.sounds.kick) this.sounds.kick.play();
+          let tackleDir = new THREE.Vector3()
+            .subVectors(player.mesh.position, cpu.mesh.position)
+            .normalize();
+          this.ball.velocity.addScaledVector(tackleDir, 18);
+          this.ball.spin += randRange(-0.12, 0.12);
+          player.cooldown = 0.18;
+          cpu.cooldown = 0.7;
+          cpu._tackledTimer = 0.7;
+          if (this.sounds.kick) this.sounds.kick.play();
         }
 
-        _handleKickOrPass(player) {
-            if (!this.powerBarDir || typeof this.powerBarDir.x !== 'number' || typeof this.powerBarDir.y !== 'number' || typeof this.powerBarDir.z !== 'number') {
-                this.powerBarDir = new THREE.Vector3(1,0,0);
+        _handleKickOrPass(player, distToBall) {
+          // Show power bar UI
+          this._showPowerBarUI();
+          // Direction from player to ball
+          let toBall = new THREE.Vector3().subVectors(this.ball.mesh.position, player.mesh.position);
+          if (toBall.length() < 0.1) toBall.set(1, 0, 0);
+          toBall.normalize();
+          // Add vertical component based on power
+          toBall.y = lerp(0.1, 0.5, this.powerBarValue);
+          let passPower = lerp(16, 36, this.powerBarValue);
+          this.ball.velocity.x = toBall.x * passPower;
+          this.ball.velocity.y = toBall.y * passPower;
+          this.ball.velocity.z = toBall.z * passPower;
+          if (Math.sqrt(this.ball.velocity.x ** 2 + this.ball.velocity.z ** 2) > 40) {
+            let scale = 40 / Math.sqrt(this.ball.velocity.x ** 2 + this.ball.velocity.z ** 2);
+            this.ball.velocity.x *= scale;
+            this.ball.velocity.z *= scale;
+          }
+          this.ball.spin = randRange(-0.5, 0.5);
+          player.cooldown = 0.5;
+          if (this.sounds.pass) this.sounds.pass.play();
+          // Hide power bar after kick
+          this._hidePowerBarUI();
+        }
+        // Player-ball collision: ball bounces off players
+        _handlePlayerBallCollisions() {
+          for (const team of this.teams) {
+            for (const player of team.players) {
+              const dist = player.mesh.position.distanceTo(
+                this.ball.mesh.position
+              );
+              if (dist < PLAYER_RADIUS + BALL_RADIUS + 0.5) {
+                // Ball bounces off player
+                let collisionDir = new THREE.Vector3()
+                  .subVectors(this.ball.mesh.position, player.mesh.position)
+                  .normalize();
+                let impact = 12;
+                this.ball.velocity.addScaledVector(collisionDir, impact);
+                this.ball.spin += randRange(-0.2, 0.2);
+                // Slightly push player back
+                player.velocity.addScaledVector(collisionDir.negate(), 4);
+              }
             }
-            this.powerBarValue = Math.max(0, Math.min(1, this.powerBarValue));
-            let teammates = this.teams[0].players;
-            let bestIdx = this.selectedPlayerIdx, bestScore = -Infinity;
-            for (let i = 0; i < TEAM_SIZE; ++i) {
-                if (i === this.selectedPlayerIdx) continue;
-                let mate = teammates[i];
-                let toMate = new THREE.Vector3().subVectors(mate.mesh.position, player.mesh.position);
-                let dirScore = this.safe(() => toMate.clone().normalize().dot(this.powerBarDir), 0);
-                let ahead = mate.mesh.position.x - this.ball.mesh.position.x;
-                let awayFromCPU = 0;
-                for (let j = 0; j < TEAM_SIZE; ++j) {
-                    awayFromCPU += mate.mesh.position.distanceTo(this.teams[1].players[j].mesh.position);
+          }
+        }
+
+        // Basic AI movement for CPU team
+        _handleCPUMovement(dt) {
+          let cpuTeam = this.teams[1];
+          for (let i = 0; i < TEAM_SIZE; ++i) {
+            let cpu = cpuTeam.players[i];
+            if (cpu.cooldown <= 0 && !cpu._tackledTimer) {
+              // Forwards and midfielders attack, defenders hold position
+              let role = i === 0 ? "gk" : i < 5 ? "def" : i < 9 ? "mid" : "fwd";
+              if (role === "fwd" || role === "mid") {
+                // Attack: move towards ball, then towards user goal
+                let toBall = new THREE.Vector3().subVectors(this.ball.mesh.position, cpu.mesh.position);
+                toBall.y = 0;
+                if (toBall.length() > 0.1) toBall.normalize();
+                // If close to ball, move towards user goal
+                const distToBall = cpu.mesh.position.distanceTo(this.ball.mesh.position);
+                if (distToBall < 2.5) {
+                  let toGoal = new THREE.Vector3(-FIELD_LENGTH / 2 + GOAL_DEPTH, 0, 0).sub(cpu.mesh.position);
+                  if (toGoal.length() > 0.1) toGoal.normalize();
+                  cpu.move(toGoal, dt);
+                  // Try to shoot if very close
+                  if (distToBall < PLAYER_RADIUS + BALL_RADIUS + 1.2) {
+                    let shootDir = new THREE.Vector3(-1, lerp(0.1, 0.7, Math.random()), 0);
+                    let shootPower = lerp(18, 36, Math.random());
+                    this.ball.velocity.copy(shootDir.multiplyScalar(shootPower));
+                    this.ball.spin += randRange(-0.5, 0.5);
+                    cpu.cooldown = 1.2;
+                    if (this.sounds.kick) this.sounds.kick.play();
+                  }
+                } else {
+                  cpu.move(toBall, dt);
                 }
-                let openScore = dirScore * 2 + ahead * 1.5 + awayFromCPU * 0.5;
-                if (openScore > bestScore) { bestScore = openScore; bestIdx = i; }
+              } else if (role === "def") {
+                // Defenders: hold position, move towards ball if close
+                let homeX = this.idx === 1 ? FIELD_LENGTH / 2 - 18 : -FIELD_LENGTH / 2 + 18;
+                let homeZ = cpu.mesh.position.z;
+                let toHome = new THREE.Vector3(homeX, 0, homeZ).sub(cpu.mesh.position);
+                if (toHome.length() > 0.1) toHome.normalize();
+                cpu.move(toHome, dt);
+                // If ball is close, move towards ball
+                const distToBall = cpu.mesh.position.distanceTo(this.ball.mesh.position);
+                if (distToBall < 6) {
+                  let toBall = new THREE.Vector3().subVectors(this.ball.mesh.position, cpu.mesh.position);
+                  toBall.y = 0;
+                  if (toBall.length() > 0.1) toBall.normalize();
+                  cpu.move(toBall, dt);
+                }
+              } else {
+                // Goalkeeper: stay near goal
+                let gkX = FIELD_LENGTH / 2 - 6;
+                let gkZ = 0;
+                let toHome = new THREE.Vector3(gkX, 0, gkZ).sub(cpu.mesh.position);
+                if (toHome.length() > 0.1) toHome.normalize();
+                cpu.move(toHome, dt);
+              }
             }
-            if (bestIdx !== this.selectedPlayerIdx && bestScore > 1.5) {
-                this._handlePass(player, teammates[bestIdx], bestIdx);
-                return;
-            }
-            this._handleShoot(player);
-        }
-
-        _handlePass(player, mate, bestIdx) {
-            let toMate = new THREE.Vector3().subVectors(mate.mesh.position, player.mesh.position).normalize();
-            let passPower = lerp(16, 36, this.powerBarValue);
-            this.ball.velocity.copy(toMate.multiplyScalar(passPower));
-            if (this.ball.velocity.length() > 40) this.ball.velocity.setLength(40);
-            this.ball.spin = randRange(-0.5, 0.5);
-            player.cooldown = 0.5;
-            if (this.sounds.pass) this.sounds.pass.play();
-            this.selectedPlayerIdx = bestIdx;
+          }
         }
 
         _handleShoot(player) {
-            let nearGoal = (player.mesh.position.x > FIELD_LENGTH/2 - 24);
-            let shootDir = this.safe(() => this.powerBarDir.clone(), new THREE.Vector3(1,0,0));
-            if (shootDir.length() < 0.1) shootDir.set(1,0,0);
-            shootDir.normalize();
-            if (nearGoal) {
-                let shootPower = lerp(28, 60, this.powerBarValue);
-                this.ball.velocity.copy(shootDir.multiplyScalar(shootPower));
-                if (this.ball.velocity.length() > 60) this.ball.velocity.setLength(60);
-                this.ball.spin = randRange(-1, 1) * this.powerBarValue;
-                player.cooldown = 0.7;
-                if (this.sounds.kick) this.sounds.kick.play();
-            } else {
-                let shootPower = lerp(18, 40, this.powerBarValue);
-                this.ball.velocity.copy(shootDir.multiplyScalar(shootPower));
-                if (this.ball.velocity.length() > 45) this.ball.velocity.setLength(45);
-                this.ball.spin = randRange(-0.7, 0.7) * this.powerBarValue;
-                player.cooldown = 0.5;
-                if (this.sounds.kick) this.sounds.kick.play();
+          let nearGoal = player.mesh.position.x > FIELD_LENGTH / 2 - 24;
+          let shootDir = this.safe(
+            () => this.powerBarDir.clone(),
+            new THREE.Vector3(1, 0, 0)
+          );
+          if (shootDir.length() < 0.1) shootDir.set(1, 0, 0);
+          // Ensure shootDir is normalized in x and z only
+          let flatDir = shootDir.clone();
+          flatDir.y = 0;
+          if (flatDir.length() > 0.1) flatDir.normalize();
+          shootDir.x = flatDir.x;
+          shootDir.z = flatDir.z;
+          shootDir.normalize();
+          // Add vertical lift for shots
+          shootDir.y = lerp(0.2, 1.2, this.powerBarValue);
+          if (nearGoal) {
+            let shootPower = lerp(28, 60, this.powerBarValue);
+            this.ball.velocity.x = shootDir.x * shootPower;
+            this.ball.velocity.y = shootDir.y * shootPower;
+            this.ball.velocity.z = shootDir.z * shootPower;
+            if (
+              Math.sqrt(this.ball.velocity.x ** 2 + this.ball.velocity.z ** 2) >
+              60
+            ) {
+              let scale =
+                60 /
+                Math.sqrt(
+                  this.ball.velocity.x ** 2 + this.ball.velocity.z ** 2
+                );
+              this.ball.velocity.x *= scale;
+              this.ball.velocity.z *= scale;
             }
+            this.ball.spin = randRange(-1, 1) * this.powerBarValue;
+            player.cooldown = 0.7;
+            if (this.sounds.kick) this.sounds.kick.play();
+          } else {
+            let shootPower = lerp(18, 40, this.powerBarValue);
+            this.ball.velocity.x = shootDir.x * shootPower;
+            this.ball.velocity.y = shootDir.y * shootPower;
+            this.ball.velocity.z = shootDir.z * shootPower;
+            if (
+              Math.sqrt(this.ball.velocity.x ** 2 + this.ball.velocity.z ** 2) >
+              45
+            ) {
+              let scale =
+                45 /
+                Math.sqrt(
+                  this.ball.velocity.x ** 2 + this.ball.velocity.z ** 2
+                );
+              this.ball.velocity.x *= scale;
+              this.ball.velocity.z *= scale;
+            }
+            this.ball.spin = randRange(-0.7, 0.7) * this.powerBarValue;
+            player.cooldown = 0.5;
+            if (this.sounds.kick) this.sounds.kick.play();
+          }
         }
         // Returns {teamIdx, playerIdx} if a player is in possession, else null
         getPossession() {
-        this.debugFunctionEntry('getPossession');
-            let minDist = Infinity, poss = null;
-            for (const [tIdx, team] of this.teams.entries()) {
-                for (const [pIdx, player] of team.players.entries()) {
-                    let d = player.mesh.position.distanceTo(this.ball.mesh.position);
-                    if (d < PLAYER_RADIUS + BALL_RADIUS + 1.2 && d < minDist) {
-                        minDist = d;
-                        poss = { teamIdx: tIdx, playerIdx: pIdx };
-                    }
-                }
+          this.debugFunctionEntry("getPossession");
+          let minDist = Infinity,
+            poss = null;
+          for (const [tIdx, team] of this.teams.entries()) {
+            for (const [pIdx, player] of team.players.entries()) {
+              let d = player.mesh.position.distanceTo(this.ball.mesh.position);
+              if (d < PLAYER_RADIUS + BALL_RADIUS + 1.2 && d < minDist) {
+                minDist = d;
+                poss = { teamIdx: tIdx, playerIdx: pIdx };
+              }
             }
+<<<<<<< Updated upstream
             return poss;
         }
         constructor(userColor = 0xf39c12, cpuColor = 0xe74c3c) {
@@ -459,118 +837,141 @@ const TEAM_SIZE = 3;
             if (this.sounds.melody) this.sounds.melody.play();
             this.lastFrame = performance.now();
             this.animate();
+=======
+          }
+          return poss;
+>>>>>>> Stashed changes
         }
         initSounds() {
-        this.debugFunctionEntry('initSounds');
-            // Drum-like web audio API sounds (softer, percussive) and a melody
-            const ctx = window.AudioContext ? new window.AudioContext() : null;
-            function drum(type, dur, vol=0.2, freq=120) {
-                if (!ctx) return { play:()=>{} };
-                return {
-                    play: () => {
-                        if (window.game && window.game.muted) return;
-                        let o = ctx.createOscillator();
-                        let g = ctx.createGain();
-                        let b = ctx.createBiquadFilter();
-                        o.type = type; // 'sine', 'triangle', 'square', 'sawtooth'
-                        o.frequency.setValueAtTime(freq, ctx.currentTime);
-                        // Pitch drop for drum effect
-                        o.frequency.linearRampToValueAtTime(40, ctx.currentTime + dur/1000);
-                        g.gain.setValueAtTime(vol, ctx.currentTime);
-                        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur/1000);
-                        b.type = 'lowpass';
-                        b.frequency.value = 800;
-                        o.connect(b).connect(g).connect(ctx.destination);
-                        o.start();
-                        o.stop(ctx.currentTime + dur/1000);
-                    }
-                };
-            }
-            // Little melody: array of [freq, duration(ms)]
-            function melody(notes, vol=0.13, type='triangle', tempo=1.0) {
-                if (!ctx) return { play:()=>{} };
-                return {
-                    play: () => {
-                        if (window.game && window.game.muted) return;
-                        let now = ctx.currentTime;
-                        let t = now;
-                        for (const note of notes) {
-                            let [freq, dur] = note;
-                            let o = ctx.createOscillator();
-                            let g = ctx.createGain();
-                            o.type = type;
-                            o.frequency.setValueAtTime(freq, t);
-                            g.gain.setValueAtTime(vol, t);
-                            g.gain.linearRampToValueAtTime(0.001, t + dur/1000*tempo);
-                            o.connect(g).connect(ctx.destination);
-                            o.start(t);
-                            o.stop(t + dur/1000*tempo);
-                            t += dur/1000*tempo;
-                        }
-                    }
-                };
-            }
-            // Simple football-y tune (C E G E | F D C)
-            const mainMelody = [
-                [261.63, 180], [329.63, 180], [392.00, 180], [329.63, 180],
-                [349.23, 180], [293.66, 180], [261.63, 320]
-            ];
+          this.debugFunctionEntry("initSounds");
+          // Drum-like web audio API sounds and a melody
+          const ctx = window.AudioContext ? new window.AudioContext() : null;
+          function drum(type, dur, vol = 0.2, freq = 120) {
+            if (!ctx) return { play: () => {} };
             return {
-                goal: drum('triangle', 320, 0.22, 180), // deeper drum
-                kick: drum('sine', 90, 0.13, 120),      // soft kick drum
-                pass: drum('triangle', 70, 0.10, 200),  // snare-like
-                whistle: drum('triangle', 420, 0.16, 400), // higher, short
-                end: drum('sine', 900, 0.16, 80),        // long, deep
-                melody: melody(mainMelody, 0.13, 'triangle', 1.0)
+              play: () => {
+                if (window.game && window.game.muted) return;
+                let o = ctx.createOscillator();
+                let g = ctx.createGain();
+                let b = ctx.createBiquadFilter();
+                o.type = type; // 'sine', 'triangle', 'square', 'sawtooth'
+                o.frequency.setValueAtTime(freq, ctx.currentTime);
+                // Pitch drop for drum effect
+                o.frequency.linearRampToValueAtTime(
+                  40,
+                  ctx.currentTime + dur / 1000
+                );
+                g.gain.setValueAtTime(vol, ctx.currentTime);
+                g.gain.exponentialRampToValueAtTime(
+                  0.001,
+                  ctx.currentTime + dur / 1000
+                );
+                b.type = "lowpass";
+                b.frequency.value = 800;
+                o.connect(b).connect(g).connect(ctx.destination);
+                o.start();
+                o.stop(ctx.currentTime + dur / 1000);
+              },
             };
+          }
+          // Little melody: array of [freq, duration(ms)]
+          function melody(notes, vol = 0.13, type = "triangle", tempo = 1.0) {
+            if (!ctx) return { play: () => {} };
+            return {
+              play: () => {
+                if (window.game && window.game.muted) return;
+                let now = ctx.currentTime;
+                let t = now;
+                for (const note of notes) {
+                  let [freq, dur] = note;
+                  let o = ctx.createOscillator();
+                  let g = ctx.createGain();
+                  o.type = type;
+                  o.frequency.setValueAtTime(freq, t);
+                  g.gain.setValueAtTime(vol, t);
+                  g.gain.linearRampToValueAtTime(
+                    0.001,
+                    t + (dur / 1000) * tempo
+                  );
+                  o.connect(g).connect(ctx.destination);
+                  o.start(t);
+                  o.stop(t + (dur / 1000) * tempo);
+                  t += (dur / 1000) * tempo;
+                }
+              },
+            };
+          }
+          // Simple football-y tune
+          const mainMelody = [
+            [261.63, 180],
+            [329.63, 180],
+            [392.0, 180],
+            [329.63, 180],
+            [349.23, 180],
+            [293.66, 180],
+            [261.63, 320],
+          ];
+          return {
+            goal: drum("triangle", 320, 0.22, 180), // deeper drum
+            kick: drum("sine", 90, 0.13, 120), // soft kick drum
+            pass: drum("triangle", 70, 0.1, 200), // snare-like
+            whistle: drum("triangle", 420, 0.16, 400), // higher, short
+            end: drum("sine", 900, 0.16, 80), // long, deep
+            melody: melody(mainMelody, 0.13, "triangle", 1.0),
+          };
         }
         toggleMute() {
-        this.debugFunctionEntry('toggleMute');
-            this.muted = !this.muted;
-            document.getElementById('muteBtn').textContent = this.muted ? '🔇' : '🔊';
+          this.debugFunctionEntry("toggleMute");
+          this.muted = !this.muted;
+          document.getElementById("muteBtn").textContent = this.muted
+            ? "🔇"
+            : "🔊";
         }
 
         onWindowResize() {
-        this.debugFunctionEntry('onWindowResize');
-            this.camera.aspect = window.innerWidth / window.innerHeight;
-            this.camera.updateProjectionMatrix();
-            this.renderer.setSize(window.innerWidth, window.innerHeight);
+          this.debugFunctionEntry("onWindowResize");
+          this.camera.aspect = window.innerWidth / window.innerHeight;
+          this.camera.updateProjectionMatrix();
+          this.renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
         updateUI() {
-        this.debugFunctionEntry('updateUI');
-            // Update scoreboard in top-left corner
-            let scoreboard = document.getElementById('scoreboard');
-            if (!scoreboard) return;
-            // Refactored to avoid nested template literals
-            const scoreUser = `<span class="score-user">You</span><span id="score-user">${this.score[0]}</span>`;
-            const scoreSeparator = `<span class="score-separator">-</span>`;
-            const scoreCpu = `<span id="score-cpu">${this.score[1]}</span><span class="score-cpu">CPU</span>`;
-            const scoreline = `<div id="scoreline" class="scoreline">${scoreUser}${scoreSeparator}${scoreCpu}</div>`;
-            const timeInfo = `<span id="info">Time: <b>${Math.floor(this.time)}</b>s</span>`;
-            const debugInfo = `<span id="debug"></span>`;
-            scoreboard.innerHTML = scoreline + timeInfo + debugInfo;
+          this.debugFunctionEntry("updateUI");
+          // Update scoreboard in top-left corner
+          let scoreboard = document.getElementById("scoreboard");
+          if (!scoreboard) return;
+          // Refactored to avoid nested template literals
+          const scoreUser = `<span class="score-user">You</span><span id="score-user">${this.score[0]}</span>`;
+          const scoreSeparator = `<span class="score-separator">-</span>`;
+          const scoreCpu = `<span id="score-cpu">${this.score[1]}</span><span class="score-cpu">CPU</span>`;
+          const scoreline = `<div id="scoreline" class="scoreline">${scoreUser}${scoreSeparator}${scoreCpu}</div>`;
+          const timeInfo = `<span id="info">Time: <b>${Math.floor(
+            this.time
+          )}</b>s</span>`;
+          const debugInfo = `<span id="debug"></span>`;
+          scoreboard.innerHTML = scoreline + timeInfo + debugInfo;
         }
         showOverlay(msg) {
-        this.debugFunctionEntry('showOverlay', { msg });
-            let overlay = document.getElementById('overlay');
-            if (overlay) {
-                overlay.innerHTML = msg;
-                overlay.style.display = 'flex';
-            }
+          this.debugFunctionEntry("showOverlay", { msg });
+          let overlay = document.getElementById("overlay");
+          if (overlay) {
+            overlay.innerHTML = msg;
+            overlay.style.display = "flex";
+          }
         }
         hideOverlay() {
-        this.debugFunctionEntry('hideOverlay');
-            let overlay = document.getElementById('overlay');
-            if (overlay) overlay.style.display = 'none';
+          this.debugFunctionEntry("hideOverlay");
+          let overlay = document.getElementById("overlay");
+          if (overlay) overlay.style.display = "none";
         }
-        // Removed in-game debug overlay
+        // Debug overlay removed
         debug(msg) {
-        this.debugFunctionEntry('debug', { msg });
-            // No-op: debug overlay removed
+          this.debugFunctionEntry("debug", { msg });
+          // No-op: debug overlay removed
         }
 
         onKeyDown(e) {
+<<<<<<< Updated upstream
             this.debugFunctionEntry('onKeyDown', { key: e.key });
             this.controls[e.key.toLowerCase()] = true;
             if (e.key.toLowerCase() === 'r') this.startReplay();
@@ -668,240 +1069,366 @@ const TEAM_SIZE = 3;
                 this.state = 'playing';
                 document.getElementById('replayBtn').style.display = 'none';
             }, 2000);
+=======
+          this.debugFunctionEntry("onKeyDown", { key: e.key });
+          this.controls[e.key.toLowerCase()] = true;
+          if (e.key.toLowerCase() === "r") this.startReplay();
+          if (e.key.toLowerCase() === "m") this.toggleMute();
+          // Start power bar on space down (if not already active)
+          if (
+            e.key === " " &&
+            !this.powerBarActive &&
+            this.state === "playing"
+          ) {
+            this.powerBarActive = true;
+            this.powerBarValue = 0;
+            this.powerBarType = null;
+          }
+        }
+        onKeyUp(e) {
+          this.debugFunctionEntry("onKeyUp", { key: e.key });
+          this.controls[e.key.toLowerCase()] = false;
+          // On space up, trigger pass/shoot/tackle if power bar was active
+          if (
+            e.key === " " &&
+            this.powerBarActive &&
+            this.state === "playing"
+          ) {
+            this.handlePowerBarAction();
+            this.powerBarActive = false;
+            this.powerBarValue = 0;
+            this.powerBarType = null;
+          }
+        }
+
+        resetPositions() {
+          this.debugFunctionEntry("resetPositions");
+          // Place ball at center
+          this.ball.setPosition(0, BALL_RADIUS + 1, 0);
+          this.ball.velocity.set(0, 0, 0);
+          // Place players
+          this.teams[0].resetPositions(-FIELD_LENGTH / 4);
+          this.teams[1].resetPositions(FIELD_LENGTH / 4);
+          this.selectedPlayerIdx = 0;
+>>>>>>> Stashed changes
         }
 
         switchPlayer() {
-        this.debugFunctionEntry('switchPlayer');
-            // Switch to closest player to ball
-            let minDist = 9999, idx = 0;
-            for (let i = 0; i < TEAM_SIZE; ++i) {
-                let d = this.teams[0].players[i].mesh.position.distanceTo(this.ball.mesh.position);
-                if (d < minDist) { minDist = d; idx = i; }
+          this.debugFunctionEntry("switchPlayer");
+          // Switch to closest player to ball
+          let minDist = 9999,
+            idx = 0;
+          for (let i = 0; i < TEAM_SIZE; ++i) {
+            let d = this.teams[0].players[i].mesh.position.distanceTo(
+              this.ball.mesh.position
+            );
+            if (d < minDist) {
+              minDist = d;
+              idx = i;
             }
-            this.selectedPlayerIdx = idx;
+          }
+          this.selectedPlayerIdx = idx;
         }
 
         handleInput(dt) {
-            this.debugFunctionEntry('handleInput', { dt });
-            this.logDebug('[Input] dt=' + dt.toFixed(4) +
-                ' | SelectedPlayerIdx=' + this.selectedPlayerIdx +
-                ' | PlayerPos=' + this.teams[0].players[this.selectedPlayerIdx].mesh.position.x.toFixed(2) + ',' + this.teams[0].players[this.selectedPlayerIdx].mesh.position.z.toFixed(2) +
-                ' | PlayerVel=' + (this.teams[0].players[this.selectedPlayerIdx].velocity ? this.teams[0].players[this.selectedPlayerIdx].velocity.length().toFixed(2) : 'n/a') +
-                ' | Cooldown=' + this.teams[0].players[this.selectedPlayerIdx].cooldown.toFixed(2) +
-                ' | BallPos=' + this.ball.mesh.position.x.toFixed(2) + ',' + this.ball.mesh.position.z.toFixed(2) +
-                ' | BallVel=' + this.ball.velocity.length().toFixed(2) +
-                ' | BallSpin=' + this.ball.spin.toFixed(2)
-            );
-            // --- Throw-in Controls ---
-            if (this.state === 'throw-in' && this.throwInActive) {
-                this._handleThrowIn(dt);
-                return;
-            }
-            // --- User Player Movement ---
-            if (this.state === 'playing') {
-                this._handleUserMovement(dt);
-            }
-            // ...existing code...
+          this.debugFunctionEntry("handleInput", { dt });
+          this.logDebug(
+            "[Input] dt=" +
+              dt.toFixed(4) +
+              " | SelectedPlayerIdx=" +
+              this.selectedPlayerIdx +
+              " | PlayerPos=" +
+              this.teams[0].players[
+                this.selectedPlayerIdx
+              ].mesh.position.x.toFixed(2) +
+              "," +
+              this.teams[0].players[
+                this.selectedPlayerIdx
+              ].mesh.position.z.toFixed(2) +
+              " | PlayerVel=" +
+              (this.teams[0].players[this.selectedPlayerIdx].velocity
+                ? this.teams[0].players[this.selectedPlayerIdx].velocity
+                    .length()
+                    .toFixed(2)
+                : "n/a") +
+              " | Cooldown=" +
+              this.teams[0].players[this.selectedPlayerIdx].cooldown.toFixed(
+                2
+              ) +
+              " | BallPos=" +
+              this.ball.mesh.position.x.toFixed(2) +
+              "," +
+              this.ball.mesh.position.z.toFixed(2) +
+              " | BallVel=" +
+              this.ball.velocity.length().toFixed(2) +
+              " | BallSpin=" +
+              this.ball.spin.toFixed(2)
+          );
+          // --- Throw-in Controls ---
+          if (this.state === "throw-in" && this.throwInActive) {
+            this._handleThrowIn(dt);
+            return;
+          }
+          // --- User Player Movement ---
+          if (this.state === "playing") {
+            this._handleUserMovement(dt);
+          }
         }
 
         _handleThrowIn(dt) {
-            if (this.throwInTeam === this.teams[0]) {
-                this._selectNearestUserPlayerForThrowIn();
-            }
-            let team = this.throwInTeam;
-            let idx = (team === this.teams[0]) ? this.selectedPlayerIdx : 0;
-            let player = team.players[idx];
-            this._showPowerBarUI();
-            this.powerBarValue = Math.min(this.powerBarValue + dt * 2.2, 1);
-            let dir = this._getInputDirection();
-            if (this.powerBarDir) {
-                this.powerBarDir.copy(dir);
-            } else {
-                this.powerBarDir = dir.clone();
-            }
-            this._updatePowerBarUI();
-            if (!this.controls[' ']) {
-                this._executeThrowIn(player);
-            }
+          if (this.throwInTeam === this.teams[0]) {
+            this._selectNearestUserPlayerForThrowIn();
+          }
+          let team = this.throwInTeam;
+          let idx = team === this.teams[0] ? this.selectedPlayerIdx : 0;
+          let player = team.players[idx];
+          this._showPowerBarUI();
+          this.powerBarValue = Math.min(this.powerBarValue + dt * 2.2, 1);
+          let dir = this._getInputDirection();
+          if (this.powerBarDir) {
+            this.powerBarDir.copy(dir);
+          } else {
+            this.powerBarDir = dir.clone();
+          }
+          this._updatePowerBarUI();
+          if (!this.controls[" "]) {
+            this._executeThrowIn(player);
+          }
         }
 
         _selectNearestUserPlayerForThrowIn() {
-            let minDist = Infinity, idx = 0;
-            for (let [i, player] of this.teams[0].players.entries()) {
-                let d = player.mesh.position.distanceTo(this.throwInPos);
-                if (d < minDist) { minDist = d; idx = i; }
+          let minDist = Infinity,
+            idx = 0;
+          for (let [i, player] of this.teams[0].players.entries()) {
+            let d = player.mesh.position.distanceTo(this.throwInPos);
+            if (d < minDist) {
+              minDist = d;
+              idx = i;
             }
-            this.selectedPlayerIdx = idx;
+          }
+          this.selectedPlayerIdx = idx;
         }
 
         _showPowerBarUI() {
-            let pb = document.getElementById('powerbar-container');
-            if (pb) pb.style.display = 'block';
+          let pb = document.getElementById("powerbar-container");
+          if (pb) pb.style.display = "block";
+          let fill = document.getElementById("powerbar-fill");
+          if (fill) fill.style.width = (this.powerBarValue * 100).toFixed(1) + "%";
+          let label = document.getElementById("powerbar-label");
+          if (label) label.textContent = "Power: " + Math.round(this.powerBarValue * 100) + "%";
         }
-
-        _getInputDirection() {
-            let dir = new THREE.Vector3();
-            if (this.controls['arrowup'] || this.controls['w']) dir.z -= 1;
-            if (this.controls['arrowdown'] || this.controls['s']) dir.z += 1;
-            if (this.controls['arrowleft'] || this.controls['a']) dir.x -= 1;
-            if (this.controls['arrowright'] || this.controls['d']) dir.x += 1;
-            if (isNaN(dir.x) || isNaN(dir.y) || isNaN(dir.z)) dir.set(1,0,0);
-            if (dir.length() > 0.1) dir.normalize();
-            else dir.set(1,0,0);
-            return dir;
-        }
-
-        _updatePowerBarUI() {
-            let fill = document.getElementById('powerbar-fill');
-            if (fill) fill.style.width = (this.powerBarValue*100).toFixed(1)+'%';
-            let label = document.getElementById('powerbar-label');
-            if (label) label.textContent = 'Throw-in Power: ' + Math.round(this.powerBarValue*100) + '%';
+        _hidePowerBarUI() {
+          let pb = document.getElementById("powerbar-container");
+          if (pb) pb.style.display = "none";
         }
 
         _executeThrowIn(player) {
-            let pb = document.getElementById('powerbar-container');
-            let throwDir = this.powerBarDir.clone();
-            if (throwDir.length() < 0.1) throwDir.set(1,0,0);
-            throwDir.normalize();
-            let throwPower = lerp(18, 38, this.powerBarValue);
-            let curve = lerp(0, 1.2, this.powerBarValue);
-            let curveVec = new THREE.Vector3(-throwDir.z, 0, throwDir.x).multiplyScalar(curve);
-            let finalDir = throwDir.clone().add(curveVec).normalize();
-            this.ball.velocity.copy(finalDir.multiplyScalar(throwPower));
-            this.ball.spin = curve * 2;
-            player.cooldown = 0.5;
-            this.throwInActive = false;
-            this.state = 'playing';
-            if (this.sounds.pass) this.sounds.pass.play();
-            if (pb) pb.style.display = 'none';
+          let pb = document.getElementById("powerbar-container");
+          let throwDir = this.powerBarDir.clone();
+          if (throwDir.length() < 0.1) throwDir.set(1, 0, 0);
+          throwDir.normalize();
+          let throwPower = lerp(18, 38, this.powerBarValue);
+          let curve = lerp(0, 1.2, this.powerBarValue);
+          let curveVec = new THREE.Vector3(
+            -throwDir.z,
+            0,
+            throwDir.x
+          ).multiplyScalar(curve);
+          let finalDir = throwDir.clone().add(curveVec).normalize();
+          this.ball.velocity.copy(finalDir.multiplyScalar(throwPower));
+          this.ball.spin = curve * 2;
+          player.cooldown = 0.5;
+          this.throwInActive = false;
+          this.state = "playing";
+          if (this.sounds.pass) this.sounds.pass.play();
+          if (pb) pb.style.display = "none";
         }
 
         _handleUserMovement(dt) {
-            let player = this.teams[0].players[this.selectedPlayerIdx];
-            if (player.cooldown <= 0 && !player._tackledTimer) {
-                let moveDir = this._getInputDirectionForMovement();
-                player.move(moveDir, dt);
-                this._handleDribble(player, moveDir, dt);
-            }
+          let player = this.teams[0].players[this.selectedPlayerIdx];
+          if (player.cooldown <= 0 && !player._tackledTimer) {
+            let moveDir = this._getInputDirectionForMovement();
+            player.move(moveDir, dt);
+            this._handleDribble(player, moveDir, dt);
+          }
         }
 
         _getInputDirectionForMovement() {
-            let moveDir = new THREE.Vector3();
-            if (this.controls['arrowup'] || this.controls['w']) moveDir.z -= 1;
-            if (this.controls['arrowdown'] || this.controls['s']) moveDir.z += 1;
-            if (this.controls['arrowleft'] || this.controls['a']) moveDir.x -= 1;
-            if (this.controls['arrowright'] || this.controls['d']) moveDir.x += 1;
-            if (isNaN(moveDir.x) || isNaN(moveDir.y) || isNaN(moveDir.z)) moveDir.set(0,0,0);
-            if (moveDir.length() > 0.1) moveDir.normalize();
-            return moveDir;
+          let moveDir = new THREE.Vector3();
+          if (this.controls["arrowup"] || this.controls["w"]) moveDir.z -= 1;
+          if (this.controls["arrowdown"] || this.controls["s"]) moveDir.z += 1;
+          if (this.controls["arrowleft"] || this.controls["a"]) moveDir.x -= 1;
+          if (this.controls["arrowright"] || this.controls["d"]) moveDir.x += 1;
+          if (isNaN(moveDir.x) || isNaN(moveDir.y) || isNaN(moveDir.z))
+            moveDir.set(0, 0, 0);
+          if (moveDir.length() > 0.1) moveDir.normalize();
+          return moveDir;
         }
 
         _handleDribble(player, moveDir, dt) {
-            const distToBall = player.mesh.position.distanceTo(this.ball.mesh.position);
-            if (distToBall < PLAYER_RADIUS + BALL_RADIUS + 1.2 && moveDir.length() > 0.1) {
-                let dribblePower = 18 * dt;
-                let ballDir = moveDir.clone();
-                ballDir.y = 0;
-                this.ball.velocity.addScaledVector(ballDir, dribblePower);
-                this.ball.spin += (Math.random()-0.5) * 0.04;
-            }
+          const distToBall = player.mesh.position.distanceTo(
+            this.ball.mesh.position
+          );
+          if (
+            distToBall < PLAYER_RADIUS + BALL_RADIUS + 1.2 &&
+            moveDir.length() > 0.1
+          ) {
+            let dribblePower = 18 * dt;
+            let ballDir = moveDir.clone();
+            ballDir.y = 0; // keep ball on ground for dribble
+            if (ballDir.length() > 0.1) ballDir.normalize();
+            // Set ball velocity to follow player, not accumulate
+            this.ball.velocity.x = ballDir.x * dribblePower;
+            this.ball.velocity.z = ballDir.z * dribblePower;
+            this.ball.velocity.y = 0; // keep ball on ground
+            this.ball.spin += (Math.random() - 0.5) * 0.04;
+          }
         }
-        // ...existing code...
-    }
+      }
 
-    class Field {
+      class Field {
         constructor(scene) {
-            this.scene = scene;
-            this.mesh = this.createField();
-            this.lines = this.createLines();
-            this.goalposts = this.createGoalposts();
-            this.scene.add(this.mesh);
-            this.scene.add(this.lines);
-            this.scene.add(this.goalposts);
+          this.scene = scene;
+          this.mesh = this.createField();
+          this.lines = this.createLines();
+          this.goalposts = this.createGoalposts();
+          this.scene.add(this.mesh);
+          this.scene.add(this.lines);
+          this.scene.add(this.goalposts);
         }
 
         createField() {
-            const fieldGeometry = new THREE.BoxGeometry(FIELD_LENGTH, 1, FIELD_WIDTH);
-            const fieldMaterial = new THREE.MeshPhongMaterial({ color: 0x007700 });
-            const fieldMesh = new THREE.Mesh(fieldGeometry, fieldMaterial);
-            fieldMesh.receiveShadow = true;
-            fieldMesh.position.y = -0.5;
-            return fieldMesh;
+          const fieldGeometry = new THREE.BoxGeometry(
+            FIELD_LENGTH,
+            1,
+            FIELD_WIDTH
+          );
+          const fieldMaterial = new THREE.MeshPhongMaterial({
+            color: 0x007700,
+          });
+          const fieldMesh = new THREE.Mesh(fieldGeometry, fieldMaterial);
+          fieldMesh.receiveShadow = true;
+          fieldMesh.position.y = 0; // Set pitch at y=0
+          return fieldMesh;
         }
 
         createLines() {
-            const lineMaterial = new THREE.LineBasicMaterial({ color: 0xffffff });
-            const lines = new THREE.Group();
-            // Outline
-            lines.add(this.createLine([-FIELD_LENGTH/2, 0, -FIELD_WIDTH/2], [FIELD_LENGTH/2, 0, -FIELD_WIDTH/2], lineMaterial));
-            lines.add(this.createLine([FIELD_LENGTH/2, 0, -FIELD_WIDTH/2], [FIELD_LENGTH/2, 0, FIELD_WIDTH/2], lineMaterial));
-            lines.add(this.createLine([FIELD_LENGTH/2, 0, FIELD_WIDTH/2], [-FIELD_LENGTH/2, 0, FIELD_WIDTH/2], lineMaterial));
-            lines.add(this.createLine([-FIELD_LENGTH/2, 0, FIELD_WIDTH/2], [-FIELD_LENGTH/2, 0, -FIELD_WIDTH/2], lineMaterial));
-            // Halfway line
-            lines.add(this.createLine([0, 0, -FIELD_WIDTH/2], [0, 0, FIELD_WIDTH/2], lineMaterial));
-            // Center circle
-            const circleGeometry = new THREE.CircleGeometry(9.15, 32);
-            const circleMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
-            const centerCircle = new THREE.Mesh(circleGeometry, circleMaterial);
-            centerCircle.position.set(0, 0.1, 0);
-            centerCircle.rotation.x = -Math.PI / 2;
-            lines.add(centerCircle);
-            return lines;
+          const lineMaterial = new THREE.LineBasicMaterial({ color: 0xffffff });
+          const lines = new THREE.Group();
+          // Outline
+          lines.add(
+            this.createLine(
+              [-FIELD_LENGTH / 2, 0, -FIELD_WIDTH / 2],
+              [FIELD_LENGTH / 2, 0, -FIELD_WIDTH / 2],
+              lineMaterial
+            )
+          );
+          lines.add(
+            this.createLine(
+              [FIELD_LENGTH / 2, 0, -FIELD_WIDTH / 2],
+              [FIELD_LENGTH / 2, 0, FIELD_WIDTH / 2],
+              lineMaterial
+            )
+          );
+          lines.add(
+            this.createLine(
+              [FIELD_LENGTH / 2, 0, FIELD_WIDTH / 2],
+              [-FIELD_LENGTH / 2, 0, FIELD_WIDTH / 2],
+              lineMaterial
+            )
+          );
+          lines.add(
+            this.createLine(
+              [-FIELD_LENGTH / 2, 0, FIELD_WIDTH / 2],
+              [-FIELD_LENGTH / 2, 0, -FIELD_WIDTH / 2],
+              lineMaterial
+            )
+          );
+          // Halfway line
+          lines.add(
+            this.createLine(
+              [0, 0, -FIELD_WIDTH / 2],
+              [0, 0, FIELD_WIDTH / 2],
+              lineMaterial
+            )
+          );
+          // Center circle
+          const circleGeometry = new THREE.CircleGeometry(9.15, 32);
+          const circleMaterial = new THREE.MeshBasicMaterial({
+            color: 0xffffff,
+          });
+          const centerCircle = new THREE.Mesh(circleGeometry, circleMaterial);
+          centerCircle.position.set(0, 0.1, 0);
+          centerCircle.rotation.x = -Math.PI / 2;
+          lines.add(centerCircle);
+          return lines;
         }
 
         createLine(start, end, material) {
-            const points = [new THREE.Vector3(...start), new THREE.Vector3(...end)];
-            const geometry = new THREE.BufferGeometry().setFromPoints(points);
-            return new THREE.Line(geometry, material);
+          const points = [
+            new THREE.Vector3(...start),
+            new THREE.Vector3(...end),
+          ];
+          const geometry = new THREE.BufferGeometry().setFromPoints(points);
+          return new THREE.Line(geometry, material);
         }
 
         createGoalposts() {
-            const posts = new THREE.Group();
-            const postMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
-            // User goal
-            posts.add(this.createGoalpost(-FIELD_LENGTH/2 + 1, postMaterial));
-            posts.add(this.createGoalpost(-FIELD_LENGTH/2 + 1, postMaterial, true));
-            // CPU goal
-            posts.add(this.createGoalpost(FIELD_LENGTH/2 - 1, postMaterial));
-            posts.add(this.createGoalpost(FIELD_LENGTH/2 - 1, postMaterial, true));
-            return posts;
+          const posts = new THREE.Group();
+          const postMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
+          // User goal
+          posts.add(this.createGoalpost(-FIELD_LENGTH / 2 + 1, postMaterial));
+          posts.add(
+            this.createGoalpost(-FIELD_LENGTH / 2 + 1, postMaterial, true)
+          );
+          // CPU goal
+          posts.add(this.createGoalpost(FIELD_LENGTH / 2 - 1, postMaterial));
+          posts.add(
+            this.createGoalpost(FIELD_LENGTH / 2 - 1, postMaterial, true)
+          );
+          return posts;
         }
 
-        createGoalpost(x, material, isTop=false) {
-            const goalpostGeometry = new THREE.BoxGeometry(GOAL_DEPTH, GOAL_HEIGHT, GOAL_WIDTH);
-            const goalpostMesh = new THREE.Mesh(goalpostGeometry, material);
-            goalpostMesh.castShadow = true;
-            goalpostMesh.position.set(x, GOAL_HEIGHT/2, 0);
-            if (isTop) {
-                goalpostMesh.rotation.z = Math.PI / 2;
-                goalpostMesh.position.y = GOAL_WIDTH/2;
-            }
-            return goalpostMesh;
+        createGoalpost(x, material, isTop = false) {
+          const goalpostGeometry = new THREE.BoxGeometry(
+            GOAL_DEPTH,
+            GOAL_HEIGHT,
+            GOAL_WIDTH
+          );
+          const goalpostMesh = new THREE.Mesh(goalpostGeometry, material);
+          goalpostMesh.castShadow = true;
+          goalpostMesh.position.set(x, GOAL_HEIGHT / 2, 0);
+          if (isTop) {
+            goalpostMesh.rotation.z = Math.PI / 2;
+            goalpostMesh.position.y = GOAL_WIDTH / 2;
+          }
+          return goalpostMesh;
         }
-    }
+      }
 
-    class Ball {
+      class Ball {
         constructor(scene) {
-            this.scene = scene;
-            this.mesh = this.createBall();
-            this.velocity = new THREE.Vector3();
-            this.spin = 0;
-            this.scene.add(this.mesh);
+          this.scene = scene;
+          this.mesh = this.createBall();
+          this.velocity = new THREE.Vector3();
+          this.spin = 0;
+          this.scene.add(this.mesh);
         }
 
         createBall() {
-            const ballGeometry = new THREE.SphereGeometry(BALL_RADIUS, 32, 32);
-            const ballMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
-            const ballMesh = new THREE.Mesh(ballGeometry, ballMaterial);
-            ballMesh.castShadow = true;
-            return ballMesh;
+          const ballGeometry = new THREE.SphereGeometry(BALL_RADIUS, 32, 32);
+          const ballMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
+          const ballMesh = new THREE.Mesh(ballGeometry, ballMaterial);
+          ballMesh.castShadow = true;
+          return ballMesh;
         }
 
         setPosition(x, y, z) {
-            this.mesh.position.set(x, y, z);
+          this.mesh.position.set(x, y, z);
         }
 
         update() {
+<<<<<<< Updated upstream
             this.mesh.position.add(this.velocity.clone().multiplyScalar(1/60));
             this.velocity.y -= 0.2; // Gravity
             this.velocity.x *= 0.99;
@@ -930,39 +1457,73 @@ const TEAM_SIZE = 3;
                 this.mesh.position.y = 0;
                 this.velocity.y = 0;
             }
+=======
+          this.mesh.position.add(this.velocity.clone().multiplyScalar(1 / 60));
+          this.velocity.y -= 0.2; // Gravity
+          this.velocity.x *= 0.99;
+          this.velocity.z *= 0.99;
+          this.mesh.rotation.y += this.spin;
+          this.spin *= 0.98;
+          // Clamp ball to stay above ground
+          if (this.mesh.position.y < BALL_RADIUS) {
+            this.mesh.position.y = BALL_RADIUS;
+            this.velocity.y = 0;
+          }
+>>>>>>> Stashed changes
         }
-    }
+      }
 
-    class Team {
+      class Team {
         constructor(scene, idx, color, name) {
-            this.scene = scene;
-            this.idx = idx;
-            this.color = color;
-            this.name = name;
-            this.players = [];
-            this.createPlayers();
+          this.scene = scene;
+          this.idx = idx;
+          this.color = color;
+          this.name = name;
+          this.players = [];
+          this.createPlayers();
         }
 
         createPlayers() {
-            for (let i = 0; i < TEAM_SIZE; ++i) {
-                let player = new Player(this.scene, this.idx, this.color, i);
-                this.players.push(player);
-            }
+          // Arrange players in a basic 4-4-2 formation
+          const formation = [
+            // Goalkeeper
+            { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 6 : FIELD_LENGTH / 2 - 6, z: 0 },
+            // Defenders
+            { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 18 : FIELD_LENGTH / 2 - 18, z: -20 },
+            { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 18 : FIELD_LENGTH / 2 - 18, z: 0 },
+            { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 18 : FIELD_LENGTH / 2 - 18, z: 20 },
+            { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 26 : FIELD_LENGTH / 2 - 26, z: -10 },
+            // Midfielders
+            { x: 0, z: -25 },
+            { x: 0, z: 0 },
+            { x: 0, z: 25 },
+            { x: this.idx === 0 ? -10 : 10, z: -10 },
+            { x: this.idx === 0 ? -10 : 10, z: 10 },
+            // Forwards
+            { x: this.idx === 0 ? FIELD_LENGTH / 2 - 18 : -FIELD_LENGTH / 2 + 18, z: 0 }
+          ];
+          for (let i = 0; i < TEAM_SIZE; ++i) {
+            let pos = formation[i] || { x: 0, z: 0 };
+            let player = new Player(this.scene, this.idx, this.color, i);
+            player.setPosition(pos.x, PLAYER_RADIUS, pos.z);
+            this.players.push(player);
+          }
         }
 
         resetPositions(offset) {
-            for (let i = 0; i < TEAM_SIZE; ++i) {
-                let player = this.players[i];
-                player.setPosition(offset + i * 8, 0, 0);
-                player.velocity.set(0, 0, 0);
-                player.cooldown = 0;
-                player._tackledTimer = 0;
-            }
+          for (let i = 0; i < TEAM_SIZE; ++i) {
+            let player = this.players[i];
+            player.setPosition(offset + i * 8, 0, 0);
+            player.velocity.set(0, 0, 0);
+            player.cooldown = 0;
+            player._tackledTimer = 0;
+          }
         }
-    }
+      }
 
-    class Player {
+      class Player {
         constructor(scene, teamIdx, color, playerIdx) {
+<<<<<<< Updated upstream
             this.scene = scene;
             this.teamIdx = teamIdx;
             this.color = color;
@@ -1001,13 +1562,64 @@ const TEAM_SIZE = 3;
                 }
             });
             return group;
+=======
+          this.scene = scene;
+          this.teamIdx = teamIdx;
+          this.color = color;
+          this.playerIdx = playerIdx;
+          this.mesh = this.createPlayer();
+          this.velocity = new THREE.Vector3();
+          this.cooldown = 0;
+          this._tackledTimer = 0;
+          scene.add(this.mesh);
+        }
+
+        createPlayer() {
+          // Simple humanoid: body (cylinder), head (sphere), legs (cylinders), arms (cylinders)
+          const group = new THREE.Group();
+          // Body
+          const bodyGeom = new THREE.CylinderGeometry(PLAYER_RADIUS * 0.7, PLAYER_RADIUS, PLAYER_HEIGHT * 0.6, 8);
+          const bodyMat = new THREE.MeshPhongMaterial({ color: this.color });
+          const body = new THREE.Mesh(bodyGeom, bodyMat);
+          body.position.y = PLAYER_HEIGHT * 0.6 / 2;
+          group.add(body);
+          // Head
+          const headGeom = new THREE.SphereGeometry(PLAYER_RADIUS * 0.6, 8, 8);
+          const headMat = new THREE.MeshPhongMaterial({ color: 0xffe0bd });
+          const head = new THREE.Mesh(headGeom, headMat);
+          head.position.y = PLAYER_HEIGHT * 0.6 + PLAYER_RADIUS * 0.6;
+          group.add(head);
+          // Legs
+          for (let i = -1; i <= 1; i += 2) {
+            const legGeom = new THREE.CylinderGeometry(PLAYER_RADIUS * 0.25, PLAYER_RADIUS * 0.25, PLAYER_HEIGHT * 0.4, 6);
+            const legMat = new THREE.MeshPhongMaterial({ color: 0x333333 });
+            const leg = new THREE.Mesh(legGeom, legMat);
+            leg.position.x = i * PLAYER_RADIUS * 0.3;
+            leg.position.y = PLAYER_HEIGHT * 0.2;
+            group.add(leg);
+          }
+          // Arms
+          for (let i = -1; i <= 1; i += 2) {
+            const armGeom = new THREE.CylinderGeometry(PLAYER_RADIUS * 0.18, PLAYER_RADIUS * 0.18, PLAYER_HEIGHT * 0.35, 6);
+            const armMat = new THREE.MeshPhongMaterial({ color: this.color });
+            const arm = new THREE.Mesh(armGeom, armMat);
+            arm.position.x = i * PLAYER_RADIUS * 0.7;
+            arm.position.y = PLAYER_HEIGHT * 0.5;
+            arm.rotation.z = Math.PI / 4 * i;
+            group.add(arm);
+          }
+          group.castShadow = true;
+          group.receiveShadow = true;
+          return group;
+>>>>>>> Stashed changes
         }
 
         setPosition(x, y, z) {
-            this.mesh.position.set(x, y, z);
+          this.mesh.position.set(x, y, z);
         }
 
         move(direction, dt) {
+<<<<<<< Updated upstream
             // Stamina system: moving drains stamina, resting recovers
             const baseSpeed = 50;
             if (direction.length() > 0.1) {
@@ -1045,9 +1657,41 @@ const TEAM_SIZE = 3;
             this.velocity.z *= 0.99;
             // Animate model
             if (this.mixer) this.mixer.update(dt);
+=======
+          const speed = 50;
+          let moveVec = direction.clone();
+          moveVec.y = 0;
+          if (moveVec.length() > 0.1) moveVec.normalize();
+          // Set velocity directly based on input
+          this.velocity.x = moveVec.x * speed;
+          this.velocity.z = moveVec.z * speed;
+          // Y velocity is affected by gravity and tackles only
+          // Optionally, rotate player to face movement direction
+          if (moveVec.length() > 0.1) {
+            this.mesh.rotation.y = Math.atan2(moveVec.x, moveVec.z);
+          }
         }
-    }
 
+        update() {
+          if (this.cooldown > 0) this.cooldown -= 1 / 60;
+          if (this._tackledTimer) {
+            this._tackledTimer -= 1 / 60;
+            if (this._tackledTimer <= 0) this._tackledTimer = 0;
+          }
+          this.mesh.position.add(this.velocity.clone().multiplyScalar(1 / 60));
+          this.velocity.y -= 0.2; // Gravity
+          this.velocity.x *= 0.99;
+          this.velocity.z *= 0.99;
+          // Clamp player to stay above ground
+          if (this.mesh.position.y < PLAYER_RADIUS) {
+            this.mesh.position.y = PLAYER_RADIUS;
+            this.velocity.y = 0;
+          }
+>>>>>>> Stashed changes
+        }
+      }
+
+<<<<<<< Updated upstream
     // --- Game Initialization ---
     // --- Main Menu UI ---
 function showMainMenu() {
@@ -1100,6 +1744,10 @@ function startGame(userColor, cpuColor) {
 
 window.onload = showMainMenu;
     </script>
+=======
+      // --- Game Initialization ---
+      window.game = new Game();
+>>>>>>> Stashed changes
     </script>
-</body>
+  </body>
 </html>

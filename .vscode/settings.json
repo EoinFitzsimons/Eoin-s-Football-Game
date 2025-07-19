@@ -1,0 +1,5 @@
+{
+    // Ensures VS Code uses the default Windows environment for terminals
+    "terminal.integrated.env.windows": {},
+    "terminal.integrated.shellArgs.windows": []
+}
