@@ -1,11 +1,10 @@
 {
-    "version": "0.2.0",
     "configurations": [
         {
-            "type": "msedge",
+            "type": "edge",
             "request": "launch",
-            "name": "Open index.html in Edge (Local Server)",
-            "url": "http://localhost:5500/index.html"
+            "name": "Open index.html in Edge",
+            "url": "file:///c:/Users/eoin0/Documents/GitHub/Eoin-s-Football-Game/index.html"
         }
     ]
 }

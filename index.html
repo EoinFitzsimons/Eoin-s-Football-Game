@@ -4,31 +4,55 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Simple Football Game</title>
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-    <link rel="stylesheet" href="assets/style.css">
-    <!-- Three.js ES Modules via CDN using import maps -->
-    <script type="importmap">
-    {
-      "imports": {
-        "three": "https://cdn.jsdelivr.net/npm/three@0.154.0/build/three.module.js",
-        "three/examples/jsm/loaders/GLTFLoader.js": "https://cdn.jsdelivr.net/npm/three@0.154.0/examples/jsm/loaders/GLTFLoader.js"
-      }
-    }
-    </script>
-</head>
-<body>
-=======
     <link rel="stylesheet" href="assets/style.css" />
   </head>
   <body>
->>>>>>> Stashed changes
-=======
-    <link rel="stylesheet" href="assets/style.css" />
-  </head>
-  <body>
->>>>>>> Stashed changes
     <h1>Football Game</h1>
+    <div id="pauseMenu" class="pause-menu">
+      <div class="pause-menu-content">
+        <h2 class="pause-menu-title">Pause Menu</h2>
+        <div class="pause-menu-row">
+          <label
+            >User Team Color:
+            <input type="color" id="userColor" value="#f39c12"
+          /></label>
+        </div>
+        <div class="pause-menu-row">
+          <label
+            >CPU Team Color: <input type="color" id="cpuColor" value="#e74c3c"
+          /></label>
+        </div>
+        <div class="pause-menu-row">
+          <label
+            >Formation:
+            <select id="formationSelect">
+              <option value="442">4-4-2</option>
+              <option value="433">4-3-3</option>
+              <option value="352">3-5-2</option>
+              <option value="451">4-5-1</option>
+            </select>
+          </label>
+        </div>
+        <div class="pause-menu-row">
+          <label
+            >Match Time:
+            <select id="matchTimeSelect">
+              <option value="300">5 min</option>
+              <option value="600">10 min</option>
+              <option value="900">15 min</option>
+              <option value="1800">30 min</option>
+            </select>
+          </label>
+        </div>
+        <button id="resumeBtn" class="pause-menu-resume" type="button">
+          Resume
+        </button>
+        <div class="pause-menu-row">
+          <button id="restartBtn" type="button">Restart</button>
+          <button id="muteBtn" type="button">🔊</button>
+        </div>
+      </div>
+    </div>
     <div id="scoreboard">
       <div id="scoreline" class="scoreline">
         <span class="score-user">You</span>
@@ -41,33 +65,15 @@
       <span id="debug"></span>
     </div>
     <div id="overlay"></div>
-    <button id="replayBtn">Replay</button>
-    <button id="muteBtn">🔊</button>
+    <!-- Restart and Mute buttons are now inside the pause menu -->
     <div id="help">
       Controls: Arrow keys/WASD = Move | Space = Pass / Shoot / Tackle | R =
-      Replay | M = Mute
+      Restart | M = Mute
     </div>
-    <div id="powerbar-container">
-      <div id="powerbar-bg"></div>
-      <div id="powerbar-fill"></div>
-      <div id="powerbar-label">Power</div>
-    </div>
-    <script type="module">
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-    // --- 3D Football Game (modular, extensible, ~2000 lines) ---
-    import * as THREE from "three";
-    import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-=======
-      // 3D Football Game using Three.js
-      import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.154.0/build/three.module.js";
->>>>>>> Stashed changes
-=======
-      // 3D Football Game using Three.js
-      import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.154.0/build/three.module.js";
->>>>>>> Stashed changes
 
-      // --- Utility Functions ---
+    <script type="module">
+      // 3D Football Game using Three.js
+      import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.154.0/build/three.module.js";
       function clamp(val, min, max) {
         return Math.max(min, Math.min(max, val));
       }
@@ -78,212 +84,85 @@
         return a + Math.random() * (b - a);
       }
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-    // --- Game Constants ---
-    const FIELD_LENGTH = 160;
-    const FIELD_WIDTH = 80;
-    const GOAL_WIDTH = 24;
-    const GOAL_DEPTH = 8;
-    const GOAL_HEIGHT = 8; // Added missing constant
-    const PLAYER_RADIUS = 3;
-    const PLAYER_HEIGHT = 8;
-    const BALL_RADIUS = 2.2;
-const TEAM_SIZE = 3;
-    const GAME_TIME = 90; // seconds
-    const REPLAY_FRAMES = 300; // 5s at 60fps
-
-    // --- Game Classes ---
-    class Game {
-        // Handles key up events
-        onKeyUp(e) {
-            this.debugFunctionEntry('onKeyUp', { key: e.key });
-            this.controls[e.key.toLowerCase()] = false;
-        }
-        // Draws player labels (stub for now)
-        drawLabels() {
-            // Highlight selected player with a ring
-            for (let [i, player] of this.teams[0].players.entries()) {
-                if (!player.highlightRing) {
-                    const ringGeom = new THREE.TorusGeometry(PLAYER_RADIUS+1.2, 0.5, 8, 32);
-                    const ringMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
-                    const ring = new THREE.Mesh(ringGeom, ringMat);
-                    ring.position.y = 0.5;
-                    player.mesh.add(ring);
-                    player.highlightRing = ring;
-                }
-                player.highlightRing.visible = (i === this.selectedPlayerIdx);
-            }
-        }
-        // Resets all player positions to their starting locations
-        resetPositions() {
-            // User team
-            this.teams[0].resetPositions(-FIELD_LENGTH/2 + 18);
-            // CPU team
-            this.teams[1].resetPositions(FIELD_LENGTH/2 - 18 - (TEAM_SIZE-1)*8);
-            // Ball in center
-            this.ball.setPosition(0, this.ball.mesh.position.y, 0);
-            this.ball.velocity.set(0,0,0);
-        }
-        // --- Weather Effects ---
-        initWeather() {
-            // Randomly pick weather: 'clear', 'rain', 'snow', 'fog'
-            const weathers = ['clear', 'rain', 'snow', 'fog'];
-            this.weather = weathers[Math.floor(Math.random() * weathers.length)];
-            // Add weather indicator
-            let indicator = document.createElement('div');
-            indicator.id = 'weather-indicator';
-            indicator.style.position = 'fixed';
-            indicator.style.top = '12px';
-            indicator.style.right = '24px';
-            indicator.style.zIndex = '9999';
-            indicator.style.fontSize = '1.2em';
-            indicator.style.color = '#fff';
-            indicator.style.textShadow = '1px 1px 6px #000';
-            indicator.style.background = 'rgba(30,40,60,0.7)';
-            indicator.style.padding = '8px 18px';
-            indicator.style.borderRadius = '12px';
-            indicator.innerHTML = `Weather: <b>${this.weather.charAt(0).toUpperCase() + this.weather.slice(1)}</b>`;
-            document.body.appendChild(indicator);
-
-            // Add visual effects
-            if (this.weather === 'rain') this.addRain();
-            if (this.weather === 'snow') this.addSnow();
-            if (this.weather === 'fog') this.addFog();
-        }
-
-        addRain() {
-            // Simple rain particle system
-            const rainCount = 180;
-            this.rainDrops = [];
-            for (let i = 0; i < rainCount; ++i) {
-                let drop = document.createElement('div');
-                drop.className = 'rain-drop';
-                drop.style.position = 'fixed';
-                drop.style.left = Math.random()*100 + 'vw';
-                drop.style.top = Math.random()*100 + 'vh';
-                drop.style.width = '2px';
-                drop.style.height = (8+Math.random()*12) + 'px';
-                drop.style.background = 'rgba(180,220,255,0.7)';
-                drop.style.borderRadius = '1px';
-                drop.style.zIndex = '9998';
-                drop.style.pointerEvents = 'none';
-                document.body.appendChild(drop);
-                this.rainDrops.push(drop);
-            }
-            // Animate rain
-            setInterval(() => {
-                for (let drop of this.rainDrops) {
-                    let top = parseFloat(drop.style.top);
-                    top += 2 + Math.random()*3;
-                    if (top > 100) top = -Math.random()*10;
-                    drop.style.top = top + 'vh';
-                }
-            }, 40);
-        }
-
-        addSnow() {
-            // Simple snow particle system
-            const snowCount = 120;
-            this.snowFlakes = [];
-            for (let i = 0; i < snowCount; ++i) {
-                let flake = document.createElement('div');
-                flake.className = 'snow-flake';
-                flake.style.position = 'fixed';
-                flake.style.left = Math.random()*100 + 'vw';
-                flake.style.top = Math.random()*100 + 'vh';
-                flake.style.width = (3+Math.random()*3) + 'px';
-                flake.style.height = flake.style.width;
-                flake.style.background = 'rgba(255,255,255,0.85)';
-                flake.style.borderRadius = '50%';
-                flake.style.zIndex = '9998';
-                flake.style.pointerEvents = 'none';
-                document.body.appendChild(flake);
-                this.snowFlakes.push(flake);
-            }
-            // Animate snow
-            setInterval(() => {
-                for (let flake of this.snowFlakes) {
-                    let top = parseFloat(flake.style.top);
-                    top += 1 + Math.random()*1.5;
-                    if (top > 100) top = -Math.random()*10;
-                    flake.style.top = top + 'vh';
-                    let left = parseFloat(flake.style.left);
-                    left += Math.random()*0.8-0.4;
-                    if (left > 100) left = 0;
-                    if (left < 0) left = 100;
-                    flake.style.left = left + 'vw';
-                }
-            }, 60);
-        }
-
-        addFog() {
-            // Add fog overlay
-            let fog = document.createElement('div');
-            fog.id = 'fog-overlay';
-            fog.style.position = 'fixed';
-            fog.style.left = '0';
-            fog.style.top = '0';
-            fog.style.width = '100vw';
-            fog.style.height = '100vh';
-            fog.style.background = 'radial-gradient(circle at 50% 60%, rgba(200,200,220,0.22) 0%, rgba(200,200,220,0.12) 60%, rgba(200,200,220,0.04) 100%)';
-            fog.style.zIndex = '9997';
-            fog.style.pointerEvents = 'none';
-            document.body.appendChild(fog);
-        }
-        // Debug: log function entry with arguments, one message per function per interval
-        debugFunctionEntry(name, args) {
-            let argStr = '';
-            if (args && typeof args === 'object') {
-                try {
-                    argStr = Object.entries(args).map(([k, v]) => {
-                        if (typeof v === 'object' && v !== null && 'x' in v && 'z' in v) {
-                            // Avoid nested template literals
-                            let x = v.x && typeof v.x.toFixed === 'function' ? v.x.toFixed(2) : v.x;
-                            let z = v.z && typeof v.z.toFixed === 'function' ? v.z.toFixed(2) : v.z;
-                            return k + '=' + '(' + x + ',' + z + ')';
-                        }
-                        return k + '=' + v;
-                    }).join(', ');
-                } catch (e) {
-                    console.error('debugFunctionEntry error:', e);
-                    argStr = '[args error]';
-                }
-            }
-            this.logDebug('[FUNC] ' + name + '(' + argStr + ')', name);
-=======
       // --- Game Constants ---
-      const FIELD_LENGTH = 105; // Standard football pitch length (meters)
-      const FIELD_WIDTH = 68;  // Standard football pitch width (meters)
+      const FIELD_LENGTH = 120; // Increased pitch length for realism
+      const FIELD_WIDTH = 80; // Increased pitch width for realism
       const GOAL_WIDTH = 7.32; // Standard goal width (meters)
       const GOAL_DEPTH = 2.44; // Standard goal depth (meters)
       const PLAYER_RADIUS = 1.2;
       const PLAYER_HEIGHT = 1.8;
       const BALL_RADIUS = 0.22;
       const TEAM_SIZE = 11;
-      const GAME_TIME = 90 * 60; // 90 minutes in seconds
+      const GAME_TIME = 300; // 5 minutes in seconds for faster games
       const REPLAY_FRAMES = 18000; // 5 minutes at 60fps
       const GOAL_HEIGHT = 2.44; // Standard goal height (meters)
 
-=======
-      // --- Game Constants ---
-      const FIELD_LENGTH = 105; // Standard football pitch length (meters)
-      const FIELD_WIDTH = 68;  // Standard football pitch width (meters)
-      const GOAL_WIDTH = 7.32; // Standard goal width (meters)
-      const GOAL_DEPTH = 2.44; // Standard goal depth (meters)
-      const PLAYER_RADIUS = 1.2;
-      const PLAYER_HEIGHT = 1.8;
-      const BALL_RADIUS = 0.22;
-      const TEAM_SIZE = 11;
-      const GAME_TIME = 90 * 60; // 90 minutes in seconds
-      const REPLAY_FRAMES = 18000; // 5 minutes at 60fps
-      const GOAL_HEIGHT = 2.44; // Standard goal height (meters)
-
->>>>>>> Stashed changes
       // --- Game Classes ---
       class Game {
+        _setupPauseMenu() {
+          const resumeBtn = document.getElementById("resumeBtn");
+          resumeBtn.onclick = () => this._togglePauseMenu(false);
+          document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape") {
+              this._togglePauseMenu(true);
+            }
+          });
+          // Color pickers
+          document.getElementById("userColor").oninput = (e) => {
+            this._setTeamColor(0, e.target.value);
+          };
+          document.getElementById("cpuColor").oninput = (e) => {
+            this._setTeamColor(1, e.target.value);
+          };
+          // Formation
+          document.getElementById("formationSelect").onchange = (e) => {
+            this._setFormation(e.target.value);
+          };
+          // Match time
+          document.getElementById("matchTimeSelect").onchange = (e) => {
+            this._setMatchTime(parseInt(e.target.value));
+          };
+        }
+
+        _togglePauseMenu(show) {
+          const pauseMenu = document.getElementById("pauseMenu");
+          pauseMenu.style.display = show ? "flex" : "none";
+          this.state = show ? "paused" : "playing";
+        }
+
+        _setTeamColor(teamIdx, color) {
+          const team = this.teams[teamIdx];
+          for (const player of team.players) {
+            player.mesh.children.forEach((part) => {
+              if (part.material && part.material.color) {
+                if (
+                  teamIdx === 0 ||
+                  (teamIdx === 1 &&
+                    part.material.color.getHex() !== 0xffe0bd &&
+                    part.material.color.getHex() !== 0x333333)
+                ) {
+                  part.material.color.set(color);
+                }
+              }
+            });
+          }
+        }
+
+        _setFormation(formation) {
+          // Set formation for both teams and reset positions
+          this.teams[0].setFormation(formation);
+          this.teams[1].setFormation(formation);
+          this.teams[0].resetPositions(-FIELD_LENGTH / 4);
+          this.teams[1].resetPositions(FIELD_LENGTH / 4);
+        }
+
+        _setMatchTime(seconds) {
+          this.time = seconds;
+          this.updateUI();
+        }
         constructor() {
           this.debugFunctionEntry("constructor");
+          this.goalScored = false; // Prevent double goal counting
           this.lastFrameTime = null;
           this.scene = new THREE.Scene();
           this.camera = new THREE.PerspectiveCamera(
@@ -292,7 +171,7 @@ const TEAM_SIZE = 3;
             0.1,
             1000
           );
-          this.camera.position.set(0, 160, 180); // Raise camera for better view
+          this.camera.position.set(0, 90, 110); // Lower camera for closer view
           this.camera.lookAt(0, 0, 0);
           this.renderer = new THREE.WebGLRenderer({
             antialias: true,
@@ -302,7 +181,13 @@ const TEAM_SIZE = 3;
           this.renderer.setClearColor(0x1e824c);
           this.renderer.shadowMap.enabled = true;
           document.body.appendChild(this.renderer.domElement);
+          this._setupPauseMenu();
           window.addEventListener("resize", () => this.onWindowResize());
+
+        // Initialize throw-in properties to avoid undefined errors
+        this.throwInTeam = null;
+        this.throwInActive = false;
+        this.throwInPos = new THREE.Vector3(0, 0, 0);
 
           // Lighting
           this.scene.add(new THREE.AmbientLight(0xffffff, 0.6));
@@ -336,7 +221,7 @@ const TEAM_SIZE = 3;
           // Game State
           this.score = [0, 0];
           this.time = GAME_TIME;
-          this.state = "playing"; // Only use 'playing', 'goal', 'end', 'replay', 'out', 'throw-in'
+          this.state = "playing";
           this.lastGoalTeam = null;
           this.selectedPlayerIdx = 0;
 
@@ -350,11 +235,11 @@ const TEAM_SIZE = 3;
           this.muted = false;
           document.getElementById("muteBtn").onclick = () => this.toggleMute();
 
-          // Replay
-          this.replayBuffer = [];
-          this.isReplaying = false;
-          document.getElementById("replayBtn").onclick = () =>
-            this.startReplay();
+          // Restart
+          this.restartBuffer = [];
+          this.isRestarting = false;
+          document.getElementById("restartBtn").onclick = () =>
+            this.startRestart();
 
           // UI
           this.updateUI();
@@ -375,73 +260,85 @@ const TEAM_SIZE = 3;
           if (this.sounds.melody) this.sounds.melody.play();
           this.lastFrame = performance.now();
           this.animate();
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
         }
 
         animate() {
-          // Use requestAnimationFrame for smooth rendering
           requestAnimationFrame(() => this.animate());
-          // Calculate time delta
+          const dt = this._calculateDeltaTime();
+          this._updateGameTimer(dt);
+          this.handleInput(dt);
+          this._updateBall();
+          this._updatePlayers();
+          this._handlePlayerBallCollisions();
+          this._handleCPUMovement(dt);
+          this._handleGoalAndBoundaries();
+          this._renderScene();
+          this.updateUI();
+        }
+
+        _calculateDeltaTime() {
           const now = performance.now();
           this.lastFrameTime = this.lastFrameTime || now;
-          const dt = Math.min((now - this.lastFrameTime) / 1000, 0.05); // cap delta for safety
+          const dt = Math.min((now - this.lastFrameTime) / 1000, 0.05);
           this.lastFrameTime = now;
-          // Update game logic
-          this.handleInput(dt);
+          return dt;
+        }
 
-          // Update ball physics
+        _updateGameTimer(dt) {
+          if (this.state === "playing" && this.time > 0) {
+            this.time -= dt;
+            if (this.time < 0) this.time = 0;
+          }
+        }
+
+        _updateBall() {
           if (this.ball && typeof this.ball.update === "function") {
             this.ball.update();
           }
-          // Update all players
-          if (this.teams) {
-            for (const team of this.teams) {
-              for (const player of team.players) {
-                if (player && typeof player.update === "function") {
-                  player.update();
-                }
+        }
+
+        _updatePlayers() {
+          if (!this.teams) return;
+          for (const team of this.teams) {
+            for (const player of team.players) {
+              if (player && typeof player.update === "function") {
+                player.update();
               }
             }
           }
-          // Ball-player collision
-          this._handlePlayerBallCollisions();
-          // CPU AI movement
-          this._handleCPUMovement(dt);
-          // Goal and pitch boundary logic
-          this._handleGoalAndBoundaries();
+        }
 
-          // Render the scene
+        _renderScene() {
           if (this.renderer && this.scene && this.camera) {
             this.renderer.render(this.scene, this.camera);
           }
-          // Update UI
-          this.updateUI();
         }
         // Handle goals and pitch boundaries
         _handleGoalAndBoundaries() {
           // Ball position
           const ball = this.ball.mesh.position;
           // Goal detection
-          // User goal (left)
-          if (
+          const inUserGoal =
             ball.x < -FIELD_LENGTH / 2 + GOAL_DEPTH &&
             Math.abs(ball.z) < GOAL_WIDTH / 2 &&
-            ball.y < GOAL_HEIGHT
-          ) {
-            this._scoreGoal(1); // CPU scores
-            return;
-          }
-          // CPU goal (right)
-          if (
+            ball.y < GOAL_HEIGHT;
+          const inCPUGoal =
             ball.x > FIELD_LENGTH / 2 - GOAL_DEPTH &&
             Math.abs(ball.z) < GOAL_WIDTH / 2 &&
-            ball.y < GOAL_HEIGHT
-          ) {
-            this._scoreGoal(0); // User scores
+            ball.y < GOAL_HEIGHT;
+          if (!this.goalScored && inUserGoal) {
+            this._scoreGoal(1); // CPU scores
+            this.goalScored = true;
             return;
+          }
+          if (!this.goalScored && inCPUGoal) {
+            this._scoreGoal(0); // User scores
+            this.goalScored = true;
+            return;
+          }
+          // Reset goalScored flag ONLY when ball is fully outside both goals
+          if (this.goalScored && !inUserGoal && !inCPUGoal) {
+            this.goalScored = false;
           }
           // Pitch boundaries (bounce or reset)
           // Side boundaries (left/right)
@@ -546,26 +443,6 @@ const TEAM_SIZE = 3;
           }
         }
 
-        // Power Bar Action Handler
-        handlePowerBarAction() {
-          this.debugFunctionEntry("handlePowerBarAction", {
-            selectedPlayerIdx: this.selectedPlayerIdx,
-          });
-          this.logDebug("handlePowerBarAction called", "handlePowerBarAction");
-          let player = this.teams[0].players[this.selectedPlayerIdx];
-          const distToBall = player.mesh.position.distanceTo(this.ball.mesh.position);
-          const canKick = distToBall < PLAYER_RADIUS + BALL_RADIUS + 2;
-          let cpuTeam = this.teams[1];
-          let cpuIdx = this._getClosestCPUPlayerIdx();
-          let cpu = cpuTeam.players[cpuIdx];
-          if (canKick && cpuIdx !== null && this._cpuDist < distToBall + 0.5) {
-            this._handleTackle(player, cpu);
-            return;
-          }
-          if (canKick) {
-            this._handleKickOrPass(player, distToBall);
-          }
-        }
 
         _getClosestCPUPlayerIdx() {
           let cpuTeam = this.teams[1];
@@ -596,30 +473,6 @@ const TEAM_SIZE = 3;
           if (this.sounds.kick) this.sounds.kick.play();
         }
 
-        _handleKickOrPass(player, distToBall) {
-          // Show power bar UI
-          this._showPowerBarUI();
-          // Direction from player to ball
-          let toBall = new THREE.Vector3().subVectors(this.ball.mesh.position, player.mesh.position);
-          if (toBall.length() < 0.1) toBall.set(1, 0, 0);
-          toBall.normalize();
-          // Add vertical component based on power
-          toBall.y = lerp(0.1, 0.5, this.powerBarValue);
-          let passPower = lerp(16, 36, this.powerBarValue);
-          this.ball.velocity.x = toBall.x * passPower;
-          this.ball.velocity.y = toBall.y * passPower;
-          this.ball.velocity.z = toBall.z * passPower;
-          if (Math.sqrt(this.ball.velocity.x ** 2 + this.ball.velocity.z ** 2) > 40) {
-            let scale = 40 / Math.sqrt(this.ball.velocity.x ** 2 + this.ball.velocity.z ** 2);
-            this.ball.velocity.x *= scale;
-            this.ball.velocity.z *= scale;
-          }
-          this.ball.spin = randRange(-0.5, 0.5);
-          player.cooldown = 0.5;
-          if (this.sounds.pass) this.sounds.pass.play();
-          // Hide power bar after kick
-          this._hidePowerBarUI();
-        }
         // Player-ball collision: ball bounces off players
         _handlePlayerBallCollisions() {
           for (const team of this.teams) {
@@ -627,7 +480,8 @@ const TEAM_SIZE = 3;
               const dist = player.mesh.position.distanceTo(
                 this.ball.mesh.position
               );
-              if (dist < PLAYER_RADIUS + BALL_RADIUS + 0.5) {
+              const minDist = PLAYER_RADIUS + BALL_RADIUS + 0.5;
+              if (dist < minDist) {
                 // Ball bounces off player
                 let collisionDir = new THREE.Vector3()
                   .subVectors(this.ball.mesh.position, player.mesh.position)
@@ -635,8 +489,14 @@ const TEAM_SIZE = 3;
                 let impact = 12;
                 this.ball.velocity.addScaledVector(collisionDir, impact);
                 this.ball.spin += randRange(-0.2, 0.2);
-                // Slightly push player back
-                player.velocity.addScaledVector(collisionDir.negate(), 4);
+                // Stronger push for player
+                player.velocity.addScaledVector(collisionDir.negate(), 8);
+                // Clamp player position so they can't overlap ball
+                player.mesh.position.add(
+                  collisionDir.negate().multiplyScalar(minDist - dist + 0.1)
+                );
+                // Optional: add a brief cooldown to prevent immediate re-collision
+                player.cooldown = Math.max(player.cooldown, 0.08);
               }
             }
           }
@@ -645,119 +505,218 @@ const TEAM_SIZE = 3;
         // Basic AI movement for CPU team
         _handleCPUMovement(dt) {
           let cpuTeam = this.teams[1];
+          const ball = this.ball.mesh.position;
+          const closestIdx = this._findClosestCPUPlayerIdx(cpuTeam);
           for (let i = 0; i < TEAM_SIZE; ++i) {
             let cpu = cpuTeam.players[i];
-            if (cpu.cooldown <= 0 && !cpu._tackledTimer) {
-              // Forwards and midfielders attack, defenders hold position
-              let role = i === 0 ? "gk" : i < 5 ? "def" : i < 9 ? "mid" : "fwd";
-              if (role === "fwd" || role === "mid") {
-                // Attack: move towards ball, then towards user goal
-                let toBall = new THREE.Vector3().subVectors(this.ball.mesh.position, cpu.mesh.position);
-                toBall.y = 0;
-                if (toBall.length() > 0.1) toBall.normalize();
-                // If close to ball, move towards user goal
-                const distToBall = cpu.mesh.position.distanceTo(this.ball.mesh.position);
-                if (distToBall < 2.5) {
-                  let toGoal = new THREE.Vector3(-FIELD_LENGTH / 2 + GOAL_DEPTH, 0, 0).sub(cpu.mesh.position);
-                  if (toGoal.length() > 0.1) toGoal.normalize();
-                  cpu.move(toGoal, dt);
-                  // Try to shoot if very close
-                  if (distToBall < PLAYER_RADIUS + BALL_RADIUS + 1.2) {
-                    let shootDir = new THREE.Vector3(-1, lerp(0.1, 0.7, Math.random()), 0);
-                    let shootPower = lerp(18, 36, Math.random());
-                    this.ball.velocity.copy(shootDir.multiplyScalar(shootPower));
-                    this.ball.spin += randRange(-0.5, 0.5);
-                    cpu.cooldown = 1.2;
-                    if (this.sounds.kick) this.sounds.kick.play();
-                  }
-                } else {
-                  cpu.move(toBall, dt);
-                }
-              } else if (role === "def") {
-                // Defenders: hold position, move towards ball if close
-                let homeX = this.idx === 1 ? FIELD_LENGTH / 2 - 18 : -FIELD_LENGTH / 2 + 18;
-                let homeZ = cpu.mesh.position.z;
-                let toHome = new THREE.Vector3(homeX, 0, homeZ).sub(cpu.mesh.position);
-                if (toHome.length() > 0.1) toHome.normalize();
-                cpu.move(toHome, dt);
-                // If ball is close, move towards ball
-                const distToBall = cpu.mesh.position.distanceTo(this.ball.mesh.position);
-                if (distToBall < 6) {
-                  let toBall = new THREE.Vector3().subVectors(this.ball.mesh.position, cpu.mesh.position);
-                  toBall.y = 0;
-                  if (toBall.length() > 0.1) toBall.normalize();
-                  cpu.move(toBall, dt);
-                }
-              } else {
-                // Goalkeeper: stay near goal
-                let gkX = FIELD_LENGTH / 2 - 6;
-                let gkZ = 0;
-                let toHome = new THREE.Vector3(gkX, 0, gkZ).sub(cpu.mesh.position);
-                if (toHome.length() > 0.1) toHome.normalize();
-                cpu.move(toHome, dt);
-              }
+            if (cpu.cooldown > 0 || cpu._tackledTimer) continue;
+            let role = this._getCPURole(i);
+            let moveDir;
+            if (i === closestIdx && role !== "gk") {
+              // Only one non-GK chases the ball
+              moveDir = this._getChaseBallDirection(cpu, ball);
+            } else if (role === "gk") {
+              moveDir = this._getCPUGoalkeeperHomeDirection(cpu);
+            } else {
+              moveDir = this._getCPUZoneMovementDirection(cpu, role);
             }
+            cpu.move(moveDir, dt);
           }
         }
 
-        _handleShoot(player) {
-          let nearGoal = player.mesh.position.x > FIELD_LENGTH / 2 - 24;
-          let shootDir = this.safe(
-            () => this.powerBarDir.clone(),
-            new THREE.Vector3(1, 0, 0)
+        _getChaseBallDirection(cpu, ball) {
+          let toBall = new THREE.Vector3().subVectors(ball, cpu.mesh.position);
+          toBall.y = 0;
+          if (toBall.length() > 0.1) toBall.normalize();
+          return toBall;
+        }
+
+        _getCPUGoalkeeperHomeDirection(cpu) {
+          let gkHome = new THREE.Vector3(
+            FIELD_LENGTH / 2 - 8,
+            cpu.mesh.position.y,
+            0
           );
-          if (shootDir.length() < 0.1) shootDir.set(1, 0, 0);
-          // Ensure shootDir is normalized in x and z only
-          let flatDir = shootDir.clone();
-          flatDir.y = 0;
-          if (flatDir.length() > 0.1) flatDir.normalize();
-          shootDir.x = flatDir.x;
-          shootDir.z = flatDir.z;
-          shootDir.normalize();
-          // Add vertical lift for shots
-          shootDir.y = lerp(0.2, 1.2, this.powerBarValue);
-          if (nearGoal) {
-            let shootPower = lerp(28, 60, this.powerBarValue);
-            this.ball.velocity.x = shootDir.x * shootPower;
-            this.ball.velocity.y = shootDir.y * shootPower;
-            this.ball.velocity.z = shootDir.z * shootPower;
-            if (
-              Math.sqrt(this.ball.velocity.x ** 2 + this.ball.velocity.z ** 2) >
-              60
-            ) {
-              let scale =
-                60 /
-                Math.sqrt(
-                  this.ball.velocity.x ** 2 + this.ball.velocity.z ** 2
-                );
-              this.ball.velocity.x *= scale;
-              this.ball.velocity.z *= scale;
-            }
-            this.ball.spin = randRange(-1, 1) * this.powerBarValue;
-            player.cooldown = 0.7;
-            if (this.sounds.kick) this.sounds.kick.play();
+          let toHome = new THREE.Vector3().subVectors(
+            gkHome,
+            cpu.mesh.position
+          );
+          toHome.y = 0;
+          if (toHome.length() > 0.1) toHome.normalize();
+          return toHome;
+        }
+
+        _getCPUZoneMovementDirection(cpu, role) {
+          let zoneMin, zoneMax;
+          if (role === "def") {
+            zoneMin = FIELD_LENGTH / 2 - FIELD_LENGTH / 2.5;
+            zoneMax = FIELD_LENGTH / 2;
+          } else if (role === "mid") {
+            zoneMin = FIELD_LENGTH / 2 - (FIELD_LENGTH / 2.5) * 2;
+            zoneMax = FIELD_LENGTH / 2 - FIELD_LENGTH / 2.5;
           } else {
-            let shootPower = lerp(18, 40, this.powerBarValue);
-            this.ball.velocity.x = shootDir.x * shootPower;
-            this.ball.velocity.y = shootDir.y * shootPower;
-            this.ball.velocity.z = shootDir.z * shootPower;
-            if (
-              Math.sqrt(this.ball.velocity.x ** 2 + this.ball.velocity.z ** 2) >
-              45
-            ) {
-              let scale =
-                45 /
-                Math.sqrt(
-                  this.ball.velocity.x ** 2 + this.ball.velocity.z ** 2
-                );
-              this.ball.velocity.x *= scale;
-              this.ball.velocity.z *= scale;
+            zoneMin = FIELD_LENGTH / 2 - (FIELD_LENGTH / 2.5) * 2.5;
+            zoneMax = FIELD_LENGTH / 2 - (FIELD_LENGTH / 2.5) * 2;
+          }
+          if (!cpu._zoneTarget || Math.random() < 0.01) {
+            let targetX = zoneMin + Math.random() * (zoneMax - zoneMin);
+            let targetZ = -FIELD_WIDTH / 2 + Math.random() * FIELD_WIDTH;
+            cpu._zoneTarget = new THREE.Vector3(
+              targetX,
+              cpu.mesh.position.y,
+              targetZ
+            );
+          }
+          let toZone = new THREE.Vector3().subVectors(
+            cpu._zoneTarget,
+            cpu.mesh.position
+          );
+          toZone.y = 0;
+          if (toZone.length() > 0.1) toZone.normalize();
+          return toZone;
+        }
+
+        _findClosestCPUPlayerIdx(cpuTeam) {
+          let closestIdx = 0;
+          let minDist = Infinity;
+          for (let i = 0; i < TEAM_SIZE; ++i) {
+            let d = cpuTeam.players[i].mesh.position.distanceTo(
+              this.ball.mesh.position
+            );
+            if (d < minDist) {
+              minDist = d;
+              closestIdx = i;
             }
-            this.ball.spin = randRange(-0.7, 0.7) * this.powerBarValue;
-            player.cooldown = 0.5;
-            if (this.sounds.kick) this.sounds.kick.play();
+          }
+          return closestIdx;
+        }
+
+        _cpuDefenderLogic(cpu, dt, distToBall) {
+          let zoneX = FIELD_LENGTH / 4;
+          let ballInZone = this.ball.mesh.position.x > FIELD_LENGTH / 2 - zoneX;
+          if (ballInZone && distToBall < 12) {
+            let toBall = new THREE.Vector3().subVectors(
+              this.ball.mesh.position,
+              cpu.mesh.position
+            );
+            toBall.y = 0;
+            if (toBall.length() > 0.1) toBall.normalize();
+            cpu.move(toBall, dt);
+          } else {
+            let homeX = FIELD_LENGTH / 2 - 24;
+            let homeZ = cpu.mesh.position.z;
+            let toHome = new THREE.Vector3(homeX, 0, homeZ).sub(
+              cpu.mesh.position
+            );
+            if (toHome.length() > 0.1) toHome.normalize();
+            cpu.move(toHome, dt);
           }
         }
+
+        _cpuMidFwdLogic(cpu, dt, i, closestIdx, distToBall, role) {
+          if (i === closestIdx) {
+            let toBall = new THREE.Vector3().subVectors(
+              this.ball.mesh.position,
+              cpu.mesh.position
+            );
+            toBall.y = 0;
+            if (toBall.length() > 0.1) toBall.normalize();
+            cpu.move(toBall, dt);
+            if (distToBall < PLAYER_RADIUS + BALL_RADIUS + 1.2) {
+              this._cpuShoot(cpu);
+            }
+          }
+          let formation = [
+            FIELD_LENGTH / 2 - 24, // Forward
+            FIELD_LENGTH / 2 - 54, // Midfield
+            FIELD_LENGTH / 2 - 70, // Deep midfield
+          ];
+          let targetX;
+          if (role === "fwd") {
+            targetX = formation[0];
+          } else if (i < 9) {
+            targetX = formation[1];
+          } else {
+            targetX = formation[2];
+          }
+          let toHome = new THREE.Vector3(targetX, 0, cpu.mesh.position.z).sub(
+            cpu.mesh.position
+          );
+          if (toHome.length() > 0.1) toHome.normalize();
+          cpu.move(toHome, dt);
+        }
+
+        _getCPURole(i) {
+          if (i === 0) return "gk";
+          if (i < 5) return "def";
+          if (i < 9) return "mid";
+          return "fwd";
+        }
+
+        _cpuGoalkeeperMove(cpu, dt) {
+          let gkX = FIELD_LENGTH / 2 - 6;
+          let gkZ = 0;
+          let toHome = new THREE.Vector3(gkX, 0, gkZ).sub(cpu.mesh.position);
+          if (toHome.length() > 0.1) toHome.normalize();
+          cpu.move(toHome, dt);
+        }
+
+        _cpuDefenderMove(cpu, dt, distToBall) {
+          let homeX =
+            this.idx === 1 ? FIELD_LENGTH / 2 - 18 : -FIELD_LENGTH / 2 + 18;
+          let homeZ = cpu.mesh.position.z;
+          let toHome = new THREE.Vector3(homeX, 0, homeZ).sub(
+            cpu.mesh.position
+          );
+          if (toHome.length() > 0.1) toHome.normalize();
+          cpu.move(toHome, dt);
+          if (distToBall < 6) {
+            let toBall = new THREE.Vector3().subVectors(
+              this.ball.mesh.position,
+              cpu.mesh.position
+            );
+            toBall.y = 0;
+            if (toBall.length() > 0.1) toBall.normalize();
+            cpu.move(toBall, dt);
+          }
+        }
+
+        _cpuAttackerMove(cpu, dt, distToBall) {
+          let toBall = new THREE.Vector3().subVectors(
+            this.ball.mesh.position,
+            cpu.mesh.position
+          );
+          toBall.y = 0;
+          if (toBall.length() > 0.1) toBall.normalize();
+          if (distToBall < 2.5) {
+            let toGoal = new THREE.Vector3(
+              -FIELD_LENGTH / 2 + GOAL_DEPTH,
+              0,
+              0
+            ).sub(cpu.mesh.position);
+            if (toGoal.length() > 0.1) toGoal.normalize();
+            cpu.move(toGoal, dt);
+            if (distToBall < PLAYER_RADIUS + BALL_RADIUS + 1.2) {
+              this._cpuShoot(cpu);
+            }
+          } else {
+            cpu.move(toBall, dt);
+          }
+        }
+
+        _cpuShoot(cpu) {
+          let shootDir = new THREE.Vector3(
+            -1,
+            lerp(0.1, 0.7, Math.random()),
+            0
+          );
+          let shootPower = lerp(18, 36, Math.random());
+          this.ball.velocity.copy(shootDir.multiplyScalar(shootPower));
+          this.ball.spin += randRange(-0.5, 0.5);
+          cpu.cooldown = 1.2;
+          if (this.sounds.kick) this.sounds.kick.play();
+        }
+
         // Returns {teamIdx, playerIdx} if a player is in possession, else null
         getPossession() {
           this.debugFunctionEntry("getPossession");
@@ -771,111 +730,8 @@ const TEAM_SIZE = 3;
                 poss = { teamIdx: tIdx, playerIdx: pIdx };
               }
             }
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-            return poss;
-        }
-        constructor(userColor = 0xf39c12, cpuColor = 0xe74c3c) {
-            this.debugFunctionEntry('constructor');
-            this.scene = new THREE.Scene();
-            this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-            this.camera.position.set(0, 120, 180);
-            this.camera.lookAt(0, 0, 0);
-            this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-            this.renderer.setSize(window.innerWidth, window.innerHeight);
-            this.renderer.setClearColor(0x1e824c);
-            this.renderer.shadowMap.enabled = true;
-            document.body.appendChild(this.renderer.domElement);
-            window.addEventListener('resize', () => this.onWindowResize());
-
-            // Lighting
-            this.scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            dirLight.position.set(0, 120, 100);
-            dirLight.castShadow = true;
-            dirLight.shadow.mapSize.width = 1024;
-            dirLight.shadow.mapSize.height = 1024;
-            dirLight.shadow.camera.near = 10;
-            dirLight.shadow.camera.far = 300;
-            dirLight.shadow.camera.left = -100;
-            dirLight.shadow.camera.right = 100;
-            dirLight.shadow.camera.top = 100;
-            dirLight.shadow.camera.bottom = -100;
-            this.scene.add(dirLight);
-
-            // Field
-            this.field = new Field(this.scene);
-
-            // Ball
-            this.ball = new Ball(this.scene);
-
-            // Teams (use selected colors)
-            this.teams = [
-                new Team(this.scene, 0, userColor, 'You'),
-                new Team(this.scene, 1, cpuColor, 'CPU')
-            ];
-            this.teams[0].isUser = true;
-            this.teams[1].isUser = false;
-
-            // Game State
-            this.score = [0, 0];
-            this.time = GAME_TIME;
-            this.state = 'playing';
-            this.lastGoalTeam = null;
-            this.selectedPlayerIdx = 0;
-
-            // Controls
-            this.controls = {};
-            document.addEventListener('keydown', e => this.onKeyDown(e));
-            document.addEventListener('keyup', e => this.onKeyUp(e));
-
-            // Sound
-            this.sounds = this.initSounds();
-            this.muted = false;
-            document.getElementById('muteBtn').onclick = () => this.toggleMute();
-
-            // Crowd sound with fallback and error handling
-            this.crowdAudio = new Audio();
-            this.crowdAudio.loop = true;
-            this.crowdAudio.volume = 0.18;
-            // Try main source
-            this.crowdAudio.src = 'https://cdn.pixabay.com/audio/2022/10/16/audio_12b6b7b2b2.mp3';
-            this.crowdAudio.onerror = () => {
-                // Fallback to another MP3 crowd sound
-                this.crowdAudio.src = 'https://cdn.freesound.org/previews/456/456119_5121236-lq.mp3';
-                this.crowdAudio.load();
-                this.crowdAudio.play().catch(() => {});
-            };
-            this.crowdAudio.play().catch(() => {});
-
-            // Weather
-            this.initWeather();
-
-            // Replay
-            this.replayBuffer = [];
-            this.isReplaying = false;
-            document.getElementById('replayBtn').onclick = () => this.startReplay();
-
-            // UI
-            this.updateUI();
-            this.resetPositions();
-            let user = this.teams[0].players[0];
-            let kickoffPos = user.mesh.position.clone().add(new THREE.Vector3(PLAYER_RADIUS + BALL_RADIUS + 0.5, 0, 0));
-            this.ball.setPosition(kickoffPos.x, this.ball.mesh.position.y, kickoffPos.z);
-            this.ball.velocity.set(8, 0, 0);
-            this.state = 'playing';
-            this.hideOverlay();
-            if (this.sounds.melody) this.sounds.melody.play();
-            this.lastFrame = performance.now();
-            this.animate();
-=======
           }
           return poss;
->>>>>>> Stashed changes
-=======
-          }
-          return poss;
->>>>>>> Stashed changes
         }
         initSounds() {
           this.debugFunctionEntry("initSounds");
@@ -980,9 +836,12 @@ const TEAM_SIZE = 3;
           const scoreSeparator = `<span class="score-separator">-</span>`;
           const scoreCpu = `<span id="score-cpu">${this.score[1]}</span><span class="score-cpu">CPU</span>`;
           const scoreline = `<div id="scoreline" class="scoreline">${scoreUser}${scoreSeparator}${scoreCpu}</div>`;
-          const timeInfo = `<span id="info">Time: <b>${Math.floor(
-            this.time
-          )}</b>s</span>`;
+          // Format time as MM:SS
+          const minutes = Math.floor(this.time / 60);
+          const seconds = Math.floor(this.time % 60)
+            .toString()
+            .padStart(2, "0");
+          const timeInfo = `<span id="info">Time: <b>${minutes}:${seconds}</b></span>`;
           const debugInfo = `<span id="debug"></span>`;
           scoreboard.innerHTML = scoreline + timeInfo + debugInfo;
         }
@@ -1006,152 +865,31 @@ const TEAM_SIZE = 3;
         }
 
         onKeyDown(e) {
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-            this.debugFunctionEntry('onKeyDown', { key: e.key });
-            this.controls[e.key.toLowerCase()] = true;
-            if (e.key.toLowerCase() === 'r') this.startReplay();
-            if (e.key.toLowerCase() === 'm') this.toggleMute();
-            // Player switch with Tab
-            if (e.key === 'Tab') {
-                e.preventDefault();
-                this.selectedPlayerIdx = (this.selectedPlayerIdx + 1) % TEAM_SIZE;
-            }
-            // Start power bar on space down (if not already active)
-            if (e.key === ' ' && !this.powerBarActive && this.state === 'playing') {
-                this.powerBarActive = true;
-                this.powerBarValue = 0;
-                this.powerBarType = null;
-            }
-        }
-        animate() {
-            try {
-                // Calculate time delta
-                const now = performance.now();
-                const dt = this.lastFrame ? Math.min((now - this.lastFrame) / 1000, 0.08) : 1/60;
-                this.lastFrame = now;
-
-                // Process input and update game objects
-                this.handleInput(dt);
-                // Update all players
-                for (let team of this.teams) {
-                    for (let player of team.players) {
-                        player.update(dt);
-                    }
-                }
-                // Update ball
-                this.ball.update();
-
-                // Goal detection
-                if (Math.abs(this.ball.mesh.position.x) > FIELD_LENGTH/2 - GOAL_DEPTH && Math.abs(this.ball.mesh.position.z) < GOAL_WIDTH/2) {
-                    let teamIdx = this.ball.mesh.position.x > 0 ? 0 : 1;
-                    if (this.state === 'playing') {
-                        this.scoreGoal(teamIdx);
-                        if (this.sounds.whistle) this.sounds.whistle.play();
-                    }
-                }
-
-                // Camera logic
-                let camTarget, camHeight = 60, camDist = 80;
-                if (this.state === 'replay') {
-                    camTarget = new THREE.Vector3(this.ball.mesh.position.x, camHeight, this.ball.mesh.position.z + camDist);
-                } else {
-                    let player = this.teams[0].players[this.selectedPlayerIdx];
-                    camTarget = new THREE.Vector3(player.mesh.position.x, camHeight, player.mesh.position.z + camDist);
-                }
-                // Dynamic zoom based on ball speed
-                let ballSpeed = this.ball.velocity.length();
-                camHeight = 60 + Math.min(ballSpeed * 2.5, 40);
-                camDist = 80 + Math.min(ballSpeed * 2.5, 40);
-                camTarget.y = camHeight;
-                camTarget.z = (this.state === 'replay') ? this.ball.mesh.position.z + camDist : this.teams[0].players[this.selectedPlayerIdx].mesh.position.z + camDist;
-                this.camera.position.lerp(camTarget, 0.08);
-                this.camera.lookAt(this.ball.mesh.position.x, 0, this.ball.mesh.position.z);
-                this.drawLabels();
-                this.logDebug('Ball: ' + this.ball.mesh.position.x.toFixed(1) + ',' + this.ball.mesh.position.z.toFixed(1) + '  Vel:' + this.ball.velocity.length().toFixed(2), 'ball');
-                this.renderer.render(this.scene, this.camera);
-            } catch (e) {
-                this.showOverlay('Error: ' + e.message);
-                throw e;
-            }
-            requestAnimationFrame(() => this.animate());
-        }
-        scoreGoal(teamIdx) {
-            this.debugFunctionEntry('scoreGoal', { teamIdx });
-            this.logDebug('scoreGoal called, teamIdx=' + teamIdx);
-            this.score[teamIdx]++;
-            this.updateUI();
-            this.state = 'goal';
-            let color = '#fff';
-            let player = this.teams[teamIdx] && this.teams[teamIdx].players && this.teams[teamIdx].players[0];
-            if (player && player.mesh && player.mesh.material && player.mesh.material.color && typeof player.mesh.material.color.getStyle === 'function') {
-                color = player.mesh.material.color.getStyle();
-            }
-            this.showOverlay(`<span style='color:${color};font-weight:bold;font-size:2em;'>${teamIdx === 0 ? 'You' : 'CPU'} scored!</span><br><span style='font-size:1.2em;'>🎉 GOAL! 🎉</span>`);
-            if (this.sounds.goal) this.sounds.goal.play();
-            // Play crowd cheer
-            if (this.crowdAudio) {
-                this.crowdAudio.currentTime = 0;
-                this.crowdAudio.volume = 0.45;
-                setTimeout(() => { this.crowdAudio.volume = 0.18; }, 1800);
-            }
-            if (this.sounds.melody) this.sounds.melody.play();
-            document.getElementById('replayBtn').style.display = 'inline-block';
-            this.ball.velocity.set(0,0,0);
-            for (let t of this.teams) for (let p of t.players) p.cooldown = 1;
-            setTimeout(() => {
-                this.resetPositions();
-                this.hideOverlay();
-                this.state = 'playing';
-                document.getElementById('replayBtn').style.display = 'none';
-            }, 2000);
-=======
           this.debugFunctionEntry("onKeyDown", { key: e.key });
           this.controls[e.key.toLowerCase()] = true;
-          if (e.key.toLowerCase() === "r") this.startReplay();
+          if (e.key.toLowerCase() === "r") this.startRestart();
           if (e.key.toLowerCase() === "m") this.toggleMute();
-          // Start power bar on space down (if not already active)
-          if (
-            e.key === " " &&
-            !this.powerBarActive &&
-            this.state === "playing"
-          ) {
-            this.powerBarActive = true;
-            this.powerBarValue = 0;
-            this.powerBarType = null;
+          // Player switching: Tab or Q
+          if (e.key.toLowerCase() === "tab" || e.key.toLowerCase() === "q") {
+            e.preventDefault();
+            this.switchPlayer();
           }
         }
-=======
-          this.debugFunctionEntry("onKeyDown", { key: e.key });
-          this.controls[e.key.toLowerCase()] = true;
-          if (e.key.toLowerCase() === "r") this.startReplay();
-          if (e.key.toLowerCase() === "m") this.toggleMute();
-          // Start power bar on space down (if not already active)
-          if (
-            e.key === " " &&
-            !this.powerBarActive &&
-            this.state === "playing"
-          ) {
-            this.powerBarActive = true;
-            this.powerBarValue = 0;
-            this.powerBarType = null;
-          }
+
+        // Add missing startRestart method to prevent errors
+        startRestart() {
+          this.debugFunctionEntry("startRestart");
+          // For now, just reset positions and time, and show overlay
+          this.resetPositions();
+          this.time = GAME_TIME;
+          this.score = [0, 0];
+          this.state = "playing";
+          this.hideOverlay();
+          this.updateUI();
         }
->>>>>>> Stashed changes
         onKeyUp(e) {
           this.debugFunctionEntry("onKeyUp", { key: e.key });
           this.controls[e.key.toLowerCase()] = false;
-          // On space up, trigger pass/shoot/tackle if power bar was active
-          if (
-            e.key === " " &&
-            this.powerBarActive &&
-            this.state === "playing"
-          ) {
-            this.handlePowerBarAction();
-            this.powerBarActive = false;
-            this.powerBarValue = 0;
-            this.powerBarType = null;
-          }
         }
 
         resetPositions() {
@@ -1163,10 +901,6 @@ const TEAM_SIZE = 3;
           this.teams[0].resetPositions(-FIELD_LENGTH / 4);
           this.teams[1].resetPositions(FIELD_LENGTH / 4);
           this.selectedPlayerIdx = 0;
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
         }
 
         switchPlayer() {
@@ -1238,67 +972,19 @@ const TEAM_SIZE = 3;
           let team = this.throwInTeam;
           let idx = team === this.teams[0] ? this.selectedPlayerIdx : 0;
           let player = team.players[idx];
-          this._showPowerBarUI();
-          this.powerBarValue = Math.min(this.powerBarValue + dt * 2.2, 1);
+          // Simple throw-in: just pass in direction of input
           let dir = this._getInputDirection();
-          if (this.powerBarDir) {
-            this.powerBarDir.copy(dir);
-          } else {
-            this.powerBarDir = dir.clone();
-          }
-          this._updatePowerBarUI();
-          if (!this.controls[" "]) {
-            this._executeThrowIn(player);
-          }
-        }
-
-        _selectNearestUserPlayerForThrowIn() {
-          let minDist = Infinity,
-            idx = 0;
-          for (let [i, player] of this.teams[0].players.entries()) {
-            let d = player.mesh.position.distanceTo(this.throwInPos);
-            if (d < minDist) {
-              minDist = d;
-              idx = i;
-            }
-          }
-          this.selectedPlayerIdx = idx;
-        }
-
-        _showPowerBarUI() {
-          let pb = document.getElementById("powerbar-container");
-          if (pb) pb.style.display = "block";
-          let fill = document.getElementById("powerbar-fill");
-          if (fill) fill.style.width = (this.powerBarValue * 100).toFixed(1) + "%";
-          let label = document.getElementById("powerbar-label");
-          if (label) label.textContent = "Power: " + Math.round(this.powerBarValue * 100) + "%";
-        }
-        _hidePowerBarUI() {
-          let pb = document.getElementById("powerbar-container");
-          if (pb) pb.style.display = "none";
-        }
-
-        _executeThrowIn(player) {
-          let pb = document.getElementById("powerbar-container");
-          let throwDir = this.powerBarDir.clone();
-          if (throwDir.length() < 0.1) throwDir.set(1, 0, 0);
-          throwDir.normalize();
-          let throwPower = lerp(18, 38, this.powerBarValue);
-          let curve = lerp(0, 1.2, this.powerBarValue);
-          let curveVec = new THREE.Vector3(
-            -throwDir.z,
-            0,
-            throwDir.x
-          ).multiplyScalar(curve);
-          let finalDir = throwDir.clone().add(curveVec).normalize();
-          this.ball.velocity.copy(finalDir.multiplyScalar(throwPower));
-          this.ball.spin = curve * 2;
+          if (dir.length() < 0.1) dir.set(1, 0, 0);
+          dir.normalize();
+          let throwPower = 28; // Fixed throw power
+          this.ball.velocity.copy(dir.multiplyScalar(throwPower));
+          this.ball.spin = 0.5;
           player.cooldown = 0.5;
           this.throwInActive = false;
           this.state = "playing";
           if (this.sounds.pass) this.sounds.pass.play();
-          if (pb) pb.style.display = "none";
         }
+
 
         _handleUserMovement(dt) {
           let player = this.teams[0].players[this.selectedPlayerIdx];
@@ -1307,7 +993,149 @@ const TEAM_SIZE = 3;
             player.move(moveDir, dt);
             this._handleDribble(player, moveDir, dt);
           }
+          this._moveNonControlledPlayers(dt);
         }
+
+        _moveNonControlledPlayers(dt) {
+          const ball = this.ball.mesh.position;
+          const closestIdx = this._findClosestNonControlledPlayer(ball);
+          for (let i = 0; i < TEAM_SIZE; ++i) {
+            if (i === this.selectedPlayerIdx) continue;
+            let p = this.teams[0].players[i];
+            if (p.cooldown > 0 || p._tackledTimer) continue;
+            let role = this._getUserRole(i);
+            let moveDir = this._getNonControlledPlayerMoveDir(
+              p,
+              role,
+              i,
+              closestIdx,
+              ball
+            );
+            p.move(moveDir, dt);
+          }
+        }
+
+        _findClosestNonControlledPlayer(ball) {
+          let closestIdx = null,
+            minDist = Infinity;
+          for (let i = 0; i < TEAM_SIZE; ++i) {
+            if (i === this.selectedPlayerIdx) continue;
+            let p = this.teams[0].players[i];
+            if (p.cooldown > 0 || p._tackledTimer) continue;
+            let d = p.mesh.position.distanceTo(ball);
+            if (d < minDist) {
+              minDist = d;
+              closestIdx = i;
+            }
+          }
+          return closestIdx;
+        }
+
+        _getNonControlledPlayerMoveDir(p, role, i, closestIdx, ball) {
+          if (i === closestIdx) {
+            return this._getChaseBallDirection(p, ball);
+          }
+          if (role === "gk") {
+            return this._getGoalkeeperHomeDirection(p);
+          }
+          return this._getZoneMovementDirection(p, role);
+        }
+
+        _getGoalkeeperHomeDirection(p) {
+          let gkHome = new THREE.Vector3(
+            -FIELD_LENGTH / 2 + 8,
+            p.mesh.position.y,
+            0
+          );
+          let toHome = new THREE.Vector3().subVectors(gkHome, p.mesh.position);
+          toHome.y = 0;
+          if (toHome.length() > 0.1) toHome.normalize();
+          return toHome;
+        }
+
+        _getZoneMovementDirection(p, role) {
+          let zoneMin, zoneMax;
+          if (role === "def") {
+            zoneMin = -FIELD_LENGTH / 2;
+            zoneMax = -FIELD_LENGTH / 2 + FIELD_LENGTH / 2.5;
+          } else if (role === "mid") {
+            zoneMin = -FIELD_LENGTH / 2 + FIELD_LENGTH / 2.5;
+            zoneMax = FIELD_LENGTH / 2 - FIELD_LENGTH / 2.5;
+          } else {
+            zoneMin = FIELD_LENGTH / 2 - FIELD_LENGTH / 2.5;
+            zoneMax = FIELD_LENGTH / 2;
+          }
+          if (!p._zoneTarget || Math.random() < 0.01) {
+            let targetX = zoneMin + Math.random() * (zoneMax - zoneMin);
+            let targetZ = -FIELD_WIDTH / 2 + Math.random() * FIELD_WIDTH;
+            p._zoneTarget = new THREE.Vector3(
+              targetX,
+              p.mesh.position.y,
+              targetZ
+            );
+          }
+          let toZone = new THREE.Vector3().subVectors(
+            p._zoneTarget,
+            p.mesh.position
+          );
+          toZone.y = 0;
+          if (toZone.length() > 0.1) toZone.normalize();
+          return toZone;
+        }
+
+        _getUserRole(i) {
+          // Use a switch statement for a different structure than _getCPURole
+          switch (true) {
+            case i === 0:
+              return "gk";
+            case i >= 1 && i < 5:
+              return "def";
+            case i >= 5 && i < 9:
+              return "mid";
+            default:
+              return "fwd";
+          }
+        }
+
+        _getUserTargetX(role, formation) {
+          if (role === "gk") return -FIELD_LENGTH / 2 + 8;
+          if (role === "def") return formation[0];
+          if (role === "mid") return formation[1];
+          return formation[2];
+        }
+
+        _getUserSupportDist(role) {
+          if (role === "mid") return 24;
+          if (role === "fwd") return 18;
+          return 12;
+        }
+
+        _getUserMoveDir(p, targetX, supportDist) {
+          let ball = this.ball.mesh.position;
+          let toBall = new THREE.Vector3().subVectors(ball, p.mesh.position);
+          toBall.y = 0;
+          let distToBall = toBall.length();
+          let moveDir = new THREE.Vector3();
+          if (distToBall < supportDist) {
+            moveDir.copy(toBall);
+            if (moveDir.length() > 0.1) moveDir.normalize();
+          } else {
+            let targetPos = new THREE.Vector3(
+              targetX,
+              p.mesh.position.y,
+              p.mesh.position.z
+            );
+            let toHome = new THREE.Vector3().subVectors(
+              targetPos,
+              p.mesh.position
+            );
+            toHome.y = 0;
+            if (toHome.length() > 0.1) toHome.normalize();
+            moveDir.copy(toHome);
+          }
+          return moveDir;
+        }
+        // ...existing code...
 
         _getInputDirectionForMovement() {
           let moveDir = new THREE.Vector3();
@@ -1315,8 +1143,9 @@ const TEAM_SIZE = 3;
           if (this.controls["arrowdown"] || this.controls["s"]) moveDir.z += 1;
           if (this.controls["arrowleft"] || this.controls["a"]) moveDir.x -= 1;
           if (this.controls["arrowright"] || this.controls["d"]) moveDir.x += 1;
-          if (isNaN(moveDir.x) || isNaN(moveDir.y) || isNaN(moveDir.z))
+          if (isNaN(moveDir.x) || isNaN(moveDir.y) || isNaN(moveDir.z)) {
             moveDir.set(0, 0, 0);
+          }
           if (moveDir.length() > 0.1) moveDir.normalize();
           return moveDir;
         }
@@ -1341,18 +1170,7 @@ const TEAM_SIZE = 3;
           }
         }
       }
-
       class Field {
-        constructor(scene) {
-          this.scene = scene;
-          this.mesh = this.createField();
-          this.lines = this.createLines();
-          this.goalposts = this.createGoalposts();
-          this.scene.add(this.mesh);
-          this.scene.add(this.lines);
-          this.scene.add(this.goalposts);
-        }
-
         createField() {
           const fieldGeometry = new THREE.BoxGeometry(
             FIELD_LENGTH,
@@ -1368,55 +1186,246 @@ const TEAM_SIZE = 3;
           return fieldMesh;
         }
 
+        constructor(scene) {
+          this.scene = scene;
+          this.mesh = this.createField();
+          this.lines = this.createLines();
+          this.goalposts = this.createGoalposts();
+          this.scene.add(this.mesh);
+          this.scene.add(this.lines);
+          this.scene.add(this.goalposts);
+        }
+
         createLines() {
           const lineMaterial = new THREE.LineBasicMaterial({ color: 0xffffff });
           const lines = new THREE.Group();
           // Outline
           lines.add(
             this.createLine(
-              [-FIELD_LENGTH / 2, 0, -FIELD_WIDTH / 2],
-              [FIELD_LENGTH / 2, 0, -FIELD_WIDTH / 2],
+              [-FIELD_LENGTH / 2, 0.1, -FIELD_WIDTH / 2],
+              [FIELD_LENGTH / 2, 0.1, -FIELD_WIDTH / 2],
               lineMaterial
             )
           );
           lines.add(
             this.createLine(
-              [FIELD_LENGTH / 2, 0, -FIELD_WIDTH / 2],
-              [FIELD_LENGTH / 2, 0, FIELD_WIDTH / 2],
+              [FIELD_LENGTH / 2, 0.1, -FIELD_WIDTH / 2],
+              [FIELD_LENGTH / 2, 0.1, FIELD_WIDTH / 2],
               lineMaterial
             )
           );
           lines.add(
             this.createLine(
-              [FIELD_LENGTH / 2, 0, FIELD_WIDTH / 2],
-              [-FIELD_LENGTH / 2, 0, FIELD_WIDTH / 2],
+              [FIELD_LENGTH / 2, 0.1, FIELD_WIDTH / 2],
+              [-FIELD_LENGTH / 2, 0.1, FIELD_WIDTH / 2],
               lineMaterial
             )
           );
           lines.add(
             this.createLine(
-              [-FIELD_LENGTH / 2, 0, FIELD_WIDTH / 2],
-              [-FIELD_LENGTH / 2, 0, -FIELD_WIDTH / 2],
+              [-FIELD_LENGTH / 2, 0.1, FIELD_WIDTH / 2],
+              [-FIELD_LENGTH / 2, 0.1, -FIELD_WIDTH / 2],
               lineMaterial
             )
           );
+
           // Halfway line
           lines.add(
             this.createLine(
-              [0, 0, -FIELD_WIDTH / 2],
-              [0, 0, FIELD_WIDTH / 2],
+              [0, 0.11, -FIELD_WIDTH / 2],
+              [0, 0.11, FIELD_WIDTH / 2],
               lineMaterial
             )
           );
-          // Center circle
-          const circleGeometry = new THREE.CircleGeometry(9.15, 32);
-          const circleMaterial = new THREE.MeshBasicMaterial({
-            color: 0xffffff,
-          });
-          const centerCircle = new THREE.Mesh(circleGeometry, circleMaterial);
-          centerCircle.position.set(0, 0.1, 0);
-          centerCircle.rotation.x = -Math.PI / 2;
+
+          // Center circle (drawn as a line loop)
+          const centerRadius = 9.15;
+          const centerSegments = 64;
+          const centerPoints = [];
+          for (let i = 0; i <= centerSegments; i++) {
+            const theta = (i / centerSegments) * Math.PI * 2;
+            centerPoints.push(
+              new THREE.Vector3(
+                Math.cos(theta) * centerRadius,
+                0.12,
+                Math.sin(theta) * centerRadius
+              )
+            );
+          }
+          const centerCircleGeometry = new THREE.BufferGeometry().setFromPoints(
+            centerPoints
+          );
+          const centerCircle = new THREE.LineLoop(
+            centerCircleGeometry,
+            lineMaterial
+          );
           lines.add(centerCircle);
+
+          // Center spot
+          const spotGeometry = new THREE.CircleGeometry(0.3, 16);
+          const spotMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+          const centerSpot = new THREE.Mesh(spotGeometry, spotMaterial);
+          centerSpot.position.set(0, 0.13, 0);
+          centerSpot.rotation.x = -Math.PI / 2;
+          lines.add(centerSpot);
+
+          // Penalty areas and goal areas (both sides)
+          const PA_LENGTH = 16.5,
+            PA_WIDTH = 40.3;
+          const GA_LENGTH = 5.5,
+            GA_WIDTH = 18.32;
+          // Left penalty area
+          lines.add(
+            this.createLine(
+              [-FIELD_LENGTH / 2 + PA_LENGTH, 0.13, -PA_WIDTH / 2],
+              [-FIELD_LENGTH / 2 + PA_LENGTH, 0.13, PA_WIDTH / 2],
+              lineMaterial
+            )
+          );
+          lines.add(
+            this.createLine(
+              [-FIELD_LENGTH / 2, 0.13, -PA_WIDTH / 2],
+              [-FIELD_LENGTH / 2 + PA_LENGTH, 0.13, -PA_WIDTH / 2],
+              lineMaterial
+            )
+          );
+          lines.add(
+            this.createLine(
+              [-FIELD_LENGTH / 2, 0.13, PA_WIDTH / 2],
+              [-FIELD_LENGTH / 2 + PA_LENGTH, 0.13, PA_WIDTH / 2],
+              lineMaterial
+            )
+          );
+          // Right penalty area
+          lines.add(
+            this.createLine(
+              [FIELD_LENGTH / 2 - PA_LENGTH, 0.13, -PA_WIDTH / 2],
+              [FIELD_LENGTH / 2 - PA_LENGTH, 0.13, PA_WIDTH / 2],
+              lineMaterial
+            )
+          );
+          lines.add(
+            this.createLine(
+              [FIELD_LENGTH / 2, 0.13, -PA_WIDTH / 2],
+              [FIELD_LENGTH / 2 - PA_LENGTH, 0.13, -PA_WIDTH / 2],
+              lineMaterial
+            )
+          );
+          lines.add(
+            this.createLine(
+              [FIELD_LENGTH / 2, 0.13, PA_WIDTH / 2],
+              [FIELD_LENGTH / 2 - PA_LENGTH, 0.13, PA_WIDTH / 2],
+              lineMaterial
+            )
+          );
+
+          // Left goal area
+          lines.add(
+            this.createLine(
+              [-FIELD_LENGTH / 2 + GA_LENGTH, 0.13, -GA_WIDTH / 2],
+              [-FIELD_LENGTH / 2 + GA_LENGTH, 0.13, GA_WIDTH / 2],
+              lineMaterial
+            )
+          );
+          lines.add(
+            this.createLine(
+              [-FIELD_LENGTH / 2, 0.13, -GA_WIDTH / 2],
+              [-FIELD_LENGTH / 2 + GA_LENGTH, 0.13, -GA_WIDTH / 2],
+              lineMaterial
+            )
+          );
+          lines.add(
+            this.createLine(
+              [-FIELD_LENGTH / 2, 0.13, GA_WIDTH / 2],
+              [-FIELD_LENGTH / 2 + GA_LENGTH, 0.13, GA_WIDTH / 2],
+              lineMaterial
+            )
+          );
+          // Right goal area
+          lines.add(
+            this.createLine(
+              [FIELD_LENGTH / 2 - GA_LENGTH, 0.13, -GA_WIDTH / 2],
+              [FIELD_LENGTH / 2 - GA_LENGTH, 0.13, GA_WIDTH / 2],
+              lineMaterial
+            )
+          );
+          lines.add(
+            this.createLine(
+              [FIELD_LENGTH / 2, 0.13, -GA_WIDTH / 2],
+              [FIELD_LENGTH / 2 - GA_LENGTH, 0.13, -GA_WIDTH / 2],
+              lineMaterial
+            )
+          );
+          lines.add(
+            this.createLine(
+              [FIELD_LENGTH / 2, 0.13, GA_WIDTH / 2],
+              [FIELD_LENGTH / 2 - GA_LENGTH, 0.13, GA_WIDTH / 2],
+              lineMaterial
+            )
+          );
+
+          // Penalty spots
+          const PENALTY_SPOT_DIST = 11;
+          const leftPenaltySpot = new THREE.Mesh(spotGeometry, spotMaterial);
+          leftPenaltySpot.position.set(
+            -FIELD_LENGTH / 2 + PENALTY_SPOT_DIST,
+            0.13,
+            0
+          );
+          leftPenaltySpot.rotation.x = -Math.PI / 2;
+          lines.add(leftPenaltySpot);
+          const rightPenaltySpot = new THREE.Mesh(spotGeometry, spotMaterial);
+          rightPenaltySpot.position.set(
+            FIELD_LENGTH / 2 - PENALTY_SPOT_DIST,
+            0.13,
+            0
+          );
+          rightPenaltySpot.rotation.x = -Math.PI / 2;
+          lines.add(rightPenaltySpot);
+
+          // Penalty arcs
+          const arcRadius = 9.15;
+          function createArc(
+            centerX,
+            centerZ,
+            startAngle,
+            endAngle,
+            reverse = false
+          ) {
+            const arcGeom = new THREE.BufferGeometry();
+            const points = [];
+            for (let i = 0; i <= 32; i++) {
+              const t = startAngle + (endAngle - startAngle) * (i / 32);
+              points.push(
+                new THREE.Vector3(
+                  centerX + Math.cos(t) * arcRadius,
+                  0.14,
+                  centerZ + Math.sin(t) * arcRadius
+                )
+              );
+            }
+            arcGeom.setFromPoints(points);
+            return new THREE.Line(arcGeom, lineMaterial);
+          }
+          // Left penalty arc
+          lines.add(
+            createArc(
+              -FIELD_LENGTH / 2 + PENALTY_SPOT_DIST,
+              0,
+              Math.PI * 1.15,
+              Math.PI * 1.85
+            )
+          );
+          // Right penalty arc
+          lines.add(
+            createArc(
+              FIELD_LENGTH / 2 - PENALTY_SPOT_DIST,
+              0,
+              -Math.PI * 0.85,
+              -Math.PI * 0.15
+            )
+          );
+
           return lines;
         }
 
@@ -1472,10 +1481,62 @@ const TEAM_SIZE = 3;
         }
 
         createBall() {
+          // Main ball
           const ballGeometry = new THREE.SphereGeometry(BALL_RADIUS, 32, 32);
           const ballMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
           const ballMesh = new THREE.Mesh(ballGeometry, ballMaterial);
           ballMesh.castShadow = true;
+
+          // Outline (slightly larger, black, semi-transparent)
+          const outlineGeometry = new THREE.SphereGeometry(
+            BALL_RADIUS * 1.18,
+            32,
+            32
+          );
+          const outlineMaterial = new THREE.MeshBasicMaterial({
+            color: 0x000000,
+            transparent: true,
+            opacity: 0.45,
+          });
+          const outlineMesh = new THREE.Mesh(outlineGeometry, outlineMaterial);
+          outlineMesh.position.set(0, 0, 0);
+          ballMesh.add(outlineMesh);
+
+          // Highly visible yellow ring (torus) around ball
+          const ringRadius = BALL_RADIUS * 2.2; // Even larger
+          const ringTube = BALL_RADIUS * 0.7; // Even thicker
+          const ringGeometry = new THREE.TorusGeometry(
+            ringRadius,
+            ringTube,
+            96,
+            48
+          );
+          const ringMaterial = new THREE.MeshBasicMaterial({
+            color: 0xffff00,
+            transparent: false,
+          });
+          const ringMesh = new THREE.Mesh(ringGeometry, ringMaterial);
+          ringMesh.position.set(0, BALL_RADIUS * 0.45, 0); // Raised above ball
+          ringMesh.rotation.x = Math.PI / 2; // Align with ball equator
+          ringMesh.renderOrder = 9999;
+          ringMesh.material.depthTest = false;
+          ballMesh.add(ringMesh);
+
+          // Shadow (flat, dark circle under ball)
+          const shadowGeometry = new THREE.CircleGeometry(
+            BALL_RADIUS * 1.2,
+            32
+          );
+          const shadowMaterial = new THREE.MeshBasicMaterial({
+            color: 0x222222,
+            transparent: true,
+            opacity: 0.35,
+          });
+          const shadowMesh = new THREE.Mesh(shadowGeometry, shadowMaterial);
+          shadowMesh.position.set(0, -BALL_RADIUS + 0.15, 0);
+          shadowMesh.rotation.x = -Math.PI / 2;
+          ballMesh.add(shadowMesh);
+
           return ballMesh;
         }
 
@@ -1484,56 +1545,37 @@ const TEAM_SIZE = 3;
         }
 
         update() {
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-            this.mesh.position.add(this.velocity.clone().multiplyScalar(1/60));
-            this.velocity.y -= 0.2; // Gravity
-            this.velocity.x *= 0.99;
-            this.velocity.z *= 0.99;
-            this.mesh.rotation.y += this.spin;
-            this.spin *= 0.98;
-            // Ball boundary bounce
-            if (this.mesh.position.x < -FIELD_LENGTH/2 + BALL_RADIUS) {
-                this.mesh.position.x = -FIELD_LENGTH/2 + BALL_RADIUS;
-                this.velocity.x *= -0.7;
-            }
-            if (this.mesh.position.x > FIELD_LENGTH/2 - BALL_RADIUS) {
-                this.mesh.position.x = FIELD_LENGTH/2 - BALL_RADIUS;
-                this.velocity.x *= -0.7;
-            }
-            if (this.mesh.position.z < -FIELD_WIDTH/2 + BALL_RADIUS) {
-                this.mesh.position.z = -FIELD_WIDTH/2 + BALL_RADIUS;
-                this.velocity.z *= -0.7;
-            }
-            if (this.mesh.position.z > FIELD_WIDTH/2 - BALL_RADIUS) {
-                this.mesh.position.z = FIELD_WIDTH/2 - BALL_RADIUS;
-                this.velocity.z *= -0.7;
-            }
-            // Clamp Y to ground
-            if (this.mesh.position.y < 0) {
-                this.mesh.position.y = 0;
-                this.velocity.y = 0;
-            }
-=======
-=======
->>>>>>> Stashed changes
+          // Move ball
           this.mesh.position.add(this.velocity.clone().multiplyScalar(1 / 60));
-          this.velocity.y -= 0.2; // Gravity
-          this.velocity.x *= 0.99;
-          this.velocity.z *= 0.99;
+          // Gravity
+          this.velocity.y -= 0.22;
+          // Friction and rolling resistance
+          this.velocity.x *= 0.985;
+          this.velocity.z *= 0.985;
+          // Air resistance for vertical
+          this.velocity.y *= 0.995;
+          // Spin decay
           this.mesh.rotation.y += this.spin;
-          this.spin *= 0.98;
-          // Clamp ball to stay above ground
-          if (this.mesh.position.y < BALL_RADIUS) {
-            this.mesh.position.y = BALL_RADIUS;
-            this.velocity.y = 0;
+          this.spin *= 0.97;
+          // Bounce on ground (reduce flicker)
+          if (this.mesh.position.y < BALL_RADIUS + 0.12) {
+            // Clamp position and velocity smoothly
+            this.mesh.position.y = BALL_RADIUS + 0.12;
+            if (Math.abs(this.velocity.y) > 0.8) {
+              this.velocity.y = -Math.abs(this.velocity.y) * 0.32;
+              this.spin += randRange(-0.03, 0.03);
+            } else {
+              this.velocity.y = 0;
+            }
+            // Extra friction when ball is on ground
+            this.velocity.x *= 0.97;
+            this.velocity.z *= 0.97;
+            // Stop ball if very slow
+            if (Math.abs(this.velocity.x) < 0.08) this.velocity.x = 0;
+            if (Math.abs(this.velocity.z) < 0.08) this.velocity.z = 0;
           }
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
         }
-      }
+      } // End of Ball class
 
       class Team {
         constructor(scene, idx, color, name) {
@@ -1542,30 +1584,99 @@ const TEAM_SIZE = 3;
           this.color = color;
           this.name = name;
           this.players = [];
+          this.formationType = "442";
           this.createPlayers();
         }
 
+        setFormation(type) {
+          this.formationType = type;
+          this.createPlayers();
+        }
+
+        getFormationPositions() {
+          // Returns array of positions for the selected formation
+          switch (this.formationType) {
+            case "433":
+              return [
+                // GK
+                { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 8 : FIELD_LENGTH / 2 - 8, z: 0 },
+                // Defenders
+                { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 24 : FIELD_LENGTH / 2 - 24, z: -28 },
+                { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 24 : FIELD_LENGTH / 2 - 24, z: 0 },
+                { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 24 : FIELD_LENGTH / 2 - 24, z: 28 },
+                // Midfielders
+                { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 54 : FIELD_LENGTH / 2 - 54, z: -32 },
+                { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 54 : FIELD_LENGTH / 2 - 54, z: 0 },
+                { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 54 : FIELD_LENGTH / 2 - 54, z: 32 },
+                // Forwards
+                { x: this.idx === 0 ? FIELD_LENGTH / 2 - 24 : -FIELD_LENGTH / 2 + 24, z: -16 },
+                { x: this.idx === 0 ? FIELD_LENGTH / 2 - 24 : -FIELD_LENGTH / 2 + 24, z: 0 },
+                { x: this.idx === 0 ? FIELD_LENGTH / 2 - 24 : -FIELD_LENGTH / 2 + 24, z: 16 },
+                { x: this.idx === 0 ? FIELD_LENGTH / 2 - 36 : -FIELD_LENGTH / 2 + 36, z: 0 },
+              ];
+            case "352":
+              return [
+                // GK
+                { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 8 : FIELD_LENGTH / 2 - 8, z: 0 },
+                // Defenders
+                { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 24 : FIELD_LENGTH / 2 - 24, z: -28 },
+                { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 24 : FIELD_LENGTH / 2 - 24, z: 0 },
+                { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 24 : FIELD_LENGTH / 2 - 24, z: 28 },
+                // Midfielders
+                { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 54 : FIELD_LENGTH / 2 - 54, z: -32 },
+                { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 54 : FIELD_LENGTH / 2 - 54, z: -16 },
+                { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 54 : FIELD_LENGTH / 2 - 54, z: 0 },
+                { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 54 : FIELD_LENGTH / 2 - 54, z: 16 },
+                { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 54 : FIELD_LENGTH / 2 - 54, z: 32 },
+                // Forwards
+                { x: this.idx === 0 ? FIELD_LENGTH / 2 - 24 : -FIELD_LENGTH / 2 + 24, z: -10 },
+                { x: this.idx === 0 ? FIELD_LENGTH / 2 - 24 : -FIELD_LENGTH / 2 + 24, z: 10 },
+              ];
+            case "451":
+              return [
+                // GK
+                { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 8 : FIELD_LENGTH / 2 - 8, z: 0 },
+                // Defenders
+                { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 24 : FIELD_LENGTH / 2 - 24, z: -28 },
+                { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 24 : FIELD_LENGTH / 2 - 24, z: 0 },
+                { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 24 : FIELD_LENGTH / 2 - 24, z: 28 },
+                { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 36 : FIELD_LENGTH / 2 - 36, z: -14 },
+                // Midfielders
+                { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 54 : FIELD_LENGTH / 2 - 54, z: -32 },
+                { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 54 : FIELD_LENGTH / 2 - 54, z: -16 },
+                { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 54 : FIELD_LENGTH / 2 - 54, z: 0 },
+                { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 54 : FIELD_LENGTH / 2 - 54, z: 16 },
+                { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 54 : FIELD_LENGTH / 2 - 54, z: 32 },
+                // Forward
+                { x: this.idx === 0 ? FIELD_LENGTH / 2 - 24 : -FIELD_LENGTH / 2 + 24, z: 0 },
+              ];
+            case "442":
+            default:
+              return [
+                // Goalkeeper
+                { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 8 : FIELD_LENGTH / 2 - 8, z: 0 },
+                // Defenders
+                { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 24 : FIELD_LENGTH / 2 - 24, z: -28 },
+                { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 24 : FIELD_LENGTH / 2 - 24, z: 0 },
+                { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 24 : FIELD_LENGTH / 2 - 24, z: 28 },
+                { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 36 : FIELD_LENGTH / 2 - 36, z: -14 },
+                // Midfielders
+                { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 54 : FIELD_LENGTH / 2 - 54, z: -32 },
+                { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 54 : FIELD_LENGTH / 2 - 54, z: 0 },
+                { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 54 : FIELD_LENGTH / 2 - 54, z: 32 },
+                { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 70 : FIELD_LENGTH / 2 - 70, z: -16 },
+                { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 70 : FIELD_LENGTH / 2 - 70, z: 16 },
+                // Forward
+                { x: this.idx === 0 ? FIELD_LENGTH / 2 - 24 : -FIELD_LENGTH / 2 + 24, z: 0 },
+              ];
+          }
+        }
+
         createPlayers() {
-          // Arrange players in a basic 4-4-2 formation
-          const formation = [
-            // Goalkeeper
-            { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 6 : FIELD_LENGTH / 2 - 6, z: 0 },
-            // Defenders
-            { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 18 : FIELD_LENGTH / 2 - 18, z: -20 },
-            { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 18 : FIELD_LENGTH / 2 - 18, z: 0 },
-            { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 18 : FIELD_LENGTH / 2 - 18, z: 20 },
-            { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 26 : FIELD_LENGTH / 2 - 26, z: -10 },
-            // Midfielders
-            { x: 0, z: -25 },
-            { x: 0, z: 0 },
-            { x: 0, z: 25 },
-            { x: this.idx === 0 ? -10 : 10, z: -10 },
-            { x: this.idx === 0 ? -10 : 10, z: 10 },
-            // Forwards
-            { x: this.idx === 0 ? FIELD_LENGTH / 2 - 18 : -FIELD_LENGTH / 2 + 18, z: 0 }
-          ];
+          const formation = this.getFormationPositions();
+          this.players = [];
           for (let i = 0; i < TEAM_SIZE; ++i) {
-            let pos = formation[i] || { x: 0, z: 0 };
+            let pos = formation[i % formation.length];
             let player = new Player(this.scene, this.idx, this.color, i);
             player.setPosition(pos.x, PLAYER_RADIUS, pos.z);
             this.players.push(player);
@@ -1573,9 +1684,12 @@ const TEAM_SIZE = 3;
         }
 
         resetPositions(offset) {
+          // Reset players to their formation positions
+          const formation = this.getFormationPositions();
           for (let i = 0; i < TEAM_SIZE; ++i) {
             let player = this.players[i];
-            player.setPosition(offset + i * 8, 0, 0);
+            let pos = formation[i % formation.length];
+            player.setPosition(pos.x, PLAYER_RADIUS, pos.z);
             player.velocity.set(0, 0, 0);
             player.cooldown = 0;
             player._tackledTimer = 0;
@@ -1585,47 +1699,6 @@ const TEAM_SIZE = 3;
 
       class Player {
         constructor(scene, teamIdx, color, playerIdx) {
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-            this.scene = scene;
-            this.teamIdx = teamIdx;
-            this.color = color;
-            this.playerIdx = playerIdx;
-            this.mesh = this.createPlayer();
-            this.velocity = new THREE.Vector3();
-            this.cooldown = 0;
-            this._tackledTimer = 0;
-            this.stamina = 1.0; // 1.0 = full, 0 = exhausted
-            scene.add(this.mesh);
-        }
-
-        createPlayer() {
-            // Use animated human model (Soldier.glb from Three.js examples)
-            const group = new THREE.Group();
-            const loader = new GLTFLoader();
-            const modelUrl = 'https://threejs.org/examples/models/gltf/Soldier.glb';
-            loader.load(modelUrl, (gltf) => {
-                const model = gltf.scene;
-                model.scale.set(2.2, 2.2, 2.2);
-                model.traverse((obj) => {
-                    if (obj.isMesh) {
-                        obj.castShadow = true;
-                        obj.material = obj.material.clone();
-                        if (this.color && obj.material.color) {
-                            obj.material.color.set(this.color);
-                        }
-                    }
-                });
-                group.add(model);
-                // Animation
-                this.mixer = new THREE.AnimationMixer(model);
-                if (gltf.animations && gltf.animations.length > 0) {
-                    this.action = this.mixer.clipAction(gltf.animations[0]);
-                    this.action.play();
-                }
-            });
-            return group;
-=======
           this.scene = scene;
           this.teamIdx = teamIdx;
           this.color = color;
@@ -1638,27 +1711,18 @@ const TEAM_SIZE = 3;
         }
 
         createPlayer() {
-=======
-          this.scene = scene;
-          this.teamIdx = teamIdx;
-          this.color = color;
-          this.playerIdx = playerIdx;
-          this.mesh = this.createPlayer();
-          this.velocity = new THREE.Vector3();
-          this.cooldown = 0;
-          this._tackledTimer = 0;
-          scene.add(this.mesh);
-        }
-
-        createPlayer() {
->>>>>>> Stashed changes
           // Simple humanoid: body (cylinder), head (sphere), legs (cylinders), arms (cylinders)
           const group = new THREE.Group();
           // Body
-          const bodyGeom = new THREE.CylinderGeometry(PLAYER_RADIUS * 0.7, PLAYER_RADIUS, PLAYER_HEIGHT * 0.6, 8);
+          const bodyGeom = new THREE.CylinderGeometry(
+            PLAYER_RADIUS * 0.7,
+            PLAYER_RADIUS,
+            PLAYER_HEIGHT * 0.6,
+            8
+          );
           const bodyMat = new THREE.MeshPhongMaterial({ color: this.color });
           const body = new THREE.Mesh(bodyGeom, bodyMat);
-          body.position.y = PLAYER_HEIGHT * 0.6 / 2;
+          body.position.y = (PLAYER_HEIGHT * 0.6) / 2;
           group.add(body);
           // Head
           const headGeom = new THREE.SphereGeometry(PLAYER_RADIUS * 0.6, 8, 8);
@@ -1668,7 +1732,12 @@ const TEAM_SIZE = 3;
           group.add(head);
           // Legs
           for (let i = -1; i <= 1; i += 2) {
-            const legGeom = new THREE.CylinderGeometry(PLAYER_RADIUS * 0.25, PLAYER_RADIUS * 0.25, PLAYER_HEIGHT * 0.4, 6);
+            const legGeom = new THREE.CylinderGeometry(
+              PLAYER_RADIUS * 0.25,
+              PLAYER_RADIUS * 0.25,
+              PLAYER_HEIGHT * 0.4,
+              6
+            );
             const legMat = new THREE.MeshPhongMaterial({ color: 0x333333 });
             const leg = new THREE.Mesh(legGeom, legMat);
             leg.position.x = i * PLAYER_RADIUS * 0.3;
@@ -1677,21 +1746,22 @@ const TEAM_SIZE = 3;
           }
           // Arms
           for (let i = -1; i <= 1; i += 2) {
-            const armGeom = new THREE.CylinderGeometry(PLAYER_RADIUS * 0.18, PLAYER_RADIUS * 0.18, PLAYER_HEIGHT * 0.35, 6);
+            const armGeom = new THREE.CylinderGeometry(
+              PLAYER_RADIUS * 0.18,
+              PLAYER_RADIUS * 0.18,
+              PLAYER_HEIGHT * 0.35,
+              6
+            );
             const armMat = new THREE.MeshPhongMaterial({ color: this.color });
             const arm = new THREE.Mesh(armGeom, armMat);
             arm.position.x = i * PLAYER_RADIUS * 0.7;
             arm.position.y = PLAYER_HEIGHT * 0.5;
-            arm.rotation.z = Math.PI / 4 * i;
+            arm.rotation.z = (Math.PI / 4) * i;
             group.add(arm);
           }
           group.castShadow = true;
           group.receiveShadow = true;
           return group;
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
         }
 
         setPosition(x, y, z) {
@@ -1699,54 +1769,19 @@ const TEAM_SIZE = 3;
         }
 
         move(direction, dt) {
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-            // Stamina system: moving drains stamina, resting recovers
-            const baseSpeed = 50;
-            if (direction.length() > 0.1) {
-                this.stamina = Math.max(0, this.stamina - dt * 0.18);
-            } else {
-                this.stamina = Math.min(1, this.stamina + dt * 0.12);
-            }
-            const speed = baseSpeed * (0.5 + 0.5 * this.stamina);
-            let forward = new THREE.Vector3(0, 0, -1).applyEuler(this.mesh.rotation, 'XYZ');
-            let right = new THREE.Vector3(1, 0, 0).applyEuler(this.mesh.rotation, 'XYZ');
-            forward.y = 0;
-            right.y = 0;
-            forward.normalize();
-            right.normalize();
-            let targetVel = new THREE.Vector3();
-            targetVel.add(forward.multiplyScalar(direction.z * speed));
-            targetVel.add(right.multiplyScalar(direction.x * speed));
-            targetVel.y = this.velocity.y;
-            this.velocity = targetVel;
-            this.mesh.rotation.y = Math.atan2(-forward.x, forward.z);
-        }
-
-        update(dt=1/60) {
-            if (this.cooldown > 0) this.cooldown -= dt;
-            if (this._tackledTimer) {
-                this._tackledTimer -= dt;
-                if (this._tackledTimer <= 0) this._tackledTimer = 0;
-            }
-            // Only move in X/Z, keep Y at 0
-            let pos = this.mesh.position.clone();
-            pos.add(this.velocity.clone().multiplyScalar(dt));
-            pos.y = 0;
-            this.mesh.position.copy(pos);
-            this.velocity.x *= 0.99;
-            this.velocity.z *= 0.99;
-            // Animate model
-            if (this.mixer) this.mixer.update(dt);
-=======
-          const speed = 50;
+          // Movement inertia: accelerate towards desired direction, decelerate when not moving
+          const maxSpeed = 4.7; // 6x slower
+          const accel = 120; // acceleration rate
           let moveVec = direction.clone();
           moveVec.y = 0;
           if (moveVec.length() > 0.1) moveVec.normalize();
-          // Set velocity directly based on input
-          this.velocity.x = moveVec.x * speed;
-          this.velocity.z = moveVec.z * speed;
-          // Y velocity is affected by gravity and tackles only
+          // Accelerate towards target velocity
+          let targetVx = moveVec.x * maxSpeed;
+          let targetVz = moveVec.z * maxSpeed;
+          this.velocity.x +=
+            (targetVx - this.velocity.x) * Math.min(accel * dt, 1);
+          this.velocity.z +=
+            (targetVz - this.velocity.z) * Math.min(accel * dt, 1);
           // Optionally, rotate player to face movement direction
           if (moveVec.length() > 0.1) {
             this.mesh.rotation.y = Math.atan2(moveVec.x, moveVec.z);
@@ -1761,100 +1796,9 @@ const TEAM_SIZE = 3;
           }
           this.mesh.position.add(this.velocity.clone().multiplyScalar(1 / 60));
           this.velocity.y -= 0.2; // Gravity
-          this.velocity.x *= 0.99;
-          this.velocity.z *= 0.99;
-          // Clamp player to stay above ground
-          if (this.mesh.position.y < PLAYER_RADIUS) {
-            this.mesh.position.y = PLAYER_RADIUS;
-            this.velocity.y = 0;
-          }
->>>>>>> Stashed changes
-        }
-      }
-
-<<<<<<< Updated upstream
-    // --- Game Initialization ---
-    // --- Main Menu UI ---
-function showMainMenu() {
-    let menu = document.createElement('div');
-    menu.id = 'main-menu';
-    menu.style.position = 'fixed';
-    menu.style.left = '0';
-    menu.style.top = '0';
-    menu.style.width = '100vw';
-    menu.style.height = '100vh';
-    menu.style.background = 'rgba(30,40,60,0.93)';
-    menu.style.display = 'flex';
-    menu.style.flexDirection = 'column';
-    menu.style.alignItems = 'center';
-    menu.style.justifyContent = 'center';
-    menu.style.zIndex = '9999';
-    menu.innerHTML = `
-        <div style="background:#222b;padding:32px 38px 28px 38px;border-radius:18px;box-shadow:0 4px 32px #000a;min-width:320px;display:flex;flex-direction:column;align-items:center;">
-            <h1 style='color:#fff;margin-bottom:18px;font-size:2.1em;'>Football Game</h1>
-            <div style='margin-bottom:18px;'>
-                <label style='color:#fff;font-size:1.1em;'>Your Team Colour: </label>
-                <input id='userColor' type='color' value='#f39c12' style='width:40px;height:32px;border:none;margin-left:8px;vertical-align:middle;'>
-            </div>
-            <div style='margin-bottom:24px;'>
-                <label style='color:#fff;font-size:1.1em;'>CPU Team Colour: </label>
-                <input id='cpuColor' type='color' value='#e74c3c' style='width:40px;height:32px;border:none;margin-left:8px;vertical-align:middle;'>
-            </div>
-            <button id='startBtn' style='font-size:1.2em;padding:10px 32px;border-radius:8px;background:#27ae60;color:#fff;border:none;box-shadow:0 2px 8px #0006;cursor:pointer;'>Start Game</button>
-        </div>
-    `;
-    document.body.appendChild(menu);
-    document.getElementById('startBtn').onclick = function() {
-        let userColor = document.getElementById('userColor').value;
-        let cpuColor = document.getElementById('cpuColor').value;
-        menu.remove();
-        startGame(userColor, cpuColor);
-    };
-}
-
-function startGame(userColor, cpuColor) {
-    // Convert hex to int
-    function hexToInt(hex) {
-        if (typeof hex === 'string' && hex.startsWith('#')) {
-            return parseInt(hex.slice(1), 16);
-        }
-        return hex;
-    }
-    window.game = new Game(hexToInt(userColor) || 0xf39c12, hexToInt(cpuColor) || 0xe74c3c);
-}
-
-window.onload = showMainMenu;
-    </script>
-=======
-      // --- Game Initialization ---
-      window.game = new Game();
->>>>>>> Stashed changes
-    </script>
-=======
-          const speed = 50;
-          let moveVec = direction.clone();
-          moveVec.y = 0;
-          if (moveVec.length() > 0.1) moveVec.normalize();
-          // Set velocity directly based on input
-          this.velocity.x = moveVec.x * speed;
-          this.velocity.z = moveVec.z * speed;
-          // Y velocity is affected by gravity and tackles only
-          // Optionally, rotate player to face movement direction
-          if (moveVec.length() > 0.1) {
-            this.mesh.rotation.y = Math.atan2(moveVec.x, moveVec.z);
-          }
-        }
-
-        update() {
-          if (this.cooldown > 0) this.cooldown -= 1 / 60;
-          if (this._tackledTimer) {
-            this._tackledTimer -= 1 / 60;
-            if (this._tackledTimer <= 0) this._tackledTimer = 0;
-          }
-          this.mesh.position.add(this.velocity.clone().multiplyScalar(1 / 60));
-          this.velocity.y -= 0.2; // Gravity
-          this.velocity.x *= 0.99;
-          this.velocity.z *= 0.99;
+          // Inertia friction for x/z
+          this.velocity.x *= 0.96;
+          this.velocity.z *= 0.96;
           // Clamp player to stay above ground
           if (this.mesh.position.y < PLAYER_RADIUS) {
             this.mesh.position.y = PLAYER_RADIUS;
@@ -1864,8 +1808,9 @@ window.onload = showMainMenu;
       }
 
       // --- Game Initialization ---
-      window.game = new Game();
+      if (!window.game) {
+        window.game = new Game();
+      }
     </script>
->>>>>>> Stashed changes
   </body>
 </html>

@@ -1,43 +1,103 @@
 # Eoin's Football Game
 
-## Overview
-Eoin's Football Game is a fast-paced, browser-based 3D football (soccer) game built with Three.js. Play as a team of 3 against a CPU team, with realistic physics, passing, shooting, tackling, and advanced AI.
+Welcome to **Eoin's Football Game** – a fully 3D browser-based football (soccer) simulation built with [Three.js](https://threejs.org/). Play a full 11-a-side match against the CPU, with realistic physics, AI, and beautiful visuals!
 
-## Features
-- **3D Graphics:** Uses Three.js for immersive visuals and smooth gameplay.
-- **Teams:** 3v3 match (You vs CPU), with customizable team colors.
-- **Controls:**
-  - Arrow keys / WASD: Move
-  - Space: Pass / Shoot / Tackle
-  - R: Replay last goal
-  - M: Mute/unmute sound
-- **Game Mechanics:**
-  - Passing, shooting, tackling, dribbling
-  - Power bar for passes, shots, and throw-ins
-  - Realistic ball physics (spin, curve, bounce)
-  - Throw-ins, goal kicks, corners, and goals
-  - Replay system for last goal
-- **AI:** CPU team coordinates to attack, defend, and tackle.
-- **Sound:** Percussive effects and a football melody.
-- **UI:** Scoreboard, overlays, player labels, and main menu for color selection.
+---
 
-## How to Play
-1. Open `index.html` in your browser.
-2. Choose your team and CPU colors in the main menu.
-3. Use the controls to move, pass, shoot, and tackle.
-4. Try to score more goals than the CPU before time runs out!
+## 🚀 Features
 
-## Technical Details
-- Built with Three.js (via CDN)
-- Modular code structure (~2000 lines)
-- GLTF player models (Soldier.glb from Three.js examples)
-- Physics: Elastic collisions, Magnus effect, friction, gravity
-- No external dependencies except Three.js and GLTFLoader
+- **Regulation Pitch & Teams:**
+  - Full-size pitch and 11 players per team
+- **Realistic Ball Physics:**
+  - Friction, bounce, rolling resistance, and spin
+- **Intelligent AI:**
+  - CPU players move in formation, chase the ball, and play realistically
+- **Player Inertia:**
+  - Smooth acceleration and deceleration for all players
+- **Dribbling, Passing, Shooting, Tackling:**
+  - Power bar UI for passes and shots
+- **Visual Enhancements:**
+  - Ball with thick yellow ring, shadow, and outline
+  - Humanoid player models
+- **Scoreboard & Overlay:**
+  - Live score, timer, and goal notifications
+- **Replay & Mute:**
+  - Replay last 5 minutes, toggle sound effects
 
-## Credits
-- Developed by Eoin
-- 3D assets: Three.js examples
+---
 
-## License
-This project is for educational and personal use.
+## 🎮 Controls
 
+| Key               | Action                   |
+| ----------------- | ------------------------ |
+| Arrow Keys / WASD | Move selected player     |
+| Space             | Pass / Shoot / Tackle    |
+| Tab or Q          | Switch controlled player |
+| R                 | Replay last 5 minutes    |
+| M                 | Mute / Unmute sound      |
+
+---
+
+## 🖥️ How to Run
+
+1. **Clone the repository:**
+
+   ```sh
+   git clone https://github.com/EoinFitzsimons/Eoin-s-Football-Game.git
+   ```
+
+2. **Open `index.html` in your browser** (Edge, Chrome, Firefox, etc.)
+3. **Play!**
+
+> For best results, use a modern browser with WebGL support.
+
+---
+
+## 📁 Project Structure
+
+```plaintext
+Eoin-s-Football-Game/
+├── index.html           # Main game file
+├── assets/
+│   └── style.css        # Game styles
+├── README.md            # This file
+└── ...                  # Game logic and assets
+```
+
+---
+
+## 🛠️ Technologies Used
+
+- [Three.js](https://threejs.org/) for 3D rendering
+- HTML5 & CSS3 for UI
+- JavaScript (ES6+) for game logic
+
+---
+
+## ✨ Screenshots
+
+> _Add your own screenshots here!_
+
+---
+
+## 📜 License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+
+---
+
+## 🙏 Credits
+
+Created by [Eoin Fitzsimons](https://github.com/EoinFitzsimons)
+
+---
+
+## 💡 Tips
+
+- Use the power bar for accurate passes and shots.
+- Switch players to control defenders, midfielders, or forwards.
+- Try the replay feature to analyze your best moments!
+
+---
+
+Enjoy the game! ⚽🎉
