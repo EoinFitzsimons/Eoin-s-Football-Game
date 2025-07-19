@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Simple Football Game</title>
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     <link rel="stylesheet" href="assets/style.css">
     <!-- Three.js ES Modules via CDN using import maps -->
     <script type="importmap">
@@ -17,6 +18,11 @@
     </script>
 </head>
 <body>
+=======
+    <link rel="stylesheet" href="assets/style.css" />
+  </head>
+  <body>
+>>>>>>> Stashed changes
 =======
     <link rel="stylesheet" href="assets/style.css" />
   </head>
@@ -48,9 +54,14 @@
     </div>
     <script type="module">
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     // --- 3D Football Game (modular, extensible, ~2000 lines) ---
     import * as THREE from "three";
     import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+=======
+      // 3D Football Game using Three.js
+      import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.154.0/build/three.module.js";
+>>>>>>> Stashed changes
 =======
       // 3D Football Game using Three.js
       import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.154.0/build/three.module.js";
@@ -67,6 +78,7 @@
         return a + Math.random() * (b - a);
       }
 
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
     // --- Game Constants ---
     const FIELD_LENGTH = 160;
@@ -253,6 +265,21 @@ const TEAM_SIZE = 3;
       const REPLAY_FRAMES = 18000; // 5 minutes at 60fps
       const GOAL_HEIGHT = 2.44; // Standard goal height (meters)
 
+=======
+      // --- Game Constants ---
+      const FIELD_LENGTH = 105; // Standard football pitch length (meters)
+      const FIELD_WIDTH = 68;  // Standard football pitch width (meters)
+      const GOAL_WIDTH = 7.32; // Standard goal width (meters)
+      const GOAL_DEPTH = 2.44; // Standard goal depth (meters)
+      const PLAYER_RADIUS = 1.2;
+      const PLAYER_HEIGHT = 1.8;
+      const BALL_RADIUS = 0.22;
+      const TEAM_SIZE = 11;
+      const GAME_TIME = 90 * 60; // 90 minutes in seconds
+      const REPLAY_FRAMES = 18000; // 5 minutes at 60fps
+      const GOAL_HEIGHT = 2.44; // Standard goal height (meters)
+
+>>>>>>> Stashed changes
       // --- Game Classes ---
       class Game {
         constructor() {
@@ -348,6 +375,9 @@ const TEAM_SIZE = 3;
           if (this.sounds.melody) this.sounds.melody.play();
           this.lastFrame = performance.now();
           this.animate();
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
         }
 
@@ -742,6 +772,7 @@ const TEAM_SIZE = 3;
               }
             }
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
             return poss;
         }
         constructor(userColor = 0xf39c12, cpuColor = 0xe74c3c) {
@@ -837,6 +868,10 @@ const TEAM_SIZE = 3;
             if (this.sounds.melody) this.sounds.melody.play();
             this.lastFrame = performance.now();
             this.animate();
+=======
+          }
+          return poss;
+>>>>>>> Stashed changes
 =======
           }
           return poss;
@@ -972,6 +1007,7 @@ const TEAM_SIZE = 3;
 
         onKeyDown(e) {
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
             this.debugFunctionEntry('onKeyDown', { key: e.key });
             this.controls[e.key.toLowerCase()] = true;
             if (e.key.toLowerCase() === 'r') this.startReplay();
@@ -1085,6 +1121,23 @@ const TEAM_SIZE = 3;
             this.powerBarType = null;
           }
         }
+=======
+          this.debugFunctionEntry("onKeyDown", { key: e.key });
+          this.controls[e.key.toLowerCase()] = true;
+          if (e.key.toLowerCase() === "r") this.startReplay();
+          if (e.key.toLowerCase() === "m") this.toggleMute();
+          // Start power bar on space down (if not already active)
+          if (
+            e.key === " " &&
+            !this.powerBarActive &&
+            this.state === "playing"
+          ) {
+            this.powerBarActive = true;
+            this.powerBarValue = 0;
+            this.powerBarType = null;
+          }
+        }
+>>>>>>> Stashed changes
         onKeyUp(e) {
           this.debugFunctionEntry("onKeyUp", { key: e.key });
           this.controls[e.key.toLowerCase()] = false;
@@ -1110,6 +1163,9 @@ const TEAM_SIZE = 3;
           this.teams[0].resetPositions(-FIELD_LENGTH / 4);
           this.teams[1].resetPositions(FIELD_LENGTH / 4);
           this.selectedPlayerIdx = 0;
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
         }
 
@@ -1429,6 +1485,7 @@ const TEAM_SIZE = 3;
 
         update() {
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
             this.mesh.position.add(this.velocity.clone().multiplyScalar(1/60));
             this.velocity.y -= 0.2; // Gravity
             this.velocity.x *= 0.99;
@@ -1458,6 +1515,8 @@ const TEAM_SIZE = 3;
                 this.velocity.y = 0;
             }
 =======
+=======
+>>>>>>> Stashed changes
           this.mesh.position.add(this.velocity.clone().multiplyScalar(1 / 60));
           this.velocity.y -= 0.2; // Gravity
           this.velocity.x *= 0.99;
@@ -1469,6 +1528,9 @@ const TEAM_SIZE = 3;
             this.mesh.position.y = BALL_RADIUS;
             this.velocity.y = 0;
           }
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
         }
       }
@@ -1524,6 +1586,7 @@ const TEAM_SIZE = 3;
       class Player {
         constructor(scene, teamIdx, color, playerIdx) {
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
             this.scene = scene;
             this.teamIdx = teamIdx;
             this.color = color;
@@ -1575,6 +1638,20 @@ const TEAM_SIZE = 3;
         }
 
         createPlayer() {
+=======
+          this.scene = scene;
+          this.teamIdx = teamIdx;
+          this.color = color;
+          this.playerIdx = playerIdx;
+          this.mesh = this.createPlayer();
+          this.velocity = new THREE.Vector3();
+          this.cooldown = 0;
+          this._tackledTimer = 0;
+          scene.add(this.mesh);
+        }
+
+        createPlayer() {
+>>>>>>> Stashed changes
           // Simple humanoid: body (cylinder), head (sphere), legs (cylinders), arms (cylinders)
           const group = new THREE.Group();
           // Body
@@ -1611,6 +1688,9 @@ const TEAM_SIZE = 3;
           group.castShadow = true;
           group.receiveShadow = true;
           return group;
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
         }
 
@@ -1619,6 +1699,7 @@ const TEAM_SIZE = 3;
         }
 
         move(direction, dt) {
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
             // Stamina system: moving drains stamina, resting recovers
             const baseSpeed = 50;
@@ -1749,5 +1830,42 @@ window.onload = showMainMenu;
       window.game = new Game();
 >>>>>>> Stashed changes
     </script>
+=======
+          const speed = 50;
+          let moveVec = direction.clone();
+          moveVec.y = 0;
+          if (moveVec.length() > 0.1) moveVec.normalize();
+          // Set velocity directly based on input
+          this.velocity.x = moveVec.x * speed;
+          this.velocity.z = moveVec.z * speed;
+          // Y velocity is affected by gravity and tackles only
+          // Optionally, rotate player to face movement direction
+          if (moveVec.length() > 0.1) {
+            this.mesh.rotation.y = Math.atan2(moveVec.x, moveVec.z);
+          }
+        }
+
+        update() {
+          if (this.cooldown > 0) this.cooldown -= 1 / 60;
+          if (this._tackledTimer) {
+            this._tackledTimer -= 1 / 60;
+            if (this._tackledTimer <= 0) this._tackledTimer = 0;
+          }
+          this.mesh.position.add(this.velocity.clone().multiplyScalar(1 / 60));
+          this.velocity.y -= 0.2; // Gravity
+          this.velocity.x *= 0.99;
+          this.velocity.z *= 0.99;
+          // Clamp player to stay above ground
+          if (this.mesh.position.y < PLAYER_RADIUS) {
+            this.mesh.position.y = PLAYER_RADIUS;
+            this.velocity.y = 0;
+          }
+        }
+      }
+
+      // --- Game Initialization ---
+      window.game = new Game();
+    </script>
+>>>>>>> Stashed changes
   </body>
 </html>
