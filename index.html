@@ -7,6 +7,42 @@
     <link rel="stylesheet" href="assets/style.css" />
   </head>
   <body>
+    <div id="mainMenu" class="main-menu" style="position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(30,50,30,0.98);z-index:1000;display:flex;align-items:center;justify-content:center;flex-direction:column;">
+      <h1 style="color:#fff;font-size:2.5em;margin-bottom:0.5em;">Football Game</h1>
+      <div style="background:#222;padding:2em 2.5em;border-radius:1em;box-shadow:0 0 32px #0008;display:flex;flex-direction:column;align-items:center;gap:1.2em;min-width:320px;">
+        <label style="color:#fff;font-size:1.2em;">Your Team:
+          <select id="teamSelect" style="font-size:1em;margin-left:1em;">
+            <option value="England">England</option>
+            <option value="France">France</option>
+            <option value="Brazil">Brazil</option>
+            <option value="Germany">Germany</option>
+            <option value="Spain">Spain</option>
+            <option value="Italy">Italy</option>
+            <option value="Argentina">Argentina</option>
+            <option value="Portugal">Portugal</option>
+          </select>
+        </label>
+        <label style="color:#fff;font-size:1.2em;">Your Colour:
+          <input type="color" id="mainMenuColor" value="#f39c12" style="margin-left:1em;width:2em;height:2em;">
+        </label>
+        <label style="color:#fff;font-size:1.2em;">Opponent Team:
+          <select id="cpuTeamSelect" style="font-size:1em;margin-left:1em;">
+            <option value="France">France</option>
+            <option value="England">England</option>
+            <option value="Brazil">Brazil</option>
+            <option value="Germany">Germany</option>
+            <option value="Spain">Spain</option>
+            <option value="Italy">Italy</option>
+            <option value="Argentina">Argentina</option>
+            <option value="Portugal">Portugal</option>
+          </select>
+        </label>
+        <label style="color:#fff;font-size:1.2em;">Opponent Colour:
+          <input type="color" id="cpuMenuColor" value="#e74c3c" style="margin-left:1em;width:2em;height:2em;">
+        </label>
+        <button id="startGameBtn" style="font-size:1.3em;padding:0.5em 2em;border-radius:0.5em;background:#1e824c;color:#fff;border:none;cursor:pointer;">Start Game</button>
+      </div>
+    </div>
     <h1>Football Game</h1>
     <div id="pauseMenu" class="pause-menu">
       <div class="pause-menu-content">
@@ -53,7 +89,55 @@
         </div>
       </div>
     </div>
-    <div id="scoreboard">
+  <button id="replayBtn" style="position:fixed;top:1em;right:1em;z-index:1001;font-size:1.1em;padding:0.4em 1.2em;border-radius:0.5em;background:#1e824c;color:#fff;border:none;cursor:pointer;display:none;">Replay</button>
+  <div id="scoreboard">
+        // --- Replay System ---
+        _initReplay() {
+          this.replayBuffer = [];
+          this.isReplaying = false;
+          this.replayFrameIdx = 0;
+          this.replayMaxFrames = 360; // 6 seconds at 60fps
+        }
+
+        _recordReplayFrame() {
+          if (this.isReplaying) return;
+          if (!this.replayBuffer) this.replayBuffer = [];
+          if (this.replayBuffer.length > this.replayMaxFrames) this.replayBuffer.shift();
+          // Record positions and velocities of all players and ball
+          const snapshot = {
+            ball: {
+              pos: this.ball.mesh.position.clone(),
+              vel: this.ball.velocity.clone(),
+            },
+            teams: this.teams.map(team => team.players.map(p => ({
+              pos: p.mesh.position.clone(),
+              vel: p.velocity.clone(),
+              cooldown: p.cooldown,
+              tackled: p._tackledTimer
+            })))
+          };
+          this.replayBuffer.push(snapshot);
+        }
+
+        _playReplay() {
+          if (!this.replayBuffer || this.replayBuffer.length === 0) return;
+          this.isReplaying = true;
+          this.replayFrameIdx = 0;
+          document.getElementById('replayBtn').style.display = 'none';
+          this._showReplayOverlay();
+        }
+
+        _showReplayOverlay() {
+          const overlay = document.getElementById('overlay');
+          overlay.style.display = 'flex';
+          overlay.innerHTML = '<div style="color:#fff;font-size:2em;text-align:center;width:100vw;">REPLAY</div>';
+        }
+
+        _hideReplayOverlay() {
+          const overlay = document.getElementById('overlay');
+          overlay.style.display = 'none';
+          overlay.innerHTML = '';
+        }
       <div id="scoreline" class="scoreline">
         <span class="score-user">You</span>
         <span id="score-user">0</span>
@@ -72,6 +156,132 @@
     </div>
 
     <script type="module">
+      // --- Main Menu Logic ---
+      const TEAM_NAMES = {
+        England: ["Smith", "Jones", "Taylor", "Brown", "Williams", "Wilson", "Johnson", "Davies", "Evans", "Thomas", "Roberts"],
+        France: ["Dubois", "Lefevre", "Moreau", "Simon", "Laurent", "Michel", "Garcia", "Bernard", "Petit", "Roux", "Girard"],
+        Brazil: ["Silva", "Santos", "Oliveira", "Souza", "Lima", "Costa", "Ferreira", "Rodrigues", "Almeida", "Nascimento", "Araujo"],
+        Germany: ["Müller", "Schmidt", "Schneider", "Fischer", "Weber", "Meyer", "Wagner", "Becker", "Hoffmann", "Schulz", "Koch"],
+        Spain: ["García", "Martínez", "López", "Sánchez", "Pérez", "González", "Rodríguez", "Fernández", "Ruiz", "Gómez", "Díaz"],
+        Italy: ["Rossi", "Russo", "Ferrari", "Esposito", "Bianchi", "Romano", "Colombo", "Ricci", "Marino", "Greco", "Bruno"],
+        Argentina: ["González", "Rodríguez", "Gómez", "Fernández", "López", "Martínez", "Pérez", "García", "Sánchez", "Romero", "Díaz"],
+        Portugal: ["Silva", "Santos", "Ferreira", "Pereira", "Oliveira", "Costa", "Rodrigues", "Martins", "Gonçalves", "Lopes", "Marques"]
+      };
+      let selectedTeam = "England";
+      let selectedColor = "#f39c12";
+      let playerNames = TEAM_NAMES[selectedTeam].slice();
+      let cpuTeam = "France";
+      let cpuColor = "#e74c3c";
+      let cpuNames = TEAM_NAMES[cpuTeam].slice();
+      const mainMenu = document.getElementById("mainMenu");
+      const teamSelect = document.getElementById("teamSelect");
+      const mainMenuColor = document.getElementById("mainMenuColor");
+      const cpuTeamSelect = document.getElementById("cpuTeamSelect");
+      const cpuMenuColor = document.getElementById("cpuMenuColor");
+      teamSelect.onchange = (e) => {
+        selectedTeam = e.target.value;
+        playerNames = TEAM_NAMES[selectedTeam].slice();
+        // Prevent same team for both
+        if (cpuTeam === selectedTeam) {
+          for (let t in TEAM_NAMES) {
+            if (t !== selectedTeam) { cpuTeam = t; cpuTeamSelect.value = t; cpuNames = TEAM_NAMES[t].slice(); break; }
+          }
+        }
+      };
+      mainMenuColor.oninput = (e) => {
+        selectedColor = e.target.value;
+      };
+      cpuTeamSelect.onchange = (e) => {
+        cpuTeam = e.target.value;
+        cpuNames = TEAM_NAMES[cpuTeam].slice();
+        // Prevent same team for both
+        if (cpuTeam === selectedTeam) {
+          for (let t in TEAM_NAMES) {
+            if (t !== cpuTeam) { selectedTeam = t; teamSelect.value = t; playerNames = TEAM_NAMES[t].slice(); break; }
+          }
+        }
+      };
+      cpuMenuColor.oninput = (e) => {
+        cpuColor = e.target.value;
+      };
+      document.getElementById("startGameBtn").onclick = () => {
+        mainMenu.style.display = "none";
+        startGameWithTeam(selectedTeam, selectedColor, playerNames, cpuTeam, cpuColor, cpuNames);
+      };
+
+      // --- Patch Team/Player classes to support names ---
+      function getRandomizedNames(namesArr) {
+        // Shuffle and return 11 names
+        let arr = namesArr.slice();
+        for (let i = arr.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr.slice(0, 11);
+      }
+
+      // --- Game start with menu selections ---
+      function startGameWithTeam(teamName, color, names, cpuTeamName, cpuColor, cpuNames) {
+        // Patch Team to use selected color and names for user and CPU teams
+        Team.prototype.createPlayers = function() {
+          const formation = this.getFormationPositions();
+          this.players = [];
+          let useNames = null;
+          let useColor = this.color;
+          if (this.idx === 0 && names) { useNames = getRandomizedNames(names); useColor = color; }
+          if (this.idx === 1 && cpuNames) { useNames = getRandomizedNames(cpuNames); useColor = cpuColor; }
+          for (let i = 0; i < TEAM_SIZE; ++i) {
+            let pos = formation[i % formation.length];
+            let player = new Player(this.scene, this.idx, useColor, i);
+            player.setPosition(pos.x, PLAYER_RADIUS, pos.z);
+            if (useNames) player.displayName = useNames[i];
+            this.players.push(player);
+          }
+        };
+        // Patch Player to show name above head
+        const origPlayerUpdate = Player.prototype.update;
+        Player.prototype.update = function() {
+          origPlayerUpdate.call(this);
+          if (this.displayName && !this.nameLabel) {
+            // Create a DOM label for the player name
+            const label = document.createElement("div");
+            label.textContent = this.displayName;
+            label.style.position = "absolute";
+            label.style.color = "#fff";
+            label.style.fontWeight = "bold";
+            label.style.fontSize = "1em";
+            label.style.pointerEvents = "none";
+            label.style.textShadow = "0 0 6px #000,0 0 2px #000";
+            document.body.appendChild(label);
+            this.nameLabel = label;
+          }
+          if (this.nameLabel) {
+            // Project 3D position to 2D screen
+            const vector = this.mesh.position.clone();
+            vector.y += PLAYER_HEIGHT + 0.5;
+            window.game.camera.updateMatrixWorld();
+            window.game.camera.updateProjectionMatrix();
+            vector.project(window.game.camera);
+            const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+            const y = (-vector.y * 0.5 + 0.5) * window.innerHeight;
+            this.nameLabel.style.left = `${x - 30}px`;
+            this.nameLabel.style.top = `${y - 18}px`;
+            this.nameLabel.style.display = (vector.z > -1 && vector.z < 1) ? "block" : "none";
+          }
+        };
+        // Start the game
+        if (!window.game) {
+          window.game = new Game();
+        } else {
+          window.game.teams[0].color = color;
+          window.game.teams[0].formationType = "442";
+          window.game.teams[0].createPlayers();
+          window.game.teams[1].color = cpuColor;
+          window.game.teams[1].formationType = "442";
+          window.game.teams[1].createPlayers();
+          window.game.resetPositions();
+        }
+      }
       // 3D Football Game using Three.js
       import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.154.0/build/three.module.js";
       function clamp(val, min, max) {
@@ -85,13 +295,14 @@
       }
 
       // --- Game Constants ---
-      const FIELD_LENGTH = 120; // Increased pitch length for realism
-      const FIELD_WIDTH = 80; // Increased pitch width for realism
-      const GOAL_WIDTH = 7.32; // Standard goal width (meters)
-      const GOAL_DEPTH = 2.44; // Standard goal depth (meters)
-      const PLAYER_RADIUS = 1.2;
-      const PLAYER_HEIGHT = 1.8;
-      const BALL_RADIUS = 0.22;
+  // Adjusted for better proportions and visibility
+  const FIELD_LENGTH = 60; // Shorter pitch for better view
+  const FIELD_WIDTH = 40;
+  const GOAL_WIDTH = 7.32;
+  const GOAL_DEPTH = 2.44;
+  const PLAYER_RADIUS = 1.0; // Slightly smaller players
+  const PLAYER_HEIGHT = 2.2; // Taller for visibility
+  const BALL_RADIUS = 0.35; // Larger ball for clarity
       const TEAM_SIZE = 11;
       const GAME_TIME = 300; // 5 minutes in seconds for faster games
       const REPLAY_FRAMES = 18000; // 5 minutes at 60fps
@@ -160,36 +371,34 @@
           this.time = seconds;
           this.updateUI();
         }
-        constructor() {
+  constructor() {
+          this._initReplay();
+          document.getElementById('replayBtn').onclick = () => this._playReplay();
           this.debugFunctionEntry("constructor");
-          this.goalScored = false; // Prevent double goal counting
+          this.goalScored = false;
           this.lastFrameTime = null;
           this.scene = new THREE.Scene();
           this.camera = new THREE.PerspectiveCamera(
-            60,
+            65,
             window.innerWidth / window.innerHeight,
             0.1,
-            1000
+            500
           );
-          this.camera.position.set(0, 90, 110); // Lower camera for closer view
-          this.camera.lookAt(0, 0, 0);
-          this.renderer = new THREE.WebGLRenderer({
-            antialias: true,
-            alpha: false,
-          });
+          // Camera will be positioned dynamically
+          this.cameraTarget = new THREE.Vector3(0, 0, 0);
+          this.cameraDistance = 32; // Distance from action
+          this.cameraHeight = 18; // Height above pitch
+          this.cameraLerpSpeed = 0.12; // Camera smoothing
+          this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
           this.renderer.setSize(window.innerWidth, window.innerHeight);
           this.renderer.setClearColor(0x1e824c);
           this.renderer.shadowMap.enabled = true;
           document.body.appendChild(this.renderer.domElement);
           this._setupPauseMenu();
           window.addEventListener("resize", () => this.onWindowResize());
-
-        // Initialize throw-in properties to avoid undefined errors
-        this.throwInTeam = null;
-        this.throwInActive = false;
-        this.throwInPos = new THREE.Vector3(0, 0, 0);
-
-          // Lighting
+          this.throwInTeam = null;
+          this.throwInActive = false;
+          this.throwInPos = new THREE.Vector3(0, 0, 0);
           this.scene.add(new THREE.AmbientLight(0xffffff, 0.6));
           const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
           dirLight.position.set(0, 120, 100);
@@ -203,67 +412,91 @@
           dirLight.shadow.camera.top = 100;
           dirLight.shadow.camera.bottom = -100;
           this.scene.add(dirLight);
-
-          // Field
           this.field = new Field(this.scene);
-
-          // Ball
           this.ball = new Ball(this.scene);
-
-          // Teams
           this.teams = [
             new Team(this.scene, 0, 0xf39c12, "You"),
             new Team(this.scene, 1, 0xe74c3c, "CPU"),
           ];
           this.teams[0].isUser = true;
           this.teams[1].isUser = false;
-
-          // Game State
           this.score = [0, 0];
           this.time = GAME_TIME;
           this.state = "playing";
           this.lastGoalTeam = null;
           this.selectedPlayerIdx = 0;
-
-          // Controls
           this.controls = {};
-          document.addEventListener("keydown", (e) => this.onKeyDown(e));
+          document.addEventListener("keydown", (e) => {
+            this.onKeyDown(e);
+            // Player switching: Q or Tab
+            if ((e.key === "q" || e.key === "Tab") && this.state === "playing") {
+              e.preventDefault();
+              this.switchPlayerManual();
+            }
+          });
           document.addEventListener("keyup", (e) => this.onKeyUp(e));
-
-          // Sound
           this.sounds = this.initSounds();
           this.muted = false;
           document.getElementById("muteBtn").onclick = () => this.toggleMute();
-
-          // Restart
           this.restartBuffer = [];
           this.isRestarting = false;
-          document.getElementById("restartBtn").onclick = () =>
-            this.startRestart();
-
-          // UI
+          document.getElementById("restartBtn").onclick = () => this.startRestart();
           this.updateUI();
-          // Start in 'playing' state, nudge ball, hide overlay, allow movement from frame 1
           this.resetPositions();
+          // Place ball at center and nudge forward
           let user = this.teams[0].players[0];
-          let kickoffPos = user.mesh.position
-            .clone()
-            .add(new THREE.Vector3(PLAYER_RADIUS + BALL_RADIUS + 0.5, 0, 0));
-          this.ball.setPosition(
-            kickoffPos.x,
-            this.ball.mesh.position.y,
-            kickoffPos.z
-          );
-          this.ball.velocity.set(8, 0, 0); // gentle nudge forward
+          let kickoffPos = user.mesh.position.clone().add(new THREE.Vector3(PLAYER_RADIUS + BALL_RADIUS + 0.5, 0, 0));
+          this.ball.setPosition(kickoffPos.x, this.ball.mesh.position.y, kickoffPos.z);
+          this.ball.velocity.set(8, 0, 0);
           this.state = "playing";
           this.hideOverlay();
           if (this.sounds.melody) this.sounds.melody.play();
           this.lastFrame = performance.now();
           this.animate();
         }
+        // Manual player switching: cycle to next closest player to ball
+        switchPlayerManual() {
+          let minDist = 9999, idx = 0;
+          for (let i = 0; i < TEAM_SIZE; ++i) {
+            if (i === this.selectedPlayerIdx) continue;
+            let d = this.teams[0].players[i].mesh.position.distanceTo(this.ball.mesh.position);
+            if (d < minDist) {
+              minDist = d;
+              idx = i;
+            }
+          }
+          this.selectedPlayerIdx = idx;
+        }
 
         animate() {
           requestAnimationFrame(() => this.animate());
+          if (!this.isReplaying) this._recordReplayFrame();
+          if (this.isReplaying) {
+            // Play back replay frames
+            if (this.replayFrameIdx < this.replayBuffer.length) {
+              const snap = this.replayBuffer[this.replayFrameIdx];
+              // Restore ball
+              this.ball.mesh.position.copy(snap.ball.pos);
+              this.ball.velocity.copy(snap.ball.vel);
+              // Restore players
+              for (let t = 0; t < 2; ++t) {
+                for (let i = 0; i < TEAM_SIZE; ++i) {
+                  this.teams[t].players[i].mesh.position.copy(snap.teams[t][i].pos);
+                  this.teams[t].players[i].velocity.copy(snap.teams[t][i].vel);
+                  this.teams[t].players[i].cooldown = snap.teams[t][i].cooldown;
+                  this.teams[t].players[i]._tackledTimer = snap.teams[t][i].tackled;
+                }
+              }
+              this.replayFrameIdx++;
+              this._updateCamera();
+              this._renderScene();
+              this.updateUI();
+            } else {
+              this.isReplaying = false;
+              this._hideReplayOverlay();
+            }
+            return;
+          }
           const dt = this._calculateDeltaTime();
           this._updateGameTimer(dt);
           this.handleInput(dt);
@@ -272,8 +505,35 @@
           this._handlePlayerBallCollisions();
           this._handleCPUMovement(dt);
           this._handleGoalAndBoundaries();
+          this._updateCamera();
           this._renderScene();
           this.updateUI();
+        }
+
+        // Dynamic camera follows selected player and ball
+        _updateCamera() {
+          // Focus between selected player and ball
+          const player = this.teams[0].players[this.selectedPlayerIdx];
+          const ball = this.ball.mesh.position;
+          // Camera target is weighted between player and ball
+          this.cameraTarget.lerp(
+            new THREE.Vector3(
+              (player.mesh.position.x * 2 + ball.x) / 3,
+              0,
+              (player.mesh.position.z * 2 + ball.z) / 3
+            ),
+            this.cameraLerpSpeed
+          );
+          // Camera offset: behind and above player, looking at action
+          const camDir = new THREE.Vector3(0, 0, 1); // from behind
+          camDir.applyAxisAngle(new THREE.Vector3(0, 1, 0), player.mesh.rotation.y);
+          camDir.normalize();
+          // Camera position is behind and above the player, but not too far
+          const camPos = this.cameraTarget.clone()
+            .add(camDir.multiplyScalar(-this.cameraDistance))
+            .add(new THREE.Vector3(0, this.cameraHeight, 0));
+          this.camera.position.lerp(camPos, this.cameraLerpSpeed);
+          this.camera.lookAt(this.cameraTarget.x, 0, this.cameraTarget.z);
         }
 
         _calculateDeltaTime() {
@@ -368,10 +628,14 @@
           this.state = "goal";
           if (this.sounds.goal) this.sounds.goal.play();
           this.showOverlay((teamIdx === 0 ? "You" : "CPU") + " scored!");
+          // Show replay button after goal
           setTimeout(() => {
             this.hideOverlay();
+            document.getElementById('replayBtn').style.display = 'block';
             this.resetPositions();
             this.state = "playing";
+            // Hide replay button after 8 seconds if not clicked
+            setTimeout(() => { if (!this.isReplaying) document.getElementById('replayBtn').style.display = 'none'; }, 8000);
           }, 1800);
         }
         // Ball-player collision: ball bounces off players
@@ -996,21 +1260,63 @@
           this._moveNonControlledPlayers(dt);
         }
 
+        // Improved AI for non-controlled user players
         _moveNonControlledPlayers(dt) {
           const ball = this.ball.mesh.position;
-          const closestIdx = this._findClosestNonControlledPlayer(ball);
+          // Find closest non-controlled player to ball
+          let closestIdx = null, minDist = Infinity;
+          for (let i = 0; i < TEAM_SIZE; ++i) {
+            if (i === this.selectedPlayerIdx) continue;
+            let p = this.teams[0].players[i];
+            if (p.cooldown > 0 || p._tackledTimer) continue;
+            let d = p.mesh.position.distanceTo(ball);
+            if (d < minDist) {
+              minDist = d;
+              closestIdx = i;
+            }
+          }
           for (let i = 0; i < TEAM_SIZE; ++i) {
             if (i === this.selectedPlayerIdx) continue;
             let p = this.teams[0].players[i];
             if (p.cooldown > 0 || p._tackledTimer) continue;
             let role = this._getUserRole(i);
-            let moveDir = this._getNonControlledPlayerMoveDir(
-              p,
-              role,
-              i,
-              closestIdx,
-              ball
-            );
+            let moveDir;
+            // Closest player to ball tries to intercept or support
+            if (i === closestIdx) {
+              // If ball is loose, chase; if teammate has ball, support
+              let poss = this.getPossession();
+              if (!poss || poss.teamIdx !== 0) {
+                moveDir = this._getChaseBallDirection(p, ball);
+              } else {
+                // Support: move to open space near ball
+                let supportPos = ball.clone();
+                supportPos.x += (Math.random() - 0.5) * 10;
+                supportPos.z += (Math.random() - 0.5) * 10;
+                moveDir = new THREE.Vector3().subVectors(supportPos, p.mesh.position);
+                moveDir.y = 0;
+                if (moveDir.length() > 0.1) moveDir.normalize();
+              }
+            } else if (role === "gk") {
+              moveDir = this._getGoalkeeperHomeDirection(p);
+            } else {
+              // Defenders/mids/forwards: maintain formation, but adjust if ball is near
+              let formation = this.teams[0].getFormationPositions();
+              let pos = formation[i % formation.length];
+              let home = new THREE.Vector3(pos.x, p.mesh.position.y, pos.z);
+              let distToBall = p.mesh.position.distanceTo(ball);
+              if (distToBall < 18) {
+                // Collapse toward ball if nearby
+                let towardBall = new THREE.Vector3().subVectors(ball, p.mesh.position);
+                towardBall.y = 0;
+                if (towardBall.length() > 0.1) towardBall.normalize();
+                moveDir = towardBall;
+              } else {
+                let toHome = new THREE.Vector3().subVectors(home, p.mesh.position);
+                toHome.y = 0;
+                if (toHome.length() > 0.1) toHome.normalize();
+                moveDir = toHome;
+              }
+            }
             p.move(moveDir, dt);
           }
         }
@@ -1172,17 +1478,20 @@
       }
       class Field {
         createField() {
+          // Thinner, more vibrant pitch
           const fieldGeometry = new THREE.BoxGeometry(
             FIELD_LENGTH,
-            1,
+            0.5,
             FIELD_WIDTH
           );
           const fieldMaterial = new THREE.MeshPhongMaterial({
-            color: 0x007700,
+            color: 0x1e7a2e,
+            shininess: 30,
+            specular: 0x228822
           });
           const fieldMesh = new THREE.Mesh(fieldGeometry, fieldMaterial);
           fieldMesh.receiveShadow = true;
-          fieldMesh.position.y = 0; // Set pitch at y=0
+          fieldMesh.position.y = 0;
           return fieldMesh;
         }
 
