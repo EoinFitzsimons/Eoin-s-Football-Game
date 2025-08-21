@@ -1097,29 +1097,29 @@
     <script type="module">
     // Ensure window.game is always defined to avoid undefined errors
     if (typeof window.game === "undefined") window.game = null;
-      // --- Live Game Stats Tracking ---
-      if (!window.gameStats) {
-        window.gameStats = {
-          possession: [0, 0],
-          shots: [0, 0],
-          shotsOnTarget: [0, 0],
-          passes: [0, 0],
-          fouls: [0, 0],
-          corners: [0, 0],
-          saves: [0, 0],
-          tackles: [0, 0],
-          events: [],
-          playerStats: {}, // {playerId: {distance, passes, shots, ...}}
-          playerPositions: {},
-          fitness: {},
-          passingNetwork: {},
-          keeperStats: [
-            { saves: 0, passes: 0 },
-            { saves: 0, passes: 0 },
-          ],
-          referee: { cards: [], fouls: [] },
-        };
-      }
+    // --- Live Game Stats Tracking ---
+    if (!window.gameStats) {
+      window.gameStats = {
+        possession: [0, 0],
+        shots: [0, 0],
+        shotsOnTarget: [0, 0],
+        passes: [0, 0],
+        fouls: [0, 0],
+        corners: [0, 0],
+        saves: [0, 0],
+        tackles: [0, 0],
+        events: [],
+        playerStats: {}, // {playerId: {distance, passes, shots, ...}}
+        playerPositions: {},
+        fitness: {},
+        passingNetwork: {},
+        keeperStats: [
+          { saves: 0, passes: 0 },
+          { saves: 0, passes: 0 },
+        ],
+        referee: { cards: [], fouls: [] },
+      };
+    }
 
       // --- Hook into game events for stats ---
       // Example: increment shots, passes, etc. in your game logic where appropriate
@@ -1162,9 +1162,11 @@
 
       // --- Update Match Stats Panel ---
       function updateMatchStatsPanel() {
+        const el = document.getElementById("matchStatsContent");
+        if (!el || !window.gameStats) return;
         const s = window.gameStats;
         const totalPoss = s.possession[0] + s.possession[1] || 1;
-        document.getElementById("matchStatsContent").innerHTML = `
+        el.innerHTML = `
           <b>Possession</b>: <span style='color:#f39c12;'>${Math.round(
             (100 * s.possession[0]) / totalPoss
           )}%</span> - <span style='color:#e74c3c;'>${Math.round(
@@ -1182,8 +1184,10 @@
 
       // --- Update Event Feed Panel ---
       function updateEventFeedPanel() {
+        const el = document.getElementById("eventFeedContent");
+        if (!el || !window.gameStats) return;
         const events = window.gameStats.events;
-        document.getElementById("eventFeedContent").innerHTML =
+        el.innerHTML =
           events
             .slice(-20)
             .map((e) => `<div>${e}</div>`)
@@ -1193,14 +1197,14 @@
 
       // --- Update Player Comparison Panel ---
         function updatePlayerComparePanel() {
-          // Defensive: if game or teams/players not ready, show placeholder
-          if (!window.game || !window.game.teams || !window.game.teams[0] || !window.game.teams[0].players || window.game.teams[0].players.length < 2) {
-            document.getElementById("playerCompareContent").innerHTML = "(Compare two players)";
+          const el = document.getElementById("playerCompareContent");
+          if (!el || !window.game || !window.game.teams || !window.game.teams[0] || !window.game.teams[0].players || window.game.teams[0].players.length < 2) {
+            if (el) el.innerHTML = "(Compare two players)";
             return;
           }
           const p1 = window.game.teams[0].players[0];
           const p2 = window.game.teams[0].players[1];
-          document.getElementById("playerCompareContent").innerHTML = `
+          el.innerHTML = `
             <b>${p1.displayName}</b> vs <b>${p2.displayName}</b><br>
             <b>Fitness</b>: ${window.gameStats.fitness["0_0"]?.toFixed(1)} - ${window.gameStats.fitness["0_1"]?.toFixed(1)}<br>
             <b>Distance</b>: ${
@@ -1214,17 +1218,18 @@
 
       // --- Update Heatmap Panel ---
       function updateHeatmapPanel() {
-        const canvas = document.getElementById("heatmapContent");
-        if (!canvas) return;
+        const el = document.getElementById("heatmapContent");
+        if (!el) return;
         // For demo, just show a text summary
-        document.getElementById("heatmapContent").innerHTML =
-          "(Heatmap coming soon)";
+        el.innerHTML = "(Heatmap coming soon)";
       }
       setInterval(updateHeatmapPanel, 2000);
 
       // --- Update Tactics Panel ---
       function updateTacticsPanel() {
-        document.getElementById("tacticsContent").innerHTML = `
+        const el = document.getElementById("tacticsContent");
+        if (!el || !window.game || !window.game.teams || !window.game.teams[0] || !window.game.teams[1]) return;
+        el.innerHTML = `
           <b>Home Formation:</b> ${window.game.teams[0].formationType}<br>
           <b>Away Formation:</b> ${window.game.teams[1].formationType}<br>
           (Tactical instructions coming soon)
@@ -1234,13 +1239,16 @@
 
       // --- Update Bench Panel ---
       function updateBenchPanel() {
-        document.getElementById("benchContent").innerHTML =
-          "(No substitutes implemented yet)";
+        const el = document.getElementById("benchContent");
+        if (!el) return;
+        el.innerHTML = "(No substitutes implemented yet)";
       }
       setInterval(updateBenchPanel, 2000);
 
       // --- Update Fitness Panel ---
       function updateFitnessPanel() {
+        const el = document.getElementById("fitnessContent");
+        if (!el || !window.game || !window.game.teams || !window.game.teams[0]) return;
         let html = '<table style="width:100%">';
         for (let i = 0; i < window.game.teams[0].players.length; ++i) {
           let p = window.game.teams[0].players[i];
@@ -1252,20 +1260,23 @@
           ]?.toFixed(1)}</td></tr>`;
         }
         html += "</table>";
-        document.getElementById("fitnessContent").innerHTML = html;
+        el.innerHTML = html;
       }
       setInterval(updateFitnessPanel, 1000);
 
       // --- Update Passing Network Panel ---
       function updatePassingPanel() {
-        document.getElementById("passingContent").innerHTML =
-          "(Passing network coming soon)";
+        const el = document.getElementById("passingContent");
+        if (!el) return;
+        el.innerHTML = "(Passing network coming soon)";
       }
       setInterval(updatePassingPanel, 2000);
 
       // --- Update Keeper Panel ---
       function updateKeeperPanel() {
-        document.getElementById("keeperContent").innerHTML = `
+        const el = document.getElementById("keeperContent");
+        if (!el || !window.gameStats) return;
+        el.innerHTML = `
           <b>Home Saves:</b> ${window.gameStats.keeperStats[0].saves}<br>
           <b>Away Saves:</b> ${window.gameStats.keeperStats[1].saves}<br>
           (Saves map coming soon)
@@ -1275,7 +1286,9 @@
 
       // --- Update Referee Panel ---
       function updateRefPanel() {
-        document.getElementById("refContent").innerHTML = `
+        const el = document.getElementById("refContent");
+        if (!el || !window.gameStats) return;
+        el.innerHTML = `
           <b>Cards:</b> ${window.gameStats.referee.cards.length}<br>
           <b>Fouls:</b> ${window.gameStats.referee.fouls.length}<br>
         `;
@@ -1611,19 +1624,19 @@
       class Game {
         _setupPauseMenu() {
           const resumeBtn = document.getElementById("resumeBtn");
-          resumeBtn.onclick = () => this._togglePauseMenu(false);
+          if (resumeBtn) {
+            resumeBtn.onclick = () => this._togglePauseMenu(false);
+          }
           document.addEventListener("keydown", (e) => {
             if (e.key === "Escape") {
               this._togglePauseMenu(true);
             }
           });
-          // Color pickers
-          document.getElementById("userColor").oninput = (e) => {
-            this._setTeamColor(0, e.target.value);
-          };
-          document.getElementById("cpuColor").oninput = (e) => {
-            this._setTeamColor(1, e.target.value);
-          };
+          // Color pickers (optional, only if present)
+          const userColor = document.getElementById("userColor");
+          if (userColor) userColor.oninput = (e) => this._setTeamColor(0, e.target.value);
+          const cpuColor = document.getElementById("cpuColor");
+          if (cpuColor) cpuColor.oninput = (e) => this._setTeamColor(1, e.target.value);
           // Formation
           document.getElementById("formationSelect").onchange = (e) => {
             this._setFormation(e.target.value);
