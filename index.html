@@ -822,6 +822,23 @@
         >
           Resume
         </button>
+        <label style="color: #fff; font-size: 1.1em; margin-top: 0.5em;">
+          Formation:
+          <select id="formationSelect" style="margin-left: 0.7em;">
+            <option value="442">4-4-2</option>
+            <option value="433">4-3-3</option>
+            <option value="451">4-5-1</option>
+            <option value="352">3-5-2</option>
+          </select>
+        </label>
+        <label style="color: #fff; font-size: 1.1em; margin-top: 0.5em;">
+          Match Time:
+          <select id="matchTimeSelect" style="margin-left: 0.7em;">
+            <option value="300">5 min</option>
+            <option value="600">10 min</option>
+            <option value="900">15 min</option>
+          </select>
+        </label>
         <span style="color: #bbb; font-size: 1.1em;">Press <b>Esc</b> to resume</span>
       </div>
     </div>
@@ -1074,7 +1091,57 @@
     </button>
 
     <div id="overlay"></div>
-    <!-- Restart and Mute buttons are now inside the pause menu -->
+    <!-- Scoreboard, Mute, and Restart buttons -->
+    <div
+      id="scoreboard"
+      style="
+        position: fixed;
+        top: 1em;
+        left: 1em;
+        z-index: 1003;
+        background: rgba(30,30,30,0.92);
+        border-radius: 1em;
+        padding: 0.7em 2em;
+        color: #fff;
+        font-size: 1.2em;
+        min-width: 180px;
+        box-shadow: 0 2px 16px #0008;
+      "
+    ></div>
+    <button
+      id="muteBtn"
+      style="
+        position: fixed;
+        top: 1em;
+        left: 14em;
+        z-index: 1003;
+        font-size: 1.3em;
+        padding: 0.3em 1em;
+        border-radius: 0.5em;
+        background: #333;
+        color: #fff;
+        border: none;
+        cursor: pointer;
+      "
+      title="Mute/Unmute"
+    >🔊</button>
+    <button
+      id="restartBtn"
+      style="
+        position: fixed;
+        top: 1em;
+        left: 17em;
+        z-index: 1003;
+        font-size: 1.1em;
+        padding: 0.3em 1em;
+        border-radius: 0.5em;
+        background: #1e824c;
+        color: #fff;
+        border: none;
+        cursor: pointer;
+      "
+      title="Restart Game"
+    >Restart</button>
     <div
       id="help"
       style="
@@ -1506,9 +1573,11 @@
           cpuNames
         );
         // Setup pause menu after game start (in case DOM changed)
-        if (window.game && typeof window.game._setupPauseMenu === 'function') {
-          window.game._setupPauseMenu();
-        }
+        setTimeout(() => {
+          if (window.game && typeof window.game._setupPauseMenu === 'function') {
+            window.game._setupPauseMenu();
+          }
+        }, 0);
       };
 
       // --- Patch Team/Player classes to support names ---
@@ -2651,6 +2720,20 @@
           if (this.sounds.pass) this.sounds.pass.play();
         }
 
+        // Fix: Add missing _getInputDirection method
+        _getInputDirection() {
+          let dir = new THREE.Vector3();
+          if (this.controls["arrowup"] || this.controls["w"]) dir.z -= 1;
+          if (this.controls["arrowdown"] || this.controls["s"]) dir.z += 1;
+          if (this.controls["arrowleft"] || this.controls["a"]) dir.x -= 1;
+          if (this.controls["arrowright"] || this.controls["d"]) dir.x += 1;
+          if (isNaN(dir.x) || isNaN(dir.y) || isNaN(dir.z)) {
+            dir.set(0, 0, 0);
+          }
+          if (dir.length() > 0.1) dir.normalize();
+          return dir;
+        }
+
         _handleUserMovement(dt) {
           let player = this.teams[0].players[this.selectedPlayerIdx];
           if (player.cooldown <= 0 && !player._tackledTimer) {
@@ -2664,77 +2747,18 @@
         // Improved AI for non-controlled user players
         _moveNonControlledPlayers(dt) {
           const ball = this.ball.mesh.position;
-          // Find closest non-controlled player to ball
-          let closestIdx = null,
-            minDist = Infinity;
+          const closestIdx = this._findClosestNonControlledPlayerIdx(ball);
           for (let i = 0; i < TEAM_SIZE; ++i) {
             if (i === this.selectedPlayerIdx) continue;
             let p = this.teams[0].players[i];
             if (p.cooldown > 0 || p._tackledTimer) continue;
-            let d = p.mesh.position.distanceTo(ball);
-            if (d < minDist) {
-              minDist = d;
-              closestIdx = i;
-            }
-          }
-          for (let i = 0; i < TEAM_SIZE; ++i) {
-            if (i === this.selectedPlayerIdx) continue;
-            let p = this.teams[0].players[i];
-            if (p.cooldown > 0 || p._tackledTimer) continue;
-            let role = this._getUserRole(i);
-            let moveDir;
-            // Closest player to ball tries to intercept or support
-            if (i === closestIdx) {
-              // If ball is loose, chase; if teammate has ball, support
-              let poss = this.getPossession();
-              if (!poss || poss.teamIdx !== 0) {
-                moveDir = this._getChaseBallDirection(p, ball);
-              } else {
-                // Support: move to open space near ball
-                let supportPos = ball.clone();
-                supportPos.x += (Math.random() - 0.5) * 10;
-                supportPos.z += (Math.random() - 0.5) * 10;
-                moveDir = new THREE.Vector3().subVectors(
-                  supportPos,
-                  p.mesh.position
-                );
-                moveDir.y = 0;
-                if (moveDir.length() > 0.1) moveDir.normalize();
-              }
-            } else if (role === "gk") {
-              moveDir = this._getGoalkeeperHomeDirection(p);
-            } else {
-              // Defenders/mids/forwards: maintain formation, but adjust if ball is near
-              let formation = this.teams[0].getFormationPositions();
-              let pos = formation[i % formation.length];
-              let home = new THREE.Vector3(pos.x, p.mesh.position.y, pos.z);
-              let distToBall = p.mesh.position.distanceTo(ball);
-              if (distToBall < 18) {
-                // Collapse toward ball if nearby
-                let towardBall = new THREE.Vector3().subVectors(
-                  ball,
-                  p.mesh.position
-                );
-                towardBall.y = 0;
-                if (towardBall.length() > 0.1) towardBall.normalize();
-                moveDir = towardBall;
-              } else {
-                let toHome = new THREE.Vector3().subVectors(
-                  home,
-                  p.mesh.position
-                );
-                toHome.y = 0;
-                if (toHome.length() > 0.1) toHome.normalize();
-                moveDir = toHome;
-              }
-            }
+            let moveDir = this._getNonControlledPlayerMoveDirRefactored(i, p, ball, closestIdx);
             p.move(moveDir, dt);
           }
         }
 
-        _findClosestNonControlledPlayer(ball) {
-          let closestIdx = null,
-            minDist = Infinity;
+        _findClosestNonControlledPlayerIdx(ball) {
+          let closestIdx = null, minDist = Infinity;
           for (let i = 0; i < TEAM_SIZE; ++i) {
             if (i === this.selectedPlayerIdx) continue;
             let p = this.teams[0].players[i];
@@ -2746,6 +2770,67 @@
             }
           }
           return closestIdx;
+        }
+
+        _getNonControlledPlayerMoveDirRefactored(i, p, ball, closestIdx) {
+          let role = this._getUserRole(i);
+          if (i === closestIdx) {
+            return this._getClosestPlayerMoveDir(p, ball);
+          }
+          if (role === "gk") {
+            return this._getGoalkeeperHomeDirection(p);
+          }
+          return this._getFormationOrCollapseMoveDir(i, p, ball);
+        }
+
+        _getClosestPlayerMoveDir(p, ball) {
+          let poss = this.getPossession();
+          if (!poss || poss.teamIdx !== 0) {
+            return this._getChaseBallDirection(p, ball);
+          } else {
+            let supportPos = ball.clone();
+            supportPos.x += (Math.random() - 0.5) * 10;
+            supportPos.z += (Math.random() - 0.5) * 10;
+            let moveDir = new THREE.Vector3().subVectors(supportPos, p.mesh.position);
+            moveDir.y = 0;
+            if (moveDir.length() > 0.1) moveDir.normalize();
+            return moveDir;
+          }
+        }
+
+        _getFormationOrCollapseMoveDir(i, p, ball) {
+          let formation = this.teams[0].getFormationPositions();
+          let pos = formation[i % formation.length];
+          let home = new THREE.Vector3(pos.x, p.mesh.position.y, pos.z);
+          let distToBall = p.mesh.position.distanceTo(ball);
+          if (distToBall < 18) {
+            let towardBall = new THREE.Vector3().subVectors(ball, p.mesh.position);
+            towardBall.y = 0;
+            if (towardBall.length() > 0.1) towardBall.normalize();
+            return towardBall;
+          } else {
+            let toHome = new THREE.Vector3().subVectors(home, p.mesh.position);
+            toHome.y = 0;
+            if (toHome.length() > 0.1) toHome.normalize();
+            return toHome;
+          }
+        }
+
+        _findClosestNonControlledPlayer(ball) {
+          // Return the actual player object, not the index
+          let closestPlayer = null;
+          let minDist = Infinity;
+          for (let i = 0; i < TEAM_SIZE; ++i) {
+            if (i === this.selectedPlayerIdx) continue;
+            let p = this.teams[0].players[i];
+            if (p.cooldown > 0 || p._tackledTimer) continue;
+            let d = p.mesh.position.distanceTo(ball);
+            if (d < minDist) {
+              minDist = d;
+              closestPlayer = p;
+            }
+          }
+          return closestPlayer;
         }
 
         _getNonControlledPlayerMoveDir(p, role, i, closestIdx, ball) {
@@ -3312,348 +3397,145 @@
           this.formationType = type;
           this.createPlayers();
         }
-
         getFormationPositions() {
           // Returns array of positions for the selected formation
           switch (this.formationType) {
             case "433":
-              return [
-                // GK
-                {
-                  x:
-                    this.idx === 0
-                      ? -FIELD_LENGTH / 2 + 8
-                      : FIELD_LENGTH / 2 - 8,
-                  z: 0,
-                },
-                // Defenders
-                {
-                  x:
-                    this.idx === 0
-                      ? -FIELD_LENGTH / 2 + 24
-                      : FIELD_LENGTH / 2 - 24,
-                  z: -28,
-                },
-                {
-                  x:
-                    this.idx === 0
-                      ? -FIELD_LENGTH / 2 + 24
-                      : FIELD_LENGTH / 2 - 24,
-                  z: 0,
-                },
-                {
-                  x:
-                    this.idx === 0
-                      ? -FIELD_LENGTH / 2 + 24
-                      : FIELD_LENGTH / 2 - 24,
-                  z: 28,
-                },
-                // Midfielders
-                {
-                  x:
-                    this.idx === 0
-                      ? -FIELD_LENGTH / 2 + 54
-                      : FIELD_LENGTH / 2 - 54,
-                  z: -32,
-                },
-                {
-                  x:
-                    this.idx === 0
-                      ? -FIELD_LENGTH / 2 + 54
-                      : FIELD_LENGTH / 2 - 54,
-                  z: 0,
-                },
-                {
-                  x:
-                    this.idx === 0
-                      ? -FIELD_LENGTH / 2 + 54
-                      : FIELD_LENGTH / 2 - 54,
-                  z: 32,
-                },
-                // Forwards
-                {
-                  x:
-                    this.idx === 0
-                      ? FIELD_LENGTH / 2 - 24
-                      : -FIELD_LENGTH / 2 + 24,
-                  z: -16,
-                },
-                {
-                  x:
-                    this.idx === 0
-                      ? FIELD_LENGTH / 2 - 24
-                      : -FIELD_LENGTH / 2 + 24,
-                  z: 0,
-                },
-                {
-                  x:
-                    this.idx === 0
-                      ? FIELD_LENGTH / 2 - 24
-                      : -FIELD_LENGTH / 2 + 24,
-                  z: 16,
-                },
-                {
-                  x:
-                    this.idx === 0
-                      ? FIELD_LENGTH / 2 - 36
-                      : -FIELD_LENGTH / 2 + 36,
-                  z: 0,
-                },
-              ];
+              return this._formation433();
             case "352":
-              return [
-                // GK
-                {
-                  x:
-                    this.idx === 0
-                      ? -FIELD_LENGTH / 2 + 8
-                      : FIELD_LENGTH / 2 - 8,
-                  z: 0,
-                },
-                // Defenders
-                {
-                  x:
-                    this.idx === 0
-                      ? -FIELD_LENGTH / 2 + 24
-                      : FIELD_LENGTH / 2 - 24,
-                  z: -28,
-                },
-                {
-                  x:
-                    this.idx === 0
-                      ? -FIELD_LENGTH / 2 + 24
-                      : FIELD_LENGTH / 2 - 24,
-                  z: 0,
-                },
-                {
-                  x:
-                    this.idx === 0
-                      ? -FIELD_LENGTH / 2 + 24
-                      : FIELD_LENGTH / 2 - 24,
-                  z: 28,
-                },
-                // Midfielders
-                {
-                  x:
-                    this.idx === 0
-                      ? -FIELD_LENGTH / 2 + 54
-                      : FIELD_LENGTH / 2 - 54,
-                  z: -32,
-                },
-                {
-                  x:
-                    this.idx === 0
-                      ? -FIELD_LENGTH / 2 + 54
-                      : FIELD_LENGTH / 2 - 54,
-                  z: -16,
-                },
-                {
-                  x:
-                    this.idx === 0
-                      ? -FIELD_LENGTH / 2 + 54
-                      : FIELD_LENGTH / 2 - 54,
-                  z: 0,
-                },
-                {
-                  x:
-                    this.idx === 0
-                      ? -FIELD_LENGTH / 2 + 54
-                      : FIELD_LENGTH / 2 - 54,
-                  z: 16,
-                },
-                {
-                  x:
-                    this.idx === 0
-                      ? -FIELD_LENGTH / 2 + 54
-                      : FIELD_LENGTH / 2 - 54,
-                  z: 32,
-                },
-                // Forwards
-                {
-                  x:
-                    this.idx === 0
-                      ? FIELD_LENGTH / 2 - 24
-                      : -FIELD_LENGTH / 2 + 24,
-                  z: -10,
-                },
-                {
-                  x:
-                    this.idx === 0
-                      ? FIELD_LENGTH / 2 - 24
-                      : -FIELD_LENGTH / 2 + 24,
-                  z: 10,
-                },
-              ];
+              return this._formation352();
             case "451":
-              return [
-                // GK
-                {
-                  x:
-                    this.idx === 0
-                      ? -FIELD_LENGTH / 2 + 8
-                      : FIELD_LENGTH / 2 - 8,
-                  z: 0,
-                },
-                // Defenders
-                {
-                  x:
-                    this.idx === 0
-                      ? -FIELD_LENGTH / 2 + 24
-                      : FIELD_LENGTH / 2 - 24,
-                  z: -28,
-                },
-                {
-                  x:
-                    this.idx === 0
-                      ? -FIELD_LENGTH / 2 + 24
-                      : FIELD_LENGTH / 2 - 24,
-                  z: 0,
-                },
-                {
-                  x:
-                    this.idx === 0
-                      ? -FIELD_LENGTH / 2 + 24
-                      : FIELD_LENGTH / 2 - 24,
-                  z: 28,
-                },
-                {
-                  x:
-                    this.idx === 0
-                      ? -FIELD_LENGTH / 2 + 36
-                      : FIELD_LENGTH / 2 - 36,
-                  z: -14,
-                },
-                // Midfielders
-                {
-                  x:
-                    this.idx === 0
-                      ? -FIELD_LENGTH / 2 + 54
-                      : FIELD_LENGTH / 2 - 54,
-                  z: -32,
-                },
-                {
-                  x:
-                    this.idx === 0
-                      ? -FIELD_LENGTH / 2 + 54
-                      : FIELD_LENGTH / 2 - 54,
-                  z: -16,
-                },
-                {
-                  x:
-                    this.idx === 0
-                      ? -FIELD_LENGTH / 2 + 54
-                      : FIELD_LENGTH / 2 - 54,
-                  z: 0,
-                },
-                {
-                  x:
-                    this.idx === 0
-                      ? -FIELD_LENGTH / 2 + 54
-                      : FIELD_LENGTH / 2 - 54,
-                  z: 16,
-                },
-                {
-                  x:
-                    this.idx === 0
-                      ? -FIELD_LENGTH / 2 + 54
-                      : FIELD_LENGTH / 2 - 54,
-                  z: 32,
-                },
-                // Forward
-                {
-                  x:
-                    this.idx === 0
-                      ? FIELD_LENGTH / 2 - 24
-                      : -FIELD_LENGTH / 2 + 24,
-                  z: 0,
-                },
-              ];
+              return this._formation451();
             case "442":
             default:
-              return [
-                // Goalkeeper
-                {
-                  x:
-                    this.idx === 0
-                      ? -FIELD_LENGTH / 2 + 8
-                      : FIELD_LENGTH / 2 - 8,
-                  z: 0,
-                },
-                // Defenders
-                {
-                  x:
-                    this.idx === 0
-                      ? -FIELD_LENGTH / 2 + 24
-                      : FIELD_LENGTH / 2 - 24,
-                  z: -28,
-                },
-                {
-                  x:
-                    this.idx === 0
-                      ? -FIELD_LENGTH / 2 + 24
-                      : FIELD_LENGTH / 2 - 24,
-                  z: 0,
-                },
-                {
-                  x:
-                    this.idx === 0
-                      ? -FIELD_LENGTH / 2 + 24
-                      : FIELD_LENGTH / 2 - 24,
-                  z: 28,
-                },
-                {
-                  x:
-                    this.idx === 0
-                      ? -FIELD_LENGTH / 2 + 36
-                      : FIELD_LENGTH / 2 - 36,
-                  z: -14,
-                },
-                // Midfielders
-                {
-                  x:
-                    this.idx === 0
-                      ? -FIELD_LENGTH / 2 + 54
-                      : FIELD_LENGTH / 2 - 54,
-                  z: -32,
-                },
-                {
-                  x:
-                    this.idx === 0
-                      ? -FIELD_LENGTH / 2 + 54
-                      : FIELD_LENGTH / 2 - 54,
-                  z: 0,
-                },
-                {
-                  x:
-                    this.idx === 0
-                      ? -FIELD_LENGTH / 2 + 54
-                      : FIELD_LENGTH / 2 - 54,
-                  z: 32,
-                },
-                {
-                  x:
-                    this.idx === 0
-                      ? -FIELD_LENGTH / 2 + 70
-                      : FIELD_LENGTH / 2 - 70,
-                  z: -16,
-                },
-                {
-                  x:
-                    this.idx === 0
-                      ? -FIELD_LENGTH / 2 + 70
-                      : FIELD_LENGTH / 2 - 70,
-                  z: 16,
-                },
-                // Forward
-                {
-                  x:
-                    this.idx === 0
-                      ? FIELD_LENGTH / 2 - 24
-                      : -FIELD_LENGTH / 2 + 24,
-                  z: 0,
-                },
-              ];
+              return this._formation442();
           }
+        }
+
+        _formation433() {
+          return [
+            this._gkPos(),
+            ...this._defenderPositions433(),
+            ...this._midfielderPositions433(),
+            ...this._forwardPositions433(),
+          ];
+        }
+        _formation352() {
+          return [
+            this._gkPos(),
+            ...this._defenderPositions352(),
+            ...this._midfielderPositions352(),
+            ...this._forwardPositions352(),
+          ];
+        }
+        _formation451() {
+          return [
+            this._gkPos(),
+            ...this._defenderPositions451(),
+            ...this._midfielderPositions451(),
+            this._forwardPosition451(),
+          ];
+        }
+        _formation442() {
+          return [
+            this._gkPos(),
+            ...this._defenderPositions442(),
+            ...this._midfielderPositions442(),
+            this._forwardPosition442(),
+          ];
+        }
+        _gkPos() {
+          return {
+            x: this.idx === 0 ? -FIELD_LENGTH / 2 + 8 : FIELD_LENGTH / 2 - 8,
+            z: 0,
+          };
+        }
+        _defenderPositions433() {
+          return [
+            { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 24 : FIELD_LENGTH / 2 - 24, z: -28 },
+            { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 24 : FIELD_LENGTH / 2 - 24, z: 0 },
+            { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 24 : FIELD_LENGTH / 2 - 24, z: 28 },
+          ];
+        }
+        _midfielderPositions433() {
+          return [
+            { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 54 : FIELD_LENGTH / 2 - 54, z: -32 },
+            { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 54 : FIELD_LENGTH / 2 - 54, z: 0 },
+            { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 54 : FIELD_LENGTH / 2 - 54, z: 32 },
+          ];
+        }
+        _forwardPositions433() {
+          return [
+            { x: this.idx === 0 ? FIELD_LENGTH / 2 - 24 : -FIELD_LENGTH / 2 + 24, z: -16 },
+            { x: this.idx === 0 ? FIELD_LENGTH / 2 - 24 : -FIELD_LENGTH / 2 + 24, z: 0 },
+            { x: this.idx === 0 ? FIELD_LENGTH / 2 - 24 : -FIELD_LENGTH / 2 + 24, z: 16 },
+            { x: this.idx === 0 ? FIELD_LENGTH / 2 - 36 : -FIELD_LENGTH / 2 + 36, z: 0 },
+          ];
+        }
+        _defenderPositions352() {
+          // 3-5-2: defenders are more centrally packed than in 4-3-3
+          return [
+            { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 22 : FIELD_LENGTH / 2 - 22, z: -18 },
+            { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 22 : FIELD_LENGTH / 2 - 22, z: 0 },
+            { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 22 : FIELD_LENGTH / 2 - 22, z: 18 },
+          ];
+        }
+        _midfielderPositions352() {
+          return [
+            { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 54 : FIELD_LENGTH / 2 - 54, z: -32 },
+            { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 54 : FIELD_LENGTH / 2 - 54, z: -16 },
+            { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 54 : FIELD_LENGTH / 2 - 54, z: 0 },
+            { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 54 : FIELD_LENGTH / 2 - 54, z: 16 },
+            { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 54 : FIELD_LENGTH / 2 - 54, z: 32 },
+          ];
+        }
+        _forwardPositions352() {
+          return [
+            { x: this.idx === 0 ? FIELD_LENGTH / 2 - 24 : -FIELD_LENGTH / 2 + 24, z: -10 },
+            { x: this.idx === 0 ? FIELD_LENGTH / 2 - 24 : -FIELD_LENGTH / 2 + 24, z: 10 },
+          ];
+        }
+        _defenderPositions451() {
+          return [
+            { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 24 : FIELD_LENGTH / 2 - 24, z: -28 },
+            { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 24 : FIELD_LENGTH / 2 - 24, z: 0 },
+            { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 24 : FIELD_LENGTH / 2 - 24, z: 28 },
+            { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 36 : FIELD_LENGTH / 2 - 36, z: -14 },
+          ];
+        }
+        _midfielderPositions451() {
+          // 4-5-1 midfield: wider spread and one more central player
+          return [
+            { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 50 : FIELD_LENGTH / 2 - 50, z: -24 },
+            { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 60 : FIELD_LENGTH / 2 - 60, z: -8 },
+            { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 65 : FIELD_LENGTH / 2 - 65, z: 0 },
+            { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 60 : FIELD_LENGTH / 2 - 60, z: 8 },
+            { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 50 : FIELD_LENGTH / 2 - 50, z: 24 },
+          ];
+        }
+        _forwardPosition451() {
+          return { x: this.idx === 0 ? FIELD_LENGTH / 2 - 24 : -FIELD_LENGTH / 2 + 24, z: 0 };
+        }
+        _defenderPositions442() {
+          // 4-4-2: defenders are more evenly spread than in 4-5-1
+          return [
+            { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 22 : FIELD_LENGTH / 2 - 22, z: -22 },
+            { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 22 : FIELD_LENGTH / 2 - 22, z: 22 },
+            { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 32 : FIELD_LENGTH / 2 - 32, z: -8 },
+            { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 32 : FIELD_LENGTH / 2 - 32, z: 8 },
+          ];
+        }
+        _midfielderPositions442() {
+          return [
+            { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 54 : FIELD_LENGTH / 2 - 54, z: -32 },
+            { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 54 : FIELD_LENGTH / 2 - 54, z: 0 },
+            { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 54 : FIELD_LENGTH / 2 - 54, z: 32 },
+            { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 70 : FIELD_LENGTH / 2 - 70, z: -16 },
+            { x: this.idx === 0 ? -FIELD_LENGTH / 2 + 70 : FIELD_LENGTH / 2 - 70, z: 16 },
+          ];
+        }
+        _forwardPosition442() {
+          return { x: this.idx === 0 ? FIELD_LENGTH / 2 - 24 : -FIELD_LENGTH / 2 + 24, z: 0 };
         }
 
         createPlayers() {
@@ -3682,17 +3564,18 @@
       }
 
       class Player {
-        constructor(scene, teamIdx, color, playerIdx) {
-          this.scene = scene;
-          this.teamIdx = teamIdx;
-          this.color = color;
-          this.playerIdx = playerIdx;
-          this.mesh = this.createPlayer();
-          this.velocity = new THREE.Vector3();
-          this.cooldown = 0;
-          this._tackledTimer = 0;
-          scene.add(this.mesh);
-        }
+              constructor(scene, teamIdx, color, playerIdx) {
+                this.scene = scene;
+                this.teamIdx = teamIdx;
+                this.color = color;
+                this.playerIdx = playerIdx;
+                this.displayName = `Player ${playerIdx + 1}`; // Ensure displayName is always defined
+                this.mesh = this.createPlayer();
+                this.velocity = new THREE.Vector3();
+                this.cooldown = 0;
+                this._tackledTimer = 0;
+                scene.add(this.mesh);
+              }
 
         createPlayer() {
           // Simple humanoid: body (cylinder), head (sphere), legs (cylinders), arms (cylinders)
