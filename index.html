@@ -776,6 +776,55 @@
     >
       Replay
     </button>
+
+    <!-- Pause Menu Overlay -->
+    <div
+      id="pauseMenu"
+      style="
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(20, 20, 30, 0.96);
+        z-index: 2000;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+      "
+    >
+      <div
+        style="
+          background: #222;
+          padding: 2.5em 3em;
+          border-radius: 1.2em;
+          box-shadow: 0 0 32px #000a;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 1.5em;
+          min-width: 340px;
+        "
+      >
+        <h2 style="color: #fff; font-size: 2em; margin-bottom: 0.5em;">Game Paused</h2>
+        <button
+          id="resumeBtn"
+          style="
+            font-size: 1.3em;
+            padding: 0.5em 2em;
+            border-radius: 0.5em;
+            background: #1e824c;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+          "
+        >
+          Resume
+        </button>
+        <span style="color: #bbb; font-size: 1.1em;">Press <b>Esc</b> to resume</span>
+      </div>
+    </div>
     <div
       id="modernScoreboard"
       style="
@@ -1046,6 +1095,8 @@
     </div>
 
     <script type="module">
+    // Ensure window.game is always defined to avoid undefined errors
+    if (typeof window.game === "undefined") window.game = null;
       // --- Live Game Stats Tracking ---
       if (!window.gameStats) {
         window.gameStats = {
@@ -1141,22 +1192,24 @@
       setInterval(updateEventFeedPanel, 1000);
 
       // --- Update Player Comparison Panel ---
-      function updatePlayerComparePanel() {
-        // For demo, compare first two home players
-        const p1 = window.game.teams[0].players[0];
-        const p2 = window.game.teams[0].players[1];
-        document.getElementById("playerCompareContent").innerHTML = `
-          <b>${p1.displayName}</b> vs <b>${p2.displayName}</b><br>
-          <b>Fitness</b>: ${window.gameStats.fitness["0_0"]?.toFixed(
-            1
-          )} - ${window.gameStats.fitness["0_1"]?.toFixed(1)}<br>
-          <b>Distance</b>: ${
-            (window.gameStats.playerPositions["0_0"]?.length || 0) / 10
-          }m - ${
-          (window.gameStats.playerPositions["0_1"]?.length || 0) / 10
-        }m<br>
-        `;
-      }
+        function updatePlayerComparePanel() {
+          // Defensive: if game or teams/players not ready, show placeholder
+          if (!window.game || !window.game.teams || !window.game.teams[0] || !window.game.teams[0].players || window.game.teams[0].players.length < 2) {
+            document.getElementById("playerCompareContent").innerHTML = "(Compare two players)";
+            return;
+          }
+          const p1 = window.game.teams[0].players[0];
+          const p2 = window.game.teams[0].players[1];
+          document.getElementById("playerCompareContent").innerHTML = `
+            <b>${p1.displayName}</b> vs <b>${p2.displayName}</b><br>
+            <b>Fitness</b>: ${window.gameStats.fitness["0_0"]?.toFixed(1)} - ${window.gameStats.fitness["0_1"]?.toFixed(1)}<br>
+            <b>Distance</b>: ${
+              (window.gameStats.playerPositions["0_0"]?.length || 0) / 10
+            }m - ${
+              (window.gameStats.playerPositions["0_1"]?.length || 0) / 10
+            }m<br>
+          `;
+        }
       setInterval(updatePlayerComparePanel, 1000);
 
       // --- Update Heatmap Panel ---
