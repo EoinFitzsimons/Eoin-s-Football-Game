@@ -1505,6 +1505,10 @@
           cpuColor,
           cpuNames
         );
+        // Setup pause menu after game start (in case DOM changed)
+        if (window.game && typeof window.game._setupPauseMenu === 'function') {
+          window.game._setupPauseMenu();
+        }
       };
 
       // --- Patch Team/Player classes to support names ---
