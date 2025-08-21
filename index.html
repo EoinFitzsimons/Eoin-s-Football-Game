@@ -1623,6 +1623,8 @@
       // --- Game Classes ---
       class Game {
         _setupPauseMenu() {
+          const pauseMenu = document.getElementById("pauseMenu");
+          if (!pauseMenu) return; // Prevent error if pause menu is not in DOM
           const resumeBtn = document.getElementById("resumeBtn");
           if (resumeBtn) {
             resumeBtn.onclick = () => this._togglePauseMenu(false);
