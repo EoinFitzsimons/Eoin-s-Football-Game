@@ -3788,9 +3788,11 @@
       }
 
       // --- Game Initialization ---
-      if (!window.game) {
-        window.game = new Game();
-      }
+      window.addEventListener('DOMContentLoaded', () => {
+        if (!window.game) {
+          window.game = new Game();
+        }
+      });
     </script>
   </body>
 </html>
