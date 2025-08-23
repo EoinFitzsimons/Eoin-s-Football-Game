@@ -1,3 +1,142 @@
+/* Main menu and pause menu select styles */
+.main-select {
+    font-size: 1em;
+    margin-left: 1em;
+    padding: 0.3em 1em;
+    border-radius: 0.4em;
+    border: 1px solid #ccc;
+    background: #222;
+    color: #fff;
+}
+.scoreboard {
+    position: fixed;
+    top: 1em;
+    left: 1em;
+    z-index: 1003;
+    background: rgba(30,30,30,0.92);
+    border-radius: 1em;
+    padding: 0.7em 2em;
+    color: #fff;
+    font-size: 1.2em;
+    min-width: 180px;
+    box-shadow: 0 2px 16px #0008;
+}
+.mute-btn {
+    position: fixed;
+    top: 1em;
+    left: 14em;
+    z-index: 1003;
+    font-size: 1.3em;
+    padding: 0.3em 1em;
+    border-radius: 0.5em;
+    background: #333;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+}
+.restart-btn {
+    position: fixed;
+    top: 1em;
+    left: 17em;
+    z-index: 1003;
+    font-size: 1.1em;
+    padding: 0.3em 1em;
+    border-radius: 0.5em;
+    background: #1e824c;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+}
+.panel-bottom-left {
+    bottom: 20em;
+    left: 2em;
+    min-width: 320px;
+}
+
+.panel-keeper {
+    top: 26em;
+    right: 2em;
+    min-width: 320px;
+}
+.panel-ref {
+    top: 26em;
+    left: 2em;
+    min-width: 320px;
+}
+.panel-bottom {
+    bottom: 8em;
+    left: 50%;
+    transform: translateX(-50%);
+    min-width: 340px;
+}
+.panel-top-right {
+    top: 14em;
+}
+/* Panel and content styles extracted from inline styles */
+.panel {
+    position: fixed;
+    z-index: 1002;
+    background: rgba(20, 20, 30, 0.97);
+    border-radius: 1em;
+    padding: 1.2em 2em;
+    box-shadow: 0 2px 16px #000a;
+    display: none;
+    color: #fff;
+}
+.panel-center {
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    min-width: 340px;
+}
+.panel-bottom-right {
+    bottom: 2em;
+    right: 2em;
+    min-width: 320px;
+}
+.panel-scroll {
+    max-width: 400px;
+    max-height: 40vh;
+    overflow-y: auto;
+}
+.panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.panel-title {
+    color: #fff;
+    font-size: 1.1em;
+    font-weight: 600;
+}
+.close-btn {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 1.2em;
+    cursor: pointer;
+}
+.panel-content {
+    margin-top: 0.7em;
+    color: #fff;
+    font-size: 1em;
+}
+/* Floating action button styles for all main UI buttons */
+.action-btn {
+    position: fixed;
+    z-index: 1001;
+    font-size: 1.1em;
+    padding: 0.4em 1.2em;
+    border-radius: 0.5em;
+    background: #1e824c;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.action-btn:hover {
+    background: #145a32;
+}
 /* Reset some default styles */
 * {
     box-sizing: border-box;
@@ -153,3 +292,4 @@ button:hover {
         padding: 0.6rem 1.2rem;
     }
 }
+/* End of file */

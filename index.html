@@ -6,1139 +6,486 @@
     <title>Football Game</title>
     <link rel="stylesheet" href="assets/style.css" />
   </head>
+
   <body>
     <!-- Match Stats Panel -->
-    <div
-      id="matchStatsPanel"
-      style="
-        position: fixed;
-        top: 8em;
-        left: 50%;
-        transform: translateX(-50%);
-        z-index: 1002;
-        background: rgba(20, 20, 30, 0.97);
-        border-radius: 1em;
-        padding: 1.2em 2em;
-        box-shadow: 0 2px 16px #000a;
-        display: none;
-        min-width: 340px;
-      "
-    >
-  <script type="module" src="assets/game.js"></script>
-      <div
-        id="matchStatsContent"
-        style="margin-top: 0.7em; color: #fff; font-size: 1em"
-      >
+    <div id="matchStatsPanel" class="panel panel-center">
+      <div id="matchStatsContent" class="panel-content">
         (Possession, shots, passes, fouls, etc.)
       </div>
     </div>
     <button
       id="openMatchStatsBtn"
-      style="
-        position: fixed;
-        top: 8em;
-        left: 2em;
-        z-index: 1001;
-        font-size: 1.1em;
-        padding: 0.4em 1.2em;
-        border-radius: 0.5em;
-        background: #1e824c;
-        color: #fff;
-        border: none;
-        cursor: pointer;
-      "
+      class="action-btn btn-top-8em-left-2em"
+      type="button"
     >
       Match Stats
     </button>
 
     <!-- Event Feed Panel -->
-    <div
-      id="eventFeedPanel"
-      style="
-        position: fixed;
-        bottom: 2em;
-        right: 2em;
-        z-index: 1002;
-        background: rgba(20, 20, 30, 0.97);
-        border-radius: 1em;
-        padding: 1.2em 2em;
-        box-shadow: 0 2px 16px #000a;
-        display: none;
-        min-width: 320px;
-        max-width: 400px;
-        max-height: 40vh;
-        overflow-y: auto;
-      "
-    >
-      <div
-        style="
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-        "
-      >
-        <span style="color: #fff; font-size: 1.1em; font-weight: 600"
-          >Event Feed</span
-        >
+    <div id="eventFeedPanel" class="panel panel-bottom-right panel-scroll">
+      <div class="panel-header">
         <button
-          id="closeEventFeedBtn"
-          style="
-            background: none;
-            border: none;
-            color: #fff;
-            font-size: 1.2em;
-            cursor: pointer;
-          "
+          id="closeEventFeedBtn1"
+          class="close-btn"
+          type="button"
+          title="Close Event Feed"
+        >
+          ✕
+        </button>
+        <button
+          id="closeEventFeedBtn2"
+          class="close-btn"
+          type="button"
+          title="Close Event Feed"
         >
           ✕
         </button>
       </div>
-      <div
-        id="eventFeedContent"
-        style="margin-top: 0.7em; color: #fff; font-size: 1em"
-      >
+      <div id="eventFeedContent" class="panel-content">
         (Goals, cards, substitutions, etc.)
       </div>
+      <div
+        id="playerComparePanel"
+        class="panel panel-bottom-right panel-scroll player-compare-panel"
+      >
+        <div class="panel-header">
+          <span class="panel-title">Player Comparison</span>
+          <button id="closePlayerCompareBtn" class="close-btn" type="button">
+            ✕
+          </button>
+        </div>
+        <div id="playerCompareContent" class="panel-content">
+          (Compare two players)
+        </div>
+      </div>
     </div>
     <button
-      id="openEventFeedBtn"
-      style="
-        position: fixed;
-        bottom: 2em;
-        right: 2em;
-        z-index: 1001;
-        font-size: 1.1em;
-        padding: 0.4em 1.2em;
-        border-radius: 0.5em;
-        background: #1e824c;
-        color: #fff;
-        border: none;
-        cursor: pointer;
-      "
+      id="openPlayerCompareBtn1"
+      class="action-btn btn-top-50pct-right-2em"
+      type="button"
+      title="Open Player Comparison"
     >
-      Event Feed
+      Compare
     </button>
-
-    <!-- Player Comparison Panel -->
-    <div
-      id="playerComparePanel"
-      style="
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        z-index: 1002;
-        background: rgba(20, 20, 30, 0.97);
-        border-radius: 1em;
-        padding: 1.2em 2em;
-        box-shadow: 0 2px 16px #000a;
-        display: none;
-        min-width: 340px;
-      "
-    >
-      <div
-        style="
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-        "
-      >
-        <span style="color: #fff; font-size: 1.1em; font-weight: 600"
-          >Player Comparison</span
-        >
-        <button
-          id="closePlayerCompareBtn"
-          style="
-            background: none;
-            border: none;
-            color: #fff;
-            font-size: 1.2em;
-            cursor: pointer;
-          "
-        >
-          ✕
-        </button>
-      </div>
-      <div
-        id="playerCompareContent"
-        style="margin-top: 0.7em; color: #fff; font-size: 1em"
-      >
-        (Compare two players)
-      </div>
-    </div>
     <button
-      id="openPlayerCompareBtn"
-      style="
-        position: fixed;
-        top: 50%;
-        right: 2em;
-        z-index: 1001;
-        font-size: 1.1em;
-        padding: 0.4em 1.2em;
-        border-radius: 0.5em;
-        background: #1e824c;
-        color: #fff;
-        border: none;
-        cursor: pointer;
-        transform: translateY(-50%);
-      "
+      id="openPlayerCompareBtn2"
+      class="action-btn btn-top-50pct-right-2em"
+      type="button"
+      title="Open Player Comparison"
     >
       Compare
     </button>
 
     <!-- Heatmap Panel -->
-    <div
-      id="heatmapPanel"
-      style="
-        position: fixed;
-        bottom: 8em;
-        left: 50%;
-        transform: translateX(-50%);
-        z-index: 1002;
-        background: rgba(20, 20, 30, 0.97);
-        border-radius: 1em;
-        padding: 1.2em 2em;
-        box-shadow: 0 2px 16px #000a;
-        display: none;
-        min-width: 340px;
-      "
-    >
-      <div
-        style="
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-        "
-      >
-        <span style="color: #fff; font-size: 1.1em; font-weight: 600"
-          >Heatmap</span
-        >
+    <div class="panel panel-heatmap">
+      <div class="panel-header">
+        <span class="panel-title">Heatmap</span>
         <button
-          id="closeHeatmapBtn"
-          style="
-            background: none;
-            border: none;
-            color: #fff;
-            font-size: 1.2em;
-            cursor: pointer;
-          "
+          id="closeHeatmapBtn1"
+          class="close-btn"
+          type="button"
+          title="Close Heatmap"
         >
           ✕
         </button>
       </div>
-      <div
-        id="heatmapContent"
-        style="margin-top: 0.7em; color: #fff; font-size: 1em"
-      >
+      <div id="heatmapContent" class="panel-content">
         (Pitch activity visualization)
       </div>
     </div>
     <button
-      id="openHeatmapBtn"
-      style="
-        position: fixed;
-        bottom: 8em;
-        left: 2em;
-        z-index: 1001;
-        font-size: 1.1em;
-        padding: 0.4em 1.2em;
-        border-radius: 0.5em;
-        background: #1e824c;
-        color: #fff;
-        border: none;
-        cursor: pointer;
-      "
+      id="openHeatmapBtn1"
+      class="action-btn btn-bottom-8em-left-2em"
+      type="button"
+      title="Open Heatmap"
+    >
+      Heatmap
+    </button>
+    <button
+      id="openHeatmapBtn2"
+      class="action-btn btn-bottom-8em-left-2em"
+      type="button"
+      title="Open Heatmap"
     >
       Heatmap
     </button>
 
     <!-- Team Tactics Panel -->
-    <div
-      id="tacticsPanel"
-      style="
-        position: fixed;
-        top: 14em;
-        right: 2em;
-        z-index: 1002;
-        background: rgba(20, 20, 30, 0.97);
-        border-radius: 1em;
-        padding: 1.2em 2em;
-        box-shadow: 0 2px 16px #000a;
-        display: none;
-        min-width: 320px;
-      "
-    >
-      <div
-        style="
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-        "
-      >
-        <span style="color: #fff; font-size: 1.1em; font-weight: 600"
-          >Team Tactics</span
-        >
+    <div class="panel panel-top-right">
+      <div class="panel-header">
+        <span class="panel-title">Team Tactics</span>
         <button
-          id="closeTacticsBtn"
-          style="
-            background: none;
-            border: none;
-            color: #fff;
-            font-size: 1.2em;
-            cursor: pointer;
-          "
+          id="closeTacticsBtn1"
+          class="close-btn"
+          type="button"
+          title="Close Tactics"
         >
           ✕
         </button>
       </div>
-      <div
-        id="tacticsContent"
-        style="margin-top: 0.7em; color: #fff; font-size: 1em"
-      >
+      <div class="panel-content">
         (Formation, pressing, tactical instructions)
       </div>
     </div>
     <button
-      id="openTacticsBtn"
-      style="
-        position: fixed;
-        top: 14em;
-        right: 2em;
-        z-index: 1001;
-        font-size: 1.1em;
-        padding: 0.4em 1.2em;
-        border-radius: 0.5em;
-        background: #1e824c;
-        color: #fff;
-        border: none;
-        cursor: pointer;
-      "
+      id="openTacticsBtn1"
+      class="action-btn btn-top-14em-right-2em"
+      type="button"
+      title="Open Tactics"
     >
       Tactics
     </button>
-
-    <!-- Bench/Substitutes Panel -->
-    <div
-      id="benchPanel"
-      style="
-        position: fixed;
-        bottom: 14em;
-        right: 2em;
-        z-index: 1002;
-        background: rgba(20, 20, 30, 0.97);
-        border-radius: 1em;
-        padding: 1.2em 2em;
-        box-shadow: 0 2px 16px #000a;
-        display: none;
-        min-width: 320px;
-      "
+    <button
+      id="openTacticsBtn2"
+      class="action-btn btn-top-14em-right-2em"
+      type="button"
+      title="Open Tactics"
     >
-      <div
-        style="
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-        "
-      >
-        <span style="color: #fff; font-size: 1.1em; font-weight: 600"
-          >Bench / Substitutes</span
-        >
+      Tactics
+    </button>
+    <div id="benchPanel" class="panel panel-bottom-right">
+      <div class="panel-header">
+        <span class="panel-title">Bench / Substitutes</span>
         <button
-          id="closeBenchBtn"
-          style="
-            background: none;
-            border: none;
-            color: #fff;
-            font-size: 1.2em;
-            cursor: pointer;
-          "
+          id="closeBenchBtn1"
+          class="close-btn"
+          type="button"
+          title="Close Bench"
+        >
+          ✕
+        </button>
+        <button
+          id="closeBenchBtn2"
+          class="close-btn"
+          type="button"
+          title="Close Bench"
         >
           ✕
         </button>
       </div>
-      <div
-        id="benchContent"
-        style="margin-top: 0.7em; color: #fff; font-size: 1em"
-      >
-        (List and stats)
-      </div>
+      <div id="benchContent" class="panel-content">(List and stats)</div>
     </div>
     <button
-      id="openBenchBtn"
-      style="
-        position: fixed;
-        bottom: 14em;
-        right: 2em;
-        z-index: 1001;
-        font-size: 1.1em;
-        padding: 0.4em 1.2em;
-        border-radius: 0.5em;
-        background: #1e824c;
-        color: #fff;
-        border: none;
-        cursor: pointer;
-      "
+      id="openBenchBtn1"
+      class="action-btn btn-bottom-14em-right-2em"
+      type="button"
+      title="Open Bench"
     >
       Bench
     </button>
-
-    <!-- Fitness/Stamina Panel -->
-    <div
-      id="fitnessPanel"
-      style="
-        position: fixed;
-        top: 20em;
-        left: 2em;
-        z-index: 1002;
-        background: rgba(20, 20, 30, 0.97);
-        border-radius: 1em;
-        padding: 1.2em 2em;
-        box-shadow: 0 2px 16px #000a;
-        display: none;
-        min-width: 320px;
-      "
+    <button
+      id="openBenchBtn2"
+      class="action-btn btn-bottom-14em-right-2em"
+      type="button"
+      title="Open Bench"
     >
-      <div
-        style="
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-        "
-      >
-        <span style="color: #fff; font-size: 1.1em; font-weight: 600"
-          >Fitness / Stamina</span
-        >
-        <button
-          id="closeFitnessBtn"
-          style="
-            background: none;
-            border: none;
-            color: #fff;
-            font-size: 1.2em;
-            cursor: pointer;
-          "
-        >
-          ✕
-        </button>
+      Bench
+    </button>
+    <!-- Fitness / Stamina Panel -->
+    <div id="fitnessPanel" class="panel panel-center fitness-panel">
+      <div class="panel-header">
+        <span class="panel-title">Fitness / Stamina</span>
+        <button id="closeFitnessBtn" class="close-btn" type="button">✕</button>
       </div>
-      <div
-        id="fitnessContent"
-        style="margin-top: 0.7em; color: #fff; font-size: 1em"
-      >
-        (Energy/fatigue)
-      </div>
+      <div id="fitnessContent" class="panel-content">(Energy/fatigue)</div>
     </div>
     <button
       id="openFitnessBtn"
-      style="
-        position: fixed;
-        top: 20em;
-        left: 2em;
-        z-index: 1001;
-        font-size: 1.1em;
-        padding: 0.4em 1.2em;
-        border-radius: 0.5em;
-        background: #1e824c;
-        color: #fff;
-        border: none;
-        cursor: pointer;
-      "
+      class="action-btn btn-top-20em-left-2em"
+      type="button"
     >
       Fitness
     </button>
-
-    <!-- Passing Network Panel -->
-    <div
-      id="passingPanel"
-      style="
-        position: fixed;
-        bottom: 20em;
-        left: 2em;
-        z-index: 1002;
-        background: rgba(20, 20, 30, 0.97);
-        border-radius: 1em;
-        padding: 1.2em 2em;
-        box-shadow: 0 2px 16px #000a;
-        display: none;
-        min-width: 320px;
-      "
-    >
-      <div
-        style="
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-        "
-      >
-        <span style="color: #fff; font-size: 1.1em; font-weight: 600"
-          >Passing Network</span
-        >
+    <div id="passingPanel" class="panel panel-bottom-left panel-passing">
+      <div class="panel-header">
+        <span class="panel-title">Passing Network</span>
         <button
-          id="closePassingBtn"
-          style="
-            background: none;
-            border: none;
-            color: #fff;
-            font-size: 1.2em;
-            cursor: pointer;
-          "
+          id="closePassingBtn1"
+          class="close-btn"
+          type="button"
+          title="Close Passing"
         >
           ✕
         </button>
-      </div>
-      <div
-        id="passingContent"
-        style="margin-top: 0.7em; color: #fff; font-size: 1em"
-      >
-        (Visual passing map)
-      </div>
-    </div>
-    <button
-      id="openPassingBtn"
-      style="
-        position: fixed;
-        bottom: 20em;
-        left: 2em;
-        z-index: 1001;
-        font-size: 1.1em;
-        padding: 0.4em 1.2em;
-        border-radius: 0.5em;
-        background: #1e824c;
-        color: #fff;
-        border: none;
-        cursor: pointer;
-      "
-    >
-      Passing
-    </button>
-
-    <!-- Goalkeeper Panel -->
-    <div
-      id="keeperPanel"
-      style="
-        position: fixed;
-        top: 26em;
-        right: 2em;
-        z-index: 1002;
-        background: rgba(20, 20, 30, 0.97);
-        border-radius: 1em;
-        padding: 1.2em 2em;
-        box-shadow: 0 2px 16px #000a;
-        display: none;
-        min-width: 320px;
-      "
-    >
-      <div
-        style="
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-        "
-      >
-        <span style="color: #fff; font-size: 1.1em; font-weight: 600"
-          >Goalkeeper</span
-        >
         <button
-          id="closeKeeperBtn"
-          style="
-            background: none;
-            border: none;
-            color: #fff;
-            font-size: 1.2em;
-            cursor: pointer;
-          "
+          id="closePassingBtn2"
+          class="close-btn"
+          type="button"
+          title="Close Passing"
         >
           ✕
         </button>
+        <div id="passingContent" class="panel-content">
+          (Visual passing map)
+        </div>
       </div>
-      <div
-        id="keeperContent"
-        style="margin-top: 0.7em; color: #fff; font-size: 1em"
+      <button
+        id="openPassingBtn1"
+        class="action-btn btn-bottom-20em-left-2em"
+        type="button"
+        title="Open Passing"
       >
-        (Keeper stats and saves map)
+        Passing
+      </button>
+      <!-- Goalkeeper Panel -->
+      <div id="keeperPanel" class="panel panel-keeper">
+        <div class="panel-header">
+          <span class="panel-title">Goalkeeper</span>
+          <button id="closeKeeperBtn" class="close-btn" type="button">✕</button>
+        </div>
+        <div id="keeperContent" class="panel-content">
+          (Keeper stats and saves map)
+        </div>
       </div>
-    </div>
-    <button
-      id="openKeeperBtn"
-      style="
-        position: fixed;
-        top: 26em;
-        right: 2em;
-        z-index: 1001;
-        font-size: 1.1em;
-        padding: 0.4em 1.2em;
-        border-radius: 0.5em;
-        background: #1e824c;
-        color: #fff;
-        border: none;
-        cursor: pointer;
-      "
-    >
-      Keeper
-    </button>
+      <button
+        id="openKeeperBtn"
+        class="action-btn btn-top-26em-right-2em"
+        type="button"
+      >
+        Keeper
+      </button>
 
-    <!-- Referee Panel -->
-    <div
-      id="refPanel"
-      style="
-        position: fixed;
-        top: 26em;
-        left: 2em;
-        z-index: 1002;
-        background: rgba(20, 20, 30, 0.97);
-        border-radius: 1em;
-        padding: 1.2em 2em;
-        box-shadow: 0 2px 16px #000a;
-        display: none;
-        min-width: 320px;
-      "
-    >
-      <div
-        style="
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-        "
-      >
-        <span style="color: #fff; font-size: 1.1em; font-weight: 600"
-          >Referee</span
-        >
+      <!-- Referee Panel -->
+      <div id="refPanel" class="panel panel-ref">
+        <div class="panel-header">
+          <button
+            id="closeRefBtn1"
+            class="close-btn"
+            type="button"
+            title="Close Referee"
+          >
+            ✕
+          </button>
+          <button
+            id="closeRefBtn2"
+            class="close-btn"
+            type="button"
+            title="Close Referee"
+          >
+            ✕
+          </button>
+        </div>
+        <div id="refContent" class="panel-content">
+          (Cards, fouls, referee stats)
+        </div>
         <button
-          id="closeRefBtn"
-          style="
-            background: none;
-            border: none;
-            color: #fff;
-            font-size: 1.2em;
-            cursor: pointer;
-          "
+          id="openRefBtn"
+          class="action-btn btn-top-26em-left-2em"
+          type="button"
         >
-          ✕
+          Referee
         </button>
-      </div>
-      <div
-        id="refContent"
-        style="margin-top: 0.7em; color: #fff; font-size: 1em"
-      >
-        (Cards, fouls, referee stats)
-      </div>
-    </div>
-    <button
-      id="openRefBtn"
-      style="
-        position: fixed;
-        top: 26em;
-        left: 2em;
-        z-index: 1001;
-        font-size: 1.1em;
-        padding: 0.4em 1.2em;
-        border-radius: 0.5em;
-        background: #1e824c;
-        color: #fff;
-        border: none;
-        cursor: pointer;
-      "
-    >
-      Referee
-    </button>
-    <div
-      id="mainMenu"
-      class="main-menu"
-      style="
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background: rgba(30, 50, 30, 0.98);
-        z-index: 1000;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-direction: column;
-      "
-    >
-      <h1 style="color: #fff; font-size: 2.5em; margin-bottom: 0.5em">
-        Football Game
-      </h1>
-      <div
-        style="
-          background: #222;
-          padding: 2em 2.5em;
-          border-radius: 1em;
-          box-shadow: 0 0 32px #0008;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 1.2em;
-          min-width: 320px;
-        "
-      >
-        <label style="color: #fff; font-size: 1.2em"
-          >Your Team:
-          <select id="teamSelect" style="font-size: 1em; margin-left: 1em">
-            <option value="England">England</option>
-            <option value="France">France</option>
-            <option value="Brazil">Brazil</option>
-            <option value="Germany">Germany</option>
-            <option value="Spain">Spain</option>
-            <option value="Italy">Italy</option>
-            <option value="Argentina">Argentina</option>
-            <option value="Portugal">Portugal</option>
-          </select>
-        </label>
-        <label style="color: #fff; font-size: 1.2em"
-          >Your Colour:
-          <input
-            type="color"
-            id="mainMenuColor"
-            value="#f39c12"
-            style="margin-left: 1em; width: 2em; height: 2em"
-          />
-        </label>
-        <label style="color: #fff; font-size: 1.2em"
-          >Opponent Team:
-          <select id="cpuTeamSelect" style="font-size: 1em; margin-left: 1em">
-            <option value="France">France</option>
-            <option value="England">England</option>
-            <option value="Brazil">Brazil</option>
-            <option value="Germany">Germany</option>
-            <option value="Spain">Spain</option>
-            <option value="Italy">Italy</option>
-            <option value="Argentina">Argentina</option>
-            <option value="Portugal">Portugal</option>
-          </select>
-        </label>
-        <label style="color: #fff; font-size: 1.2em"
-          >Opponent Colour:
-          <input
-            type="color"
-            id="cpuMenuColor"
-            value="#e74c3c"
-            style="margin-left: 1em; width: 2em; height: 2em"
-          />
-        </label>
-        <button
-          id="startGameBtn"
-          style="
-            font-size: 1.3em;
-            padding: 0.5em 2em;
-            border-radius: 0.5em;
-            background: #1e824c;
-            color: #fff;
-            border: none;
-            cursor: pointer;
-          "
-        >
-          Start Game
-        </button>
-      </div>
-    </div>
-    <!-- Modern Scoreboard -->
-    <button
-      id="replayBtn"
-      style="
-        position: fixed;
-        top: 1em;
-        right: 1em;
-        z-index: 1001;
-        font-size: 1.1em;
-        padding: 0.4em 1.2em;
-        border-radius: 0.5em;
-        background: #1e824c;
-        color: #fff;
-        border: none;
-        cursor: pointer;
-        display: none;
-      "
-    >
-      Replay
-    </button>
+        <div id="mainMenu" class="main-menu">
+          <h1 class="main-title">Football Game</h1>
+          <div class="main-menu-content">
+            <label class="main-label">
+              Character Model:
+              <select id="characterModelSelect" class="main-select">
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+              </select>
+              >Your Team:
+              <select id="teamSelect" class="main-select">
+                <option value="England">England</option>
+                <option value="France">France</option>
+                <option value="Brazil">Brazil</option>
+                <option value="Germany">Germany</option>
+                <option value="Spain">Spain</option>
+                <option value="Italy">Italy</option>
+                <option value="Argentina">Argentina</option>
+                <option value="Portugal">Portugal</option>
+              </select>
+            </label>
+            <label class="main-label">
+              Player Language:
+              <select id="languageSelect" class="main-select"></select>
+            </label>
+            <label class="main-label"
+              >Your Colour:
+              <input
+                type="color"
+                id="mainMenuColor"
+                value="#f39c12"
+                class="main-color-input"
+              />
+            </label>
+            <label class="main-label"
+              >Opponent Team:
+              <select id="cpuTeamSelect" class="main-select">
+                <option value="France">France</option>
+                <option value="England">England</option>
+                <option value="Brazil">Brazil</option>
+                <option value="Germany">Germany</option>
+                <option value="Spain">Spain</option>
+                <option value="Italy">Italy</option>
+                <option value="Argentina">Argentina</option>
+                <option value="Portugal">Portugal</option>
+              </select>
+            </label>
+            <label class="main-label">
+              Opponent Language:
+              <select id="cpuLanguageSelect" class="main-select"></select>
+            </label>
+            <label class="main-label" for="opponentColor"
+              >Opponent Colour:</label
+            >
+            <input
+              type="color"
+              id="opponentColor"
+              value="#2980b9"
+              class="main-color-input"
+            />
+            <button id="startGameBtn1" class="main-start-btn" type="button">
+              Start Game
+            </button>
+            <button id="startGameBtn2" class="main-start-btn" type="button">
+              Start Game
+            </button>
+          </div>
+          <button id="replayBtn" class="action-btn replay-btn" type="button">
+            Replay
+          </button>
 
-    <!-- Pause Menu Overlay -->
-    <div
-      id="pauseMenu"
-      style="
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background: rgba(20, 20, 30, 0.96);
-        z-index: 2000;
-        display: none;
-        align-items: center;
-        justify-content: center;
-        flex-direction: column;
-      "
-    >
-      <div
-        style="
-          background: #222;
-          padding: 2.5em 3em;
-          border-radius: 1.2em;
-          box-shadow: 0 0 32px #000a;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 1.5em;
-          min-width: 340px;
-        "
-      >
-        <h2 style="color: #fff; font-size: 2em; margin-bottom: 0.5em;">Game Paused</h2>
-        <button
-          id="resumeBtn"
-          style="
-            font-size: 1.3em;
-            padding: 0.5em 2em;
-            border-radius: 0.5em;
-            background: #1e824c;
-            color: #fff;
-            border: none;
-            cursor: pointer;
-          "
-        >
-          Resume
-        </button>
-        <label style="color: #fff; font-size: 1.1em; margin-top: 0.5em;">
-          Formation:
-          <select id="formationSelect" style="margin-left: 0.7em;">
-            <option value="442">4-4-2</option>
-            <option value="433">4-3-3</option>
-            <option value="451">4-5-1</option>
-            <option value="352">3-5-2</option>
-          </select>
-        </label>
-        <label style="color: #fff; font-size: 1.1em; margin-top: 0.5em;">
-          Match Time:
-          <select id="matchTimeSelect" style="margin-left: 0.7em;">
-            <option value="300">5 min</option>
-            <option value="600">10 min</option>
-            <option value="900">15 min</option>
-          </select>
-        </label>
-        <span style="color: #bbb; font-size: 1.1em;">Press <b>Esc</b> to resume</span>
+          <!-- Pause Menu Overlay -->
+          <div id="pauseMenu" class="pause-menu">
+            <div>
+              <button id="resumeBtn1" class="pause-menu-resume" type="button">
+                Resume
+              </button>
+              <h2 class="pause-menu-title">Game Paused</h2>
+              <button id="resumeBtn2" class="pause-menu-resume" type="button">
+                Resume
+              </button>
+              <label class="pause-menu-label">
+                Formation:
+                <select id="formationSelect" class="pause-menu-select">
+                  <option value="442">4-4-2</option>
+                  <option value="433">4-3-3</option>
+                  <option value="451">4-5-1</option>
+                  <option value="352">3-5-2</option>
+                </select>
+              </label>
+              <label class="pause-menu-label">
+                Match Time:
+                <select id="matchTimeSelect" class="pause-menu-select">
+                  <option value="300">5 min</option>
+                  <option value="600">10 min</option>
+                  <option value="900">15 min</option>
+                </select>
+              </label>
+              <span class="pause-menu-hint">Press <b>Esc</b> to resume</span>
+            </div>
+          </div>
+          <div id="modernScoreboard" class="modern-scoreboard">
+            <div class="scoreboard-flex">
+              <span id="homeTeamName" class="scoreboard-team">HOME</span>
+              <span id="score-user" class="scoreboard-score">0</span>
+              <span class="scoreboard-dash">-</span>
+              <span id="score-cpu" class="scoreboard-score">0</span>
+              <span id="awayTeamName" class="scoreboard-team">AWAY</span>
+            </div>
+            <span id="info" class="scoreboard-info">00:00</span>
+          </div>
+
+          <!-- Radar Panel -->
+          <div id="radarPanel" class="radar-panel">
+            <div class="radar-header">
+              <button
+                id="closeRadarBtn1"
+                class="close-btn"
+                type="button"
+                title="Close Radar"
+              >
+                ✕
+              </button>
+              <span class="radar-title">Pitch Radar</span>
+              <button
+                id="closeRadarBtn2"
+                class="close-btn"
+                type="button"
+                title="Close Radar"
+              >
+                ✕
+              </button>
+            </div>
+            <button
+              id="openRadarBtn"
+              class="action-btn btn-bottom-2em-left-2em"
+              type="button"
+              title="Open Radar"
+            >
+              Radar
+            </button>
+          </div>
+
+          <!-- Formations Panel -->
+          <div id="formationsPanel" class="formations-panel">
+            <div class="formations-header">
+              <button
+                id="closeFormationsBtn"
+                class="close-btn"
+                type="button"
+                title="Close Formations"
+              >
+                ✕
+              </button>
+              <span class="formations-title">Formations</span>
+            </div>
+            <button
+              id="openFormationsBtn"
+              class="action-btn btn-top-6em-right-2em"
+              type="button"
+              title="Open Formations"
+            >
+              Formations
+            </button>
+          </div>
+
+          <!-- Player Ratings Panel -->
+          <div id="ratingsPanel" class="ratings-panel">
+            <div class="ratings-header">
+              <button
+                id="closeRatingsBtn"
+                class="close-btn"
+                type="button"
+                title="Close Ratings"
+              >
+                ✕
+              </button>
+              <button
+                id="openRatingsBtn"
+                class="action-btn btn-top-50pct-left-2em"
+                type="button"
+                title="Open Ratings"
+              >
+                Ratings
+              </button>
+              <button
+                id="muteBtn"
+                class="mute-btn"
+                title="Mute/Unmute"
+                type="button"
+              >
+                🔊
+              </button>
+              <button
+                id="restartBtn"
+                class="restart-btn"
+                title="Restart Game"
+                type="button"
+              >
+                Restart
+              </button>
+              <div id="help" class="help-panel">
+                Controls: Arrow keys/WASD = Move | Space = Pass / Shoot / Tackle
+                | R = Restart | M = Mute
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
-    <div
-      id="modernScoreboard"
-      style="
-        position: fixed;
-        top: 1.5em;
-        left: 50%;
-        transform: translateX(-50%);
-        z-index: 1002;
-        display: flex;
-        align-items: center;
-        gap: 2em;
-        background: rgba(30, 30, 30, 0.92);
-        border-radius: 1.2em;
-        padding: 0.7em 2.5em;
-        box-shadow: 0 2px 16px #0008;
-        min-width: 340px;
-      "
-    >
-      <div style="display: flex; align-items: center; gap: 1.2em">
-        <span
-          id="homeTeamName"
-          style="
-            color: #fff;
-            font-size: 1.3em;
-            font-weight: 600;
-            letter-spacing: 0.04em;
-          "
-          >HOME</span
-        >
-        <span
-          id="score-user"
-          style="color: #fff; font-size: 2.1em; font-weight: 700"
-          >0</span
-        >
-        <span style="color: #fff; font-size: 2em; font-weight: 700">-</span>
-        <span
-          id="score-cpu"
-          style="color: #fff; font-size: 2.1em; font-weight: 700"
-          >0</span
-        >
-        <span
-          id="awayTeamName"
-          style="
-            color: #fff;
-            font-size: 1.3em;
-            font-weight: 600;
-            letter-spacing: 0.04em;
-          "
-          >AWAY</span
-        >
-      </div>
-      <span id="info" style="color: #fff; font-size: 1.2em; margin-left: 2em"
-        >00:00</span
-      >
-    </div>
-
-    <!-- Radar Panel -->
-    <div
-      id="radarPanel"
-      style="
-        position: fixed;
-        bottom: 2em;
-        left: 2em;
-        z-index: 1002;
-        background: rgba(20, 20, 30, 0.93);
-        border-radius: 1em;
-        padding: 1em 1.2em;
-        box-shadow: 0 2px 12px #0007;
-        display: none;
-      "
-    >
-      <div
-        style="
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-        "
-      >
-        <span style="color: #fff; font-size: 1.1em; font-weight: 600"
-          >Pitch Radar</span
-        >
-        <button
-          id="closeRadarBtn"
-          style="
-            background: none;
-            border: none;
-            color: #fff;
-            font-size: 1.2em;
-            cursor: pointer;
-          "
-        >
-          ✕
-        </button>
-      </div>
-      <canvas
-        id="radarCanvas"
-        width="220"
-        height="120"
-        style="margin-top: 0.7em; border-radius: 0.7em; background: #222"
-      ></canvas>
-    </div>
-    <button
-      id="openRadarBtn"
-      style="
-        position: fixed;
-        bottom: 2em;
-        left: 2em;
-        z-index: 1001;
-        font-size: 1.1em;
-        padding: 0.4em 1.2em;
-        border-radius: 0.5em;
-        background: #1e824c;
-        color: #fff;
-        border: none;
-        cursor: pointer;
-      "
-    >
-      Radar
-    </button>
-
-    <!-- Formations Panel -->
-    <div
-      id="formationsPanel"
-      style="
-        position: fixed;
-        top: 6em;
-        right: 2em;
-        z-index: 1002;
-        background: rgba(20, 20, 30, 0.93);
-        border-radius: 1em;
-        padding: 1em 1.2em;
-        box-shadow: 0 2px 12px #0007;
-        display: none;
-        min-width: 220px;
-      "
-    >
-      <div
-        style="
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-        "
-      >
-        <span style="color: #fff; font-size: 1.1em; font-weight: 600"
-          >Formations</span
-        >
-        <button
-          id="closeFormationsBtn"
-          style="
-            background: none;
-            border: none;
-            color: #fff;
-            font-size: 1.2em;
-            cursor: pointer;
-          "
-        >
-          ✕
-        </button>
-      </div>
-      <div
-        id="formationsContent"
-        style="margin-top: 0.7em; color: #fff; font-size: 1em"
-      ></div>
-    </div>
-    <button
-      id="openFormationsBtn"
-      style="
-        position: fixed;
-        top: 6em;
-        right: 2em;
-        z-index: 1001;
-        font-size: 1.1em;
-        padding: 0.4em 1.2em;
-        border-radius: 0.5em;
-        background: #1e824c;
-        color: #fff;
-        border: none;
-        cursor: pointer;
-      "
-    >
-      Formations
-    </button>
-
-    <!-- Player Ratings Panel -->
-    <div
-      id="ratingsPanel"
-      style="
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        z-index: 1002;
-        background: rgba(20, 20, 30, 0.97);
-        border-radius: 1em;
-        padding: 1.2em 2em;
-        box-shadow: 0 2px 16px #000a;
-        display: none;
-        min-width: 320px;
-      "
-    >
-      <div
-        style="
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-        "
-      >
-        <span style="color: #fff; font-size: 1.1em; font-weight: 600"
-          >Player Ratings</span
-        >
-        <button
-          id="closeRatingsBtn"
-          style="
-            background: none;
-            border: none;
-            color: #fff;
-            font-size: 1.2em;
-            cursor: pointer;
-          "
-        >
-          ✕
-        </button>
-      </div>
-      <div
-        id="ratingsContent"
-        style="margin-top: 0.7em; color: #fff; font-size: 1em"
-      ></div>
-    </div>
-    <button
-      id="openRatingsBtn"
-      style="
-        position: fixed;
-        top: 50%;
-        left: 2em;
-        z-index: 1001;
-        font-size: 1.1em;
-        padding: 0.4em 1.2em;
-        border-radius: 0.5em;
-        background: #1e824c;
-        color: #fff;
-        border: none;
-        cursor: pointer;
-        transform: translateY(-50%);
-      "
-    >
-      Ratings
-    </button>
-
-    <div id="overlay"></div>
-    <!-- Scoreboard, Mute, and Restart buttons -->
-    <div
-      id="scoreboard"
-      style="
-        position: fixed;
-        top: 1em;
-        left: 1em;
-        z-index: 1003;
-        background: rgba(30,30,30,0.92);
-        border-radius: 1em;
-        padding: 0.7em 2em;
-        color: #fff;
-        font-size: 1.2em;
-        min-width: 180px;
-        box-shadow: 0 2px 16px #0008;
-      "
-    ></div>
-    <button
-      id="muteBtn"
-      style="
-        position: fixed;
-        top: 1em;
-        left: 14em;
-        z-index: 1003;
-        font-size: 1.3em;
-        padding: 0.3em 1em;
-        border-radius: 0.5em;
-        background: #333;
-        color: #fff;
-        border: none;
-        cursor: pointer;
-      "
-      title="Mute/Unmute"
-    >🔊</button>
-    <button
-      id="restartBtn"
-      style="
-        position: fixed;
-        top: 1em;
-        left: 17em;
-        z-index: 1003;
-        font-size: 1.1em;
-        padding: 0.3em 1em;
-        border-radius: 0.5em;
-        background: #1e824c;
-        color: #fff;
-        border: none;
-        cursor: pointer;
-      "
-      title="Restart Game"
-    >Restart</button>
-    <div
-      id="help"
-      style="
-        position: fixed;
-        bottom: 1em;
-        right: 2em;
-        z-index: 1000;
-        color: #fff;
-        background: rgba(30, 30, 30, 0.7);
-        padding: 0.5em 1.2em;
-        border-radius: 0.7em;
-        font-size: 1em;
-        box-shadow: 0 2px 8px #0004;
-      "
-    >
-      Controls: Arrow keys/WASD = Move | Space = Pass / Shoot / Tackle | R =
-      Restart | M = Mute
-    </div>
-
-
+    <script type="module" src="assets/game.js"></script>
   </body>
 </html>
