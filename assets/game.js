@@ -21,7 +21,7 @@ import {
   Box3,
   Group,
 } from "https://unpkg.com/three@0.152.2/build/three.module.js";
-import { GLTFLoader } from "https://jspm.dev/three@0.152.2/examples/jsm/loaders/GLTFLoader.js";
+import { GLTFLoader } from "./GLTFLoader.js";
 
 // Aggregate all three.js imports into a THREE object for legacy code
 const THREE = {
