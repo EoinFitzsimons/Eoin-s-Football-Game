@@ -1,5 +1,4 @@
 // Team.js - Team class for Football Manager
-import { Player } from '../player/player.js';
 
 export class Team {
   constructor({ name, color = '#fff', players = [] }) {
