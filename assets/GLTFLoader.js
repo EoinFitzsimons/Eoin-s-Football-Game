@@ -61,7 +61,7 @@ import {
 	Vector3,
 	VectorKeyframeTrack,
 	SRGBColorSpace
-} 
+} from 'https://unpkg.com/three@0.152.2/examples/jsm/utils/BufferGeometryUtils.js';
 import { toTrianglesDrawMode } from 'https://unpkg.com/three@0.152.2/examples/jsm/utils/BufferGeometryUtils.js';
 
 class GLTFLoader extends Loader {
