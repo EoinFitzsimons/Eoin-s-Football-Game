@@ -142,7 +142,7 @@ export class MatchController {
             this.handleMatchEvent(event);
           }
           
-          this.matchStats.updateStats(minute, this.score);
+          this.matchStats.updateMatchMinute(minute, minute % 2 === 0);
         }
         
         this.currentMinute = Math.min(this.currentMinute + 5, 90);
