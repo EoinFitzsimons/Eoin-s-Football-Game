@@ -7,16 +7,61 @@ export class MatchEvents {
     this.awayTeam = awayTeam;
     this.events = [];
     
-    // Event probabilities (per minute)
+    // Realistic event probabilities based on actual football statistics
+    // These are per-minute probabilities scaled to match realistic football frequency
     this.eventProbabilities = {
-      goal: 0.05,      // 5% chance per event check
-      card: 0.08,      // 8% chance
-      substitution: 0.03, // 3% chance (mainly after 60min)
-      injury: 0.02,    // 2% chance
-      shot: 0.15,      // 15% chance
-      foul: 0.12,      // 12% chance
-      corner: 0.08,    // 8% chance
-      offside: 0.06    // 6% chance
+      // Goals: Average 2.7 goals per match = 0.03 per minute
+      goal: 0.0333,
+      
+      // Shots: Average 24 shots per match = 0.267 per minute
+      shot: 0.267,
+      
+      // Cards: Average 3.5 cards per match = 0.039 per minute
+      yellowCard: 0.0333,
+      redCard: 0.0056,
+      
+      // Fouls: Average 21 fouls per match = 0.233 per minute
+      foul: 0.233,
+      
+      // Corners: Average 10 corners per match = 0.111 per minute
+      corner: 0.111,
+      
+      // Offsides: Average 5 offsides per match = 0.056 per minute
+      offside: 0.0556,
+      
+      // Substitutions: Average 6 subs per match, mostly after 45min
+      substitution: 0.0667,
+      
+      // Injuries: Average 1-2 per match = 0.017 per minute
+      injury: 0.0167
+    };
+    
+    // Positional goal scoring probabilities (based on real data)
+    this.goalProbabilityByPosition = {
+      'GK': 0.001,    // 0.1% - very rare
+      'CB': 0.05,     // 5% - headers from corners
+      'RB': 0.03,     // 3% - occasional runs
+      'LB': 0.03,     // 3% - occasional runs
+      'DM': 0.08,     // 8% - long shots, set pieces
+      'CM': 0.15,     // 15% - box-to-box goals
+      'AM': 0.25,     // 25% - key position
+      'RW': 0.20,     // 20% - cutting in, crossing
+      'LW': 0.20,     // 20% - cutting in, crossing
+      'ST': 0.45      // 45% - primary goalscorer
+    };
+    
+    // Card probabilities by position (based on real data)
+    this.cardProbabilityByPosition = {
+      'GK': { yellow: 0.8, red: 0.2 },   // GKs get fewer cards but more serious
+      'CB': { yellow: 0.85, red: 0.15 }, // Defenders get many tactical fouls
+      'RB': { yellow: 0.9, red: 0.1 },   // Full backs commit professional fouls
+      'LB': { yellow: 0.9, red: 0.1 },   
+      'DM': { yellow: 0.88, red: 0.12 }, // Breaking up play
+      'CM': { yellow: 0.9, red: 0.1 },   // Box-to-box challenges
+      'AM': { yellow: 0.92, red: 0.08 }, // Fewer dangerous tackles
+      'RW': { yellow: 0.95, red: 0.05 }, // Wingers rarely get reds
+      'LW': { yellow: 0.95, red: 0.05 },
+      'ST': { yellow: 0.9, red: 0.1 }    // Frustration fouls
     };
   }
 
@@ -37,24 +82,59 @@ export class MatchEvents {
 
   selectEventType(minute, matchState) {
     const random = Math.random();
-    let cumulativeProbability = 0;
     
-    // Adjust probabilities based on match context
+    // Adjust probabilities based on realistic match context
     const adjustedProbabilities = { ...this.eventProbabilities };
     
-    // More substitutions after 60 minutes
-    if (minute > 60) {
+    // Time-based adjustments (based on real football statistics)
+    if (minute <= 15) {
+      // First 15 minutes: More cautious, fewer cards/goals
+      adjustedProbabilities.goal *= 0.7;
+      adjustedProbabilities.yellowCard *= 0.6;
+      adjustedProbabilities.redCard *= 0.5;
+      adjustedProbabilities.substitution = 0; // No early subs
+    } else if (minute >= 75) {
+      // Final 15 minutes: More goals, cards, and subs
+      adjustedProbabilities.goal *= 1.4;
+      adjustedProbabilities.yellowCard *= 1.3;
+      adjustedProbabilities.redCard *= 1.2;
+      adjustedProbabilities.substitution *= 2.5;
+      adjustedProbabilities.injury *= 1.5; // Fatigue injuries
+    } else if (minute >= 45 && minute <= 60) {
+      // Half-time to 60min: Peak substitution period
       adjustedProbabilities.substitution *= 3;
     }
     
-    // More goals in final 15 minutes
-    if (minute > 75) {
-      adjustedProbabilities.goal *= 1.5;
+    // Score-based adjustments
+    const scoreDiff = matchState.scoreDifference || 0;
+    if (Math.abs(scoreDiff) >= 2) {
+      // Blowout games: fewer events, more subs
+      adjustedProbabilities.goal *= 0.8;
+      adjustedProbabilities.substitution *= 1.5;
+    } else if (scoreDiff === 0 && minute >= 80) {
+      // Close games late: more urgent play
+      adjustedProbabilities.goal *= 1.2;
+      adjustedProbabilities.shot *= 1.3;
+      adjustedProbabilities.foul *= 1.2;
     }
     
-    // Check each event type
-    for (const [eventType, probability] of Object.entries(adjustedProbabilities)) {
-      cumulativeProbability += probability;
+    // Team strength differential effects
+    const strengthDiff = matchState.strengthDifference || 0;
+    if (Math.abs(strengthDiff) > 10) {
+      // Mismatched teams
+      adjustedProbabilities.goal *= (1 + Math.abs(strengthDiff) * 0.01);
+      adjustedProbabilities.foul *= 1.2; // Weaker team fouls more
+    }
+    
+    // Check each event type with weighted probability
+    let cumulativeProbability = 0;
+    const eventTypes = [
+      'goal', 'shot', 'foul', 'yellowCard', 'redCard', 
+      'corner', 'offside', 'substitution', 'injury'
+    ];
+    
+    for (const eventType of eventTypes) {
+      cumulativeProbability += adjustedProbabilities[eventType] || 0;
       if (random < cumulativeProbability) {
         return eventType;
       }
@@ -66,38 +146,49 @@ export class MatchEvents {
   createEvent(eventType, minute, matchState = {}) {
     const team = Math.random() < 0.5 ? 'home' : 'away';
     const teamData = team === 'home' ? this.homeTeam : this.awayTeam;
-    const player = this.selectRandomPlayer(teamData);
+    const player = this.selectPlayerByEventType(teamData, eventType);
     
     switch (eventType) {
-      case 'goal':
+      case 'goal': {
         return this.createGoalEvent(team, player, minute);
+      }
         
-      case 'card':
-        const cardType = Math.random() < 0.8 ? 'yellow' : 'red';
-        return this.createCardEvent(team, player, minute, cardType);
+      case 'yellowCard': {
+        return this.createCardEvent(team, player, minute, 'yellow');
+      }
         
-      case 'substitution':
+      case 'redCard': {
+        return this.createCardEvent(team, player, minute, 'red');
+      }
+        
+      case 'substitution': {
         if (minute < 45) return null; // No subs before halftime usually
         const playerOff = this.selectRandomPlayer(teamData);
         const playerOn = this.selectRandomPlayer(teamData, [playerOff]);
         return this.createSubstitutionEvent(team, playerOff, playerOn, minute);
+      }
         
-      case 'injury':
+      case 'injury': {
         const severity = Math.random() < 0.7 ? 'minor' : 'serious';
         return this.createInjuryEvent(team, player, minute, severity);
+      }
         
-      case 'shot':
+      case 'shot': {
         const onTarget = Math.random() < 0.4;
         return this.createShotEvent(team, player, minute, onTarget);
+      }
         
-      case 'foul':
+      case 'foul': {
         return this.createFoulEvent(team, player, minute);
+      }
         
-      case 'corner':
+      case 'corner': {
         return this.createCornerEvent(team, minute);
+      }
         
-      case 'offside':
+      case 'offside': {
         return this.createOffsideEvent(team, player, minute);
+      }
         
       default:
         return null;
@@ -196,6 +287,103 @@ export class MatchEvents {
       description: `🚩 Offside! ${player} (${team === 'home' ? this.homeTeam.name : this.awayTeam.name})`,
       importance: 'low'
     };
+  }
+
+  /**
+   * Select player based on event type and realistic probabilities
+   */
+  selectPlayerByEventType(teamData, eventType) {
+    const players = teamData.players.slice(0, 11); // Starting XI only
+    
+    switch (eventType) {
+      case 'goal': {
+        return this.selectPlayerByProbability(players, this.goalProbabilityByPosition);
+      }
+      
+      case 'yellowCard':
+      case 'redCard': {
+        // Cards more likely for defenders and defensive midfielders
+        const cardWeights = {};
+        players.forEach(player => {
+          const baseWeight = {
+            'GK': 0.05, 'CB': 0.25, 'RB': 0.15, 'LB': 0.15,
+            'DM': 0.20, 'CM': 0.12, 'AM': 0.08, 'RW': 0.06, 'LW': 0.06, 'ST': 0.08
+          }[player.position] || 0.1;
+          
+          cardWeights[player.id] = baseWeight * (1 + (player.attributes.aggression || 50) * 0.01);
+        });
+        
+        return this.selectPlayerByWeights(players, cardWeights);
+      }
+      
+      case 'shot': {
+        // Shots weighted towards attacking players
+        const shotWeights = {};
+        players.forEach(player => {
+          shotWeights[player.id] = {
+            'GK': 0.01, 'CB': 0.05, 'RB': 0.08, 'LB': 0.08,
+            'DM': 0.12, 'CM': 0.15, 'AM': 0.25, 'RW': 0.20, 'LW': 0.20, 'ST': 0.35
+          }[player.position] || 0.1;
+        });
+        
+        return this.selectPlayerByWeights(players, shotWeights);
+      }
+      
+      case 'foul': {
+        // Fouls weighted by aggression and position
+        const foulWeights = {};
+        players.forEach(player => {
+          const positionWeight = {
+            'GK': 0.03, 'CB': 0.20, 'RB': 0.15, 'LB': 0.15,
+            'DM': 0.25, 'CM': 0.15, 'AM': 0.08, 'RW': 0.10, 'LW': 0.10, 'ST': 0.09
+          }[player.position] || 0.1;
+          
+          foulWeights[player.id] = positionWeight * (1 + (player.attributes.aggression || 50) * 0.015);
+        });
+        
+        return this.selectPlayerByWeights(players, foulWeights);
+      }
+      
+      case 'offside': {
+        // Offsides only for attacking players
+        const offensivePlayers = players.filter(p => 
+          ['AM', 'RW', 'LW', 'ST'].includes(p.position)
+        );
+        
+        if (offensivePlayers.length === 0) return this.selectRandomPlayer(teamData);
+        return offensivePlayers[Math.floor(Math.random() * offensivePlayers.length)];
+      }
+      
+      default:
+        return this.selectRandomPlayer(teamData);
+    }
+  }
+  
+  selectPlayerByProbability(players, probabilities) {
+    const weighted = players.map(player => ({
+      player,
+      weight: probabilities[player.position] || 0.1
+    }));
+    
+    return this.selectPlayerByWeights(players, 
+      Object.fromEntries(weighted.map(w => [w.player.id, w.weight]))
+    );
+  }
+  
+  selectPlayerByWeights(players, weights) {
+    const totalWeight = Object.values(weights).reduce((sum, w) => sum + w, 0);
+    let random = Math.random() * totalWeight;
+    
+    for (const player of players) {
+      const weight = weights[player.id] || 0;
+      random -= weight;
+      if (random <= 0) {
+        return player.name || `Player ${player.position}`;
+      }
+    }
+    
+    // Fallback
+    return players[0]?.name || 'Player';
   }
 
   selectRandomPlayer(teamData, excludeList = []) {
