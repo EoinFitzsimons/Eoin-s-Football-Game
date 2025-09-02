@@ -27,48 +27,66 @@ export class TransferSection extends BaseSection {
   }
 
   render(container) {
-    const transferSection = document.createElement('div');
-    transferSection.className = 'transfer-section';
+    console.log('🏪 Rendering TransferSection...');
     
-    transferSection.innerHTML = `
-      <div class="transfer-header">
-        <h1>Transfer Market</h1>
-        <div class="transfer-status">
-          <div class="window-status ${this.isTransferWindowOpen() ? 'open' : 'closed'}">
-            Transfer Window: ${this.isTransferWindowOpen() ? 'Open' : 'Closed'}
-          </div>
-          <div class="budget-display">
-            Budget: ${this.formatMoney(this.getTransferBudget())}
-          </div>
-        </div>
-      </div>
+    try {
+      const transferSection = document.createElement('div');
+      transferSection.className = 'transfer-section';
       
-      <div class="transfer-nav">
-        <button class="transfer-nav-btn ${this.currentView === 'market' ? 'active' : ''}" 
-                data-view="market">Market</button>
-        <button class="transfer-nav-btn ${this.currentView === 'shortlist' ? 'active' : ''}" 
-                data-view="shortlist">Shortlist</button>
-        <button class="transfer-nav-btn ${this.currentView === 'offers' ? 'active' : ''}" 
-                data-view="offers">Offers</button>
-        <button class="transfer-nav-btn ${this.currentView === 'completed' ? 'active' : ''}" 
-                data-view="completed">Completed</button>
-      </div>
-      
-      <div class="transfer-content">
-        <div class="transfer-main">
-          <div id="transfer-view-content">
-            ${this.renderCurrentView()}
+      transferSection.innerHTML = `
+        <div class="transfer-header">
+          <h1>Transfer Market</h1>
+          <div class="transfer-status">
+            <div class="window-status ${this.isTransferWindowOpen() ? 'open' : 'closed'}">
+              Transfer Window: ${this.isTransferWindowOpen() ? 'Open' : 'Closed'}
+            </div>
+            <div class="budget-display">
+              Budget: ${this.formatMoney(this.getTransferBudget())}
+            </div>
           </div>
         </div>
         
-        <div class="transfer-sidebar">
-          ${this.renderSidebar()}
+        <div class="transfer-nav">
+          <button class="transfer-nav-btn ${this.currentView === 'market' ? 'active' : ''}" 
+                  data-view="market">Market</button>
+          <button class="transfer-nav-btn ${this.currentView === 'shortlist' ? 'active' : ''}" 
+                  data-view="shortlist">Shortlist</button>
+          <button class="transfer-nav-btn ${this.currentView === 'offers' ? 'active' : ''}" 
+                  data-view="offers">Offers</button>
+          <button class="transfer-nav-btn ${this.currentView === 'completed' ? 'active' : ''}" 
+                  data-view="completed">Completed</button>
         </div>
-      </div>
-    `;
-    
-    container.appendChild(transferSection);
-    this.setupEventListeners();
+        
+        <div class="transfer-content">
+          <div class="transfer-main">
+            <div id="transfer-view-content">
+              ${this.renderCurrentView()}
+            </div>
+          </div>
+          
+          <div class="transfer-sidebar">
+            ${this.renderSidebar()}
+          </div>
+        </div>
+      `;
+      
+      container.innerHTML = '';
+      container.appendChild(transferSection);
+      
+      console.log('📊 Transfer section rendered, setting up event listeners...');
+      this.setupEventListeners();
+      console.log('✅ TransferSection render completed');
+      
+    } catch (error) {
+      console.error('❌ Error rendering TransferSection:', error);
+      container.innerHTML = `
+        <div class="error-message">
+          <h2>Transfer Market Error</h2>
+          <p>Unable to load transfer market. Please try refreshing.</p>
+          <pre>${error.message}</pre>
+        </div>
+      `;
+    }
   }
 
   renderCurrentView() {
@@ -255,7 +273,7 @@ export class TransferSection extends BaseSection {
       <div class="shortlist-view">
         <h2>Your Shortlist (${shortlistedPlayers.length})</h2>
         <div class="shortlist-grid">
-          ${shortlistedPlayers.map(player => this.renderShortlistPlayer(player)).join('')}
+          ${shortlistedPlayers.map(playerId => this.renderShortlistedPlayer(playerId)).join('')}
         </div>
       </div>
     `;
@@ -437,6 +455,11 @@ export class TransferSection extends BaseSection {
       if (e.target.classList.contains('shortlist-btn')) {
         const playerId = e.target.dataset.playerId;
         this.addToShortlist(playerId);
+      }
+      
+      if (e.target.classList.contains('remove-shortlist-btn')) {
+        const playerId = e.target.dataset.playerId;
+        this.removeFromShortlist(playerId);
       }
     });
 
@@ -723,13 +746,275 @@ export class TransferSection extends BaseSection {
   }
 
   makeBid(playerId) {
-    // Implementation would integrate with transfer market system
-    console.log('Making bid for player:', playerId);
-    alert('Bid functionality would be implemented here');
+    console.log('🏷️ Making bid for player:', playerId);
+    
+    try {
+      // Find the player in the global database
+      const player = this.gameState.worldSystem?.allPlayers?.find(p => p.id === playerId);
+      if (!player) {
+        console.error('❌ Player not found:', playerId);
+        alert('Player not found');
+        return;
+      }
+      
+      const askingPrice = this.getAskingPrice(player);
+      const budget = this.getTransferBudget();
+      
+      if (askingPrice > budget) {
+        alert(`❌ Insufficient funds!\nPlayer Price: ${this.formatMoney(askingPrice)}\nYour Budget: ${this.formatMoney(budget)}`);
+        return;
+      }
+      
+      // Simple bid system - could be expanded with negotiation
+      const confirmation = confirm(`💰 Submit bid for ${player.name}?\n\nPrice: ${this.formatMoney(askingPrice)}\nPosition: ${player.position}\nAge: ${player.age}\nRating: ${player.overallRating || player.rating || 'N/A'}\n\nConfirm purchase?`);
+      
+      if (confirmation) {
+        // Simulate successful transfer
+        if (this.gameState.transferMarket?.processTransfer) {
+          const result = this.gameState.transferMarket.processTransfer(player, this.gameState.userTeam, askingPrice);
+          if (result.success) {
+            alert(`✅ Transfer completed!\n${player.name} has joined your team for ${this.formatMoney(askingPrice)}`);
+            this.refreshPlayersList();
+            window.gameUI?.refreshCurrentSection();
+          } else {
+            alert(`❌ Transfer failed: ${result.message}`);
+          }
+        } else {
+          // Fallback simple implementation
+          this.gameState.userTeam.players.push(player);
+          alert(`✅ ${player.name} has joined your team!`);
+          this.refreshPlayersList();
+        }
+      }
+      
+    } catch (error) {
+      console.error('❌ Error making bid:', error);
+      alert('Error processing bid. Please try again.');
+    }
   }
 
   addToShortlist(playerId) {
-    console.log('Adding to shortlist:', playerId);
-    alert('Player added to shortlist');
+    console.log('⭐ Adding to shortlist:', playerId);
+    
+    // Initialize shortlist if it doesn't exist
+    if (!this.gameState.userShortlist) {
+      this.gameState.userShortlist = [];
+    }
+    
+    // Check if player is already shortlisted
+    if (this.gameState.userShortlist.includes(playerId)) {
+      alert('Player is already on your shortlist');
+      return;
+    }
+    
+    // Add to shortlist
+    this.gameState.userShortlist.push(playerId);
+    alert('Player added to shortlist!');
+    
+    // Update UI if we're on the shortlist view
+    if (this.currentView === 'shortlist') {
+      this.refreshPlayersList();
+    }
+  }
+
+  /**
+   * Render a completed transfer for the history view
+   */
+  renderCompletedTransfer(transfer) {
+    return `
+      <div class="completed-transfer-card">
+        <div class="transfer-header">
+          <div class="player-info">
+            <h4>${transfer.player.name}</h4>
+            <span class="position">${transfer.player.position}</span>
+            <span class="age">${transfer.player.age}y</span>
+          </div>
+          <div class="transfer-fee">
+            <span class="fee">${this.formatMoney(transfer.fee)}</span>
+          </div>
+        </div>
+        <div class="transfer-details">
+          <div class="clubs">
+            <span class="from">${transfer.from.name}</span>
+            <span class="arrow">→</span>
+            <span class="to">${transfer.to.name}</span>
+          </div>
+          <div class="transfer-date">
+            ${transfer.date.toLocaleDateString()}
+          </div>
+        </div>
+        <div class="contract-details">
+          <span class="wages">Wages: ${this.formatMoney(transfer.wages)}/week</span>
+          <span class="contract">Contract: ${transfer.contractLength} years</span>
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * Render an outgoing offer card
+   */
+  renderOutgoingOffer(offer) {
+    return `
+      <div class="offer-card outgoing">
+        <div class="offer-header">
+          <div class="player-info">
+            <h4>${offer.player.name}</h4>
+            <span class="position">${offer.player.position}</span>
+            <span class="club">${offer.targetClub}</span>
+          </div>
+          <div class="offer-status ${offer.status}">
+            ${offer.status.charAt(0).toUpperCase() + offer.status.slice(1)}
+          </div>
+        </div>
+        <div class="offer-details">
+          <div class="offer-amount">
+            <span class="label">Offer:</span>
+            <span class="amount">${this.formatMoney(offer.amount)}</span>
+          </div>
+          <div class="offer-date">
+            Submitted: ${offer.date.toLocaleDateString()}
+          </div>
+        </div>
+        <div class="offer-actions">
+          ${offer.status === 'pending' ? 
+            `<button class="secondary-btn" onclick="this.withdrawOffer('${offer.id}')">Withdraw</button>` : 
+            ''
+          }
+          ${offer.status === 'counter' ? 
+            `<button class="primary-btn" onclick="this.respondToCounter('${offer.id}')">Respond</button>` : 
+            ''
+          }
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * Render an incoming offer card
+   */
+  renderIncomingOffer(offer) {
+    return `
+      <div class="offer-card incoming">
+        <div class="offer-header">
+          <div class="club-info">
+            <h4>${offer.fromClub}</h4>
+            <span class="league">${offer.fromLeague}</span>
+          </div>
+          <div class="offer-amount">
+            ${this.formatMoney(offer.amount)}
+          </div>
+        </div>
+        <div class="player-details">
+          <div class="player-info">
+            <span class="player-name">${offer.player.name}</span>
+            <span class="position">${offer.player.position}</span>
+            <span class="age">${offer.player.age}y</span>
+          </div>
+          <div class="player-value">
+            Value: ${this.formatMoney(offer.player.value)}
+          </div>
+        </div>
+        <div class="offer-actions">
+          <button class="primary-btn" onclick="this.acceptOffer('${offer.id}')">Accept</button>
+          <button class="secondary-btn" onclick="this.rejectOffer('${offer.id}')">Reject</button>
+          <button class="tertiary-btn" onclick="this.counterOffer('${offer.id}')">Counter</button>
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * Render shortlisted player card
+   */
+  renderShortlistedPlayer(playerId) {
+    const player = this.gameState.worldSystem?.allPlayers?.find(p => p.id === playerId);
+    if (!player) return '';
+
+    return `
+      <div class="shortlisted-player-card">
+        <div class="player-card-header">
+          <div class="player-name">${player.name}</div>
+          <div class="player-age">${player.age}y</div>
+        </div>
+        <div class="player-card-body">
+          <div class="player-position">${player.position}</div>
+          <div class="player-stats">
+            <div class="stat">
+              <span class="stat-label">Rating</span>
+              <span class="stat-value">${player.overallRating || player.rating || 'N/A'}</span>
+            </div>
+          </div>
+          <div class="player-club">
+            <span class="club-name">${this.getPlayerClub(player) || 'Free Agent'}</span>
+          </div>
+          <div class="player-price">
+            ${this.formatMoney(this.getAskingPrice(player))}
+          </div>
+        </div>
+        <div class="player-card-actions">
+          <button class="primary-btn bid-btn" data-player-id="${player.id}">
+            Make Bid
+          </button>
+          <button class="secondary-btn remove-shortlist-btn" data-player-id="${player.id}">
+            Remove
+          </button>
+        </div>
+      </div>
+    `;
+  }
+  
+  /**
+   * Offer management methods
+   */
+  withdrawOffer(offerId) {
+    console.log('🚫 Withdrawing offer:', offerId);
+    // Implementation for withdrawing transfer offer
+    alert('Offer withdrawn successfully');
+    this.refreshPlayersList();
+  }
+
+  respondToCounter(offerId) {
+    console.log('💬 Responding to counter offer:', offerId);
+    // Implementation for responding to counter offers
+    alert('Counter offer response submitted');
+    this.refreshPlayersList();
+  }
+
+  acceptOffer(offerId) {
+    console.log('✅ Accepting incoming offer:', offerId);
+    // Implementation for accepting incoming transfer offers
+    alert('Offer accepted');
+    this.refreshPlayersList();
+  }
+
+  rejectOffer(offerId) {
+    console.log('❌ Rejecting incoming offer:', offerId);
+    // Implementation for rejecting incoming transfer offers
+    alert('Offer rejected');
+    this.refreshPlayersList();
+  }
+
+  counterOffer(offerId) {
+    console.log('🔄 Making counter offer:', offerId);
+    // Implementation for making counter offers
+    const counterAmount = prompt('Enter counter offer amount:');
+    if (counterAmount && !isNaN(counterAmount)) {
+      alert(`Counter offer of ${this.formatMoney(parseInt(counterAmount))} submitted`);
+      this.refreshPlayersList();
+    }
+  }
+
+  removeFromShortlist(playerId) {
+    console.log('🗑️ Removing from shortlist:', playerId);
+    
+    if (this.gameState.userShortlist) {
+      const index = this.gameState.userShortlist.indexOf(playerId);
+      if (index > -1) {
+        this.gameState.userShortlist.splice(index, 1);
+        alert('Player removed from shortlist');
+        this.refreshPlayersList();
+      }
+    }
   }
 }

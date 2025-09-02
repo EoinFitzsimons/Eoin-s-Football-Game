@@ -418,4 +418,65 @@ export class TeamSection extends BaseSection {
     // Add player to transfer list
     console.log('Add to transfer list:', this.selectedPlayer.name);
   }
+
+  refreshFormationDisplay() {
+    // Update the formation display based on current formation
+    console.log('🔄 Refreshing formation display for:', this.currentFormation);
+    
+    // You could implement formation-specific logic here
+    // For now, just refresh the player positions
+    this.refreshPlayerPositions();
+  }
+
+  refreshPlayerPositions() {
+    // Update player positions in the formation
+    const squadList = document.querySelector('.squad-list');
+    if (squadList) {
+      // Re-render the squad with updated formation
+      const players = this.gameState.userTeam?.players || [];
+      const startingXI = players.slice(0, 11);
+      const substitutes = players.slice(11);
+      
+      squadList.innerHTML = `
+        <div class="starting-eleven">
+          <h3>Starting XI</h3>
+          <div class="players-grid">
+            ${startingXI.map(player => this.renderPlayerCard(player)).join('')}
+          </div>
+        </div>
+        <div class="substitutes">
+          <h3>Substitutes</h3>
+          <div class="players-grid">
+            ${substitutes.map(player => this.renderPlayerCard(player)).join('')}
+          </div>
+        </div>
+      `;
+      
+      // Re-attach event listeners
+      this.attachPlayerEventListeners();
+    }
+  }
+
+  refreshFormationDisplay() {
+    // Update formation title
+    const formationTitle = document.querySelector('.formation-display h3');
+    if (formationTitle) {
+      formationTitle.textContent = `Formation: ${this.currentFormation}`;
+    }
+
+    // Update pitch formation display
+    const pitchFormation = document.getElementById('pitch-formation');
+    if (pitchFormation) {
+      pitchFormation.innerHTML = this.renderFormationDisplay();
+    }
+
+    // Update starting lineup with new formation
+    const startingLineup = document.getElementById('starting-lineup');
+    if (startingLineup) {
+      startingLineup.innerHTML = this.renderStartingLineup();
+    }
+
+    // Re-attach event listeners for any new elements
+    this.attachPlayerEventListeners();
+  }
 }

@@ -484,4 +484,231 @@ export class TransferMarket {
       });
     }
   }
+
+  /**
+   * Process a transfer between clubs
+   * @param {Player} player - The player being transferred
+   * @param {Team} buyingClub - The club buying the player
+   * @param {number} offerAmount - The transfer fee offered
+   * @returns {Object} Transfer result with success status and details
+   */
+  processTransfer(player, buyingClub, offerAmount) {
+    try {
+      console.log(`💰 Processing transfer: ${player.name} to ${buyingClub.name} for ${this.formatMoney(offerAmount)}`);
+      
+      // Find current club
+      const currentClub = this.findPlayerClub(player);
+      if (!currentClub) {
+        return { success: false, message: 'Player\'s current club not found' };
+      }
+      
+      // Check if transfer window is open
+      if (!this.gameState.transferWindow?.isTransferWindowOpen()) {
+        return { success: false, message: 'Transfer window is closed' };
+      }
+      
+      // Check buying club budget
+      const buyingClubFinances = this.clubFinances.get(buyingClub.id);
+      if (!buyingClubFinances || buyingClubFinances.budget < offerAmount) {
+        return { success: false, message: 'Insufficient funds' };
+      }
+      
+      // Check squad space
+      if (buyingClub.players.length >= 25) {
+        return { success: false, message: 'Squad is full (maximum 25 players)' };
+      }
+      
+      // Calculate player value and negotiate
+      const playerValue = this.getPlayerValue(player);
+      const minimumAcceptable = playerValue * 0.8; // Clubs will accept 80% of value
+      
+      if (offerAmount < minimumAcceptable) {
+        return { 
+          success: false, 
+          message: `Offer too low. Minimum acceptable: ${this.formatMoney(minimumAcceptable)}` 
+        };
+      }
+      
+      // Process the transfer
+      const transferFee = offerAmount;
+      const wages = this.calculatePlayerWages(player, buyingClub);
+      const contractLength = this.calculateContractLength(player);
+      
+      // Remove player from current club
+      const playerIndex = currentClub.players.findIndex(p => p.id === player.id);
+      if (playerIndex !== -1) {
+        currentClub.players.splice(playerIndex, 1);
+      }
+      
+      // Add player to buying club
+      player.club = buyingClub.name;
+      player.clubId = buyingClub.id;
+      player.contractLength = contractLength;
+      player.wages = wages;
+      player.transferValue = transferFee;
+      buyingClub.players.push(player);
+      
+      // Update club finances
+      if (buyingClubFinances) {
+        buyingClubFinances.budget -= transferFee;
+        buyingClubFinances.transfersIn.push({
+          player: player.name,
+          from: currentClub.name,
+          fee: transferFee,
+          date: new Date(),
+          wages: wages,
+          contract: contractLength
+        });
+        buyingClubFinances.netSpend += transferFee;
+      }
+      
+      // Update selling club finances
+      const sellingClubFinances = this.clubFinances.get(currentClub.id);
+      if (sellingClubFinances) {
+        sellingClubFinances.budget += transferFee;
+        sellingClubFinances.transfersOut.push({
+          player: player.name,
+          to: buyingClub.name,
+          fee: transferFee,
+          date: new Date()
+        });
+        sellingClubFinances.netSpend -= transferFee;
+      }
+      
+      // Record transfer in history
+      const transferRecord = {
+        id: `transfer_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        player: {
+          id: player.id,
+          name: player.name,
+          position: player.position,
+          age: player.age,
+          rating: player.overallRating || player.rating
+        },
+        from: {
+          id: currentClub.id,
+          name: currentClub.name,
+          league: currentClub.league
+        },
+        to: {
+          id: buyingClub.id,
+          name: buyingClub.name,
+          league: buyingClub.league
+        },
+        fee: transferFee,
+        wages: wages,
+        contractLength: contractLength,
+        date: new Date(),
+        window: this.currentWindow || 'summer'
+      };
+      
+      this.marketHistory.push(transferRecord);
+      
+      // Update game statistics
+      if (this.gameState.stats) {
+        this.gameState.stats.transfersCompleted++;
+      }
+      
+      console.log(`✅ Transfer completed: ${player.name} → ${buyingClub.name}`);
+      
+      return {
+        success: true,
+        message: `Transfer completed successfully`,
+        transfer: transferRecord,
+        playerWages: wages,
+        contractLength: contractLength
+      };
+      
+    } catch (error) {
+      console.error('❌ Error processing transfer:', error);
+      return { success: false, message: 'Transfer processing error' };
+    }
+  }
+
+  /**
+   * Find which club a player currently belongs to
+   */
+  findPlayerClub(player) {
+    if (!this.gameState.worldSystem?.allTeams) return null;
+    
+    for (const team of this.gameState.worldSystem.allTeams) {
+      if (team.players.some(p => p.id === player.id)) {
+        return team;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Calculate appropriate wages for a player at a specific club
+   */
+  calculatePlayerWages(player, club) {
+    const baseWage = (player.overallRating || player.rating || 50) * 1000; // €1k per rating point per week
+    const clubMultiplier = this.getClubWageMultiplier(club);
+    const positionMultiplier = this.getPositionWageMultiplier(player.position);
+    
+    return Math.round(baseWage * clubMultiplier * positionMultiplier);
+  }
+
+  /**
+   * Calculate contract length based on player age and quality
+   */
+  calculateContractLength(player) {
+    const age = player.age;
+    const rating = player.overallRating || player.rating || 50;
+    
+    if (age < 20 && rating > 70) return 5; // Long contract for young talent
+    if (age < 25 && rating > 80) return 4; // Good contract for prime talent
+    if (age < 30 && rating > 75) return 3; // Standard contract
+    if (age < 35) return 2; // Shorter for older players
+    return 1; // Short contract for veterans
+  }
+
+  /**
+   * Get club wage multiplier based on league tier and reputation
+   */
+  getClubWageMultiplier(club) {
+    const tier = club.tier || 3;
+    const baseMultiplier = {
+      1: 1.5,  // Top tier clubs pay 150% of base
+      2: 1.0,  // Second tier pays base rate
+      3: 0.7   // Third tier pays 70% of base
+    }[tier];
+    
+    const reputationMultiplier = ((club.reputation || 50) / 50);
+    return baseMultiplier * reputationMultiplier;
+  }
+
+  /**
+   * Get position wage multiplier (some positions command higher wages)
+   */
+  getPositionWageMultiplier(position) {
+    const multipliers = {
+      'GK': 0.9,
+      'CB': 1.0,
+      'LB': 1.0,
+      'RB': 1.0,
+      'DM': 1.0,
+      'CM': 1.1,
+      'AM': 1.2,
+      'LW': 1.2,
+      'RW': 1.2,
+      'ST': 1.3
+    };
+    
+    return multipliers[position] || 1.0;
+  }
+
+  /**
+   * Format money amount for display
+   */
+  formatMoney(amount) {
+    if (amount >= 1000000) {
+      return `€${(amount / 1000000).toFixed(1)}M`;
+    } else if (amount >= 1000) {
+      return `€${(amount / 1000).toFixed(0)}K`;
+    } else {
+      return `€${amount}`;
+    }
+  }
 }

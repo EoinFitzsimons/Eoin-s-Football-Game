@@ -392,7 +392,56 @@ export class GameUI {
 
   // Public methods for external use
   triggerMatch(fixture) {
-    this.gameState?.startMatch?.(fixture.id, true);
+    console.log('🎯 Triggering match:', fixture.id);
+    
+    try {
+      // Validate fixture
+      if (!fixture || !fixture.id) {
+        console.error('❌ Invalid fixture provided');
+        return;
+      }
+
+      // Navigate to fixtures section to show match
+      this.showSection('fixtures');
+      
+      // Start the match using GameState's startMatch method
+      console.log('⚽ Starting match simulation...');
+      const matchResult = this.gameState.startMatch(fixture.id, false); // Use simulation
+      
+      if (matchResult) {
+        console.log('✅ Match started successfully:', matchResult);
+        
+        // Mark fixture as played
+        fixture.played = true;
+        fixture.result = matchResult;
+        
+        // Update match history
+        if (this.gameState.matchHistory) {
+          this.gameState.matchHistory.push({
+            fixture: fixture,
+            result: matchResult,
+            date: new Date()
+          });
+        }
+        
+        // Refresh the fixtures section to show match result
+        setTimeout(() => {
+          this.refreshCurrentSection();
+          console.log('🔄 Fixtures section refreshed with match result');
+        }, 500);
+        
+        // Trigger UI callbacks
+        if (this.gameState.eventCallbacks.matchCompleted) {
+          this.gameState.eventCallbacks.matchCompleted(matchResult);
+        }
+        
+      } else {
+        console.error('❌ Failed to start match - no result returned');
+      }
+      
+    } catch (error) {
+      console.error('❌ Error during match trigger:', error);
+    }
   }
 
   refreshCurrentSection() {
