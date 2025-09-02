@@ -437,37 +437,43 @@ export class GameState {
 // Initialize game when page loads
 let gameState = null;
 
-document.addEventListener('DOMContentLoaded', async () => {
-  console.log('🚀 Starting Football Management Game...');
-  
-  gameState = new GameState();
-  
-  // Try to load saved game
-  if (!gameState.load()) {
-    console.log('🆕 Starting new game...');
-  }
-  
-  // Make game state globally accessible for debugging
-  window.gameState = gameState;
-  
-  // Legacy match engine for canvas demo
-  const canvas = document.getElementById('pitch');
-  if (canvas && gameState.userTeam) {
-    // Create demo match
-    const opponent = gameState.league?.teams?.find(t => t.id !== gameState.userTeam.id);
-    if (opponent) {
-      const engine = new MatchEngine(gameState.userTeam, opponent, canvas, gameState);
-      
-      function gameLoop() {
-        engine.update();
-        engine.draw();
-        requestAnimationFrame(gameLoop);
-      }
-      
-      gameLoop();
+// Create a promise that resolves when gameState is initialized
+let gameStatePromise = new Promise((resolve) => {
+  document.addEventListener('DOMContentLoaded', async () => {
+    console.log('🚀 Starting Football Management Game...');
+    
+    gameState = new GameState();
+    
+    // Try to load saved game
+    if (!gameState.load()) {
+      console.log('🆕 Starting new game...');
     }
-  }
+    
+    // Make game state globally accessible for debugging
+    window.gameState = gameState;
+    
+    // Resolve the promise with the initialized gameState
+    resolve(gameState);
+    
+    // Legacy match engine for canvas demo
+    const canvas = document.getElementById('pitch');
+    if (canvas && gameState.userTeam) {
+      // Create demo match
+      const opponent = gameState.league?.teams?.find(t => t.id !== gameState.userTeam.id);
+      if (opponent) {
+        const engine = new MatchEngine(gameState.userTeam, opponent, canvas, gameState);
+        
+        function gameLoop() {
+          engine.update();
+          engine.draw();
+          requestAnimationFrame(gameLoop);
+        }
+        
+        gameLoop();
+      }
+    }
+  });
 });
 
 // Export for use in other modules
-export { gameState };
+export { gameState, gameStatePromise };

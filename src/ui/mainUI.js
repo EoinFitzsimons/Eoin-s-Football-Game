@@ -3,7 +3,7 @@
  * Bridges the existing UI structure with the enhanced game state
  */
 
-import { gameState } from '../game.js';
+import { gameStatePromise } from '../game.js';
 
 class MainUIController {
   constructor() {
@@ -15,19 +15,19 @@ class MainUIController {
     this.waitForGameState();
   }
 
-  waitForGameState() {
-    // Wait for game to initialize
-    const checkGameState = () => {
-      if (window.gameState && window.gameState.ui) {
-        this.gameState = window.gameState;
-        this.interactiveUI = window.gameState.ui;
-        this.connectInteractiveUI();
-        console.log('🔗 Main UI connected to game state');
-      } else {
-        setTimeout(checkGameState, 100);
-      }
-    };
-    checkGameState();
+  async waitForGameState() {
+    try {
+      // Wait for game state to be initialized
+      this.gameState = await gameStatePromise;
+      this.interactiveUI = this.gameState.ui;
+      this.connectInteractiveUI();
+      console.log('🔗 Main UI connected to game state');
+      
+      // Initial UI refresh
+      this.showSection('home');
+    } catch (error) {
+      console.error('❌ Failed to connect to game state:', error);
+    }
   }
 
   initializeNavigation() {
