@@ -12,6 +12,7 @@ import { TeamSection } from './sections/teamSection.js';
 import { TransferSection } from './sections/transferSection.js';
 import { FixturesSection } from './sections/fixturesSection.js';
 import { LeagueSection } from './sections/leagueSection.js';
+import { StatsSection } from './sections/statsSection.js';
 
 export class GameUI {
   constructor(gameState) {
@@ -147,8 +148,8 @@ export class GameUI {
     }
     
     try {
-      this.sections.stats = new LeagueSection(this.gameState);
-      console.log('✅ StatsSection (reusing LeagueSection) created');
+      this.sections.stats = new StatsSection(this.gameState);
+      console.log('✅ StatsSection created');
     } catch (error) {
       console.error('❌ Error creating StatsSection:', error);
     }

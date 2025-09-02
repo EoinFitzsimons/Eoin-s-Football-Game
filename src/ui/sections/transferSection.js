@@ -105,22 +105,20 @@ export class TransferSection extends BaseSection {
   }
 
   renderMarketView() {
-    if (!this.isTransferWindowOpen()) {
-      return `
-        <div class="market-closed">
-          <div class="closed-message">
-            <h3>Transfer Window Closed</h3>
-            <p>The transfer window is currently closed. Players cannot be signed at this time.</p>
-            <p>Next window opens: ${this.getNextWindowDate()}</p>
-          </div>
-        </div>
-      `;
-    }
-
     const availablePlayers = this.getAvailablePlayers();
+    const isWindowOpen = this.isTransferWindowOpen();
     
     return `
       <div class="market-view">
+        ${!isWindowOpen ? `
+          <div class="market-warning">
+            <div class="warning-message">
+              <h3>⚠️ Transfer Window Closed</h3>
+              <p>You can browse players but cannot make bids until the next window opens: ${this.getNextWindowDate()}</p>
+            </div>
+          </div>
+        ` : ''}
+        
         <div class="market-search">
           <div class="search-bar">
             <input type="text" id="player-search" placeholder="Search players by name..." 
@@ -202,7 +200,7 @@ export class TransferSection extends BaseSection {
         
         <div class="players-list" id="players-list">
           ${availablePlayers.length > 0 ? 
-            availablePlayers.map(player => this.renderPlayerCard(player)).join('') :
+            availablePlayers.map(player => this.renderPlayerCard(player, !isWindowOpen)).join('') :
             '<div class="no-results">No players found matching your criteria</div>'
           }
         </div>
@@ -210,7 +208,7 @@ export class TransferSection extends BaseSection {
     `;
   }
 
-  renderPlayerCard(player) {
+  renderPlayerCard(player, disableBidding = false) {
     const askingPrice = this.getAskingPrice(player);
     const isAffordable = askingPrice <= this.getTransferBudget();
     
@@ -237,9 +235,9 @@ export class TransferSection extends BaseSection {
             <button class="shortlist-btn" data-player-id="${player.id}">
               Shortlist
             </button>
-            <button class="bid-btn primary-btn ${isAffordable ? '' : 'disabled'}" 
-                    data-player-id="${player.id}" ${!isAffordable ? 'disabled' : ''}>
-              Make Bid
+            <button class="bid-btn primary-btn ${(isAffordable && !disableBidding) ? '' : 'disabled'}" 
+                    data-player-id="${player.id}" ${(!isAffordable || disableBidding) ? 'disabled' : ''}>
+              ${disableBidding ? 'Window Closed' : 'Make Bid'}
             </button>
           </div>
         </div>
@@ -342,13 +340,6 @@ export class TransferSection extends BaseSection {
             <li>Scout players thoroughly before making offers</li>
             <li>Emergency transfers are possible outside transfer windows</li>
           </ul>
-        </div>
-        
-        <div class="quick-actions">
-          <h3>Quick Actions</h3>
-          <button class="quick-action-btn">Search Free Agents</button>
-          <button class="quick-action-btn">Loan Market</button>
-          <button class="quick-action-btn">Youth Prospects</button>
         </div>
       </div>
     `;
@@ -478,21 +469,6 @@ export class TransferSection extends BaseSection {
       this.searchFilters.nameSearch = searchInput.value;
       this.refreshPlayersList();
     }
-  }
-
-  applyFilters() {
-    // Update filters from form inputs
-    const positionFilter = document.getElementById('position-filter');
-    const minAgeInput = document.getElementById('min-age');
-    const maxAgeInput = document.getElementById('max-age');
-    const maxPriceInput = document.getElementById('max-price');
-    
-    if (positionFilter) this.searchFilters.position = positionFilter.value;
-    if (minAgeInput) this.searchFilters.minAge = parseInt(minAgeInput.value);
-    if (maxAgeInput) this.searchFilters.maxAge = parseInt(maxAgeInput.value);
-    if (maxPriceInput) this.searchFilters.maxPrice = parseInt(maxPriceInput.value);
-    
-    this.refreshPlayersList();
   }
 
   clearFilters() {
