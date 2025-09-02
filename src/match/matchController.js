@@ -327,7 +327,8 @@ export class MatchController {
     
     // Generate final match result
     const result = this.matchResults.generateResult(
-      this.score,
+      this.homeTeam,
+      this.awayTeam,
       this.matchEvents.getMatchSummary(),
       this.matchStats.getFinalStats()
     );

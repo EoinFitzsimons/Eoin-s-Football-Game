@@ -402,12 +402,24 @@ export class MatchEvents {
   }
 
   getMatchSummary() {
+    const goals = this.events.filter(event => event.type === 'goal');
+    
     return {
       events: [...this.events],
-      goals: this.events.filter(event => event.type === 'goal'),
+      goals: goals,
       cards: this.events.filter(event => event.type === 'card'),
       substitutions: this.events.filter(event => event.type === 'substitution'),
-      keyEvents: this.events.filter(event => event.importance === 'high')
+      keyEvents: this.events.filter(event => event.importance === 'high'),
+      goalScorers: {
+        home: goals.filter(goal => goal.team === 'home').map(goal => ({
+          player: goal.player,
+          minute: goal.minute
+        })),
+        away: goals.filter(goal => goal.team === 'away').map(goal => ({
+          player: goal.player,
+          minute: goal.minute
+        }))
+      }
     };
   }
 

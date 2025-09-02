@@ -3,31 +3,100 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>2D Football Manager</title>
+  <title>Eoin's Football Game</title>
   <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="src/ui/gameUI.css">
+  <link rel="icon" href="favicon.ico">
+  <meta name="description" content="Eoin's Football Game - Build your dream team and lead them to glory">
+  <!-- Font Awesome for icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
-  <nav id="main-nav">
-    <button class="nav-btn" data-section="home">Home</button>
-    <button class="nav-btn" data-section="team">Team</button>
-    <button class="nav-btn" data-section="club">Club</button>
-    <button class="nav-btn" data-section="board">Board</button>
-    <button class="nav-btn" data-section="stats">Stats</button>
-    <button class="nav-btn" data-section="world">World</button>
-  </nav>
-  <div id="main-layout">
-    <aside id="sidebar-left" aria-label="Left Sidebar">
-      <div id="sidebar-left-content"></div>
-    </aside>
-    <section id="center-content">
-      <h1>2D Football Manager</h1>
-      <canvas id="pitch"></canvas>
-    </section>
-    <aside id="sidebar-right" aria-label="Right Sidebar">
-      <div id="sidebar-right-content"></div>
-    </aside>
+  <div class="game-container">
+    <!-- Main Navigation -->
+    <nav class="main-navigation" role="navigation" aria-label="Main navigation">
+      <ul class="nav-list" role="tablist">
+        <li class="nav-item" role="none">
+          <button class="nav-button active" 
+                  data-section="dashboard" 
+                  role="tab" 
+                  aria-selected="true"
+                  aria-controls="dashboard-content">
+            <i class="nav-icon fas fa-tachometer-alt" aria-hidden="true"></i>
+            <span class="nav-label">Dashboard</span>
+          </button>
+        </li>
+        <li class="nav-item" role="none">
+          <button class="nav-button" 
+                  data-section="team" 
+                  role="tab" 
+                  aria-selected="false"
+                  aria-controls="team-content">
+            <i class="nav-icon fas fa-users" aria-hidden="true"></i>
+            <span class="nav-label">Team</span>
+          </button>
+        </li>
+        <li class="nav-item" role="none">
+          <button class="nav-button" 
+                  data-section="fixtures" 
+                  role="tab" 
+                  aria-selected="false"
+                  aria-controls="fixtures-content">
+            <i class="nav-icon fas fa-calendar-alt" aria-hidden="true"></i>
+            <span class="nav-label">Fixtures</span>
+          </button>
+        </li>
+        <li class="nav-item" role="none">
+          <button class="nav-button" 
+                  data-section="transfers" 
+                  role="tab" 
+                  aria-selected="false"
+                  aria-controls="transfers-content">
+            <i class="nav-icon fas fa-exchange-alt" aria-hidden="true"></i>
+            <span class="nav-label">Transfers</span>
+          </button>
+        </li>
+        <li class="nav-item" role="none">
+          <button class="nav-button" 
+                  data-section="league" 
+                  role="tab" 
+                  aria-selected="false"
+                  aria-controls="league-content">
+            <i class="nav-icon fas fa-trophy" aria-hidden="true"></i>
+            <span class="nav-label">League</span>
+          </button>
+        </li>
+      </ul>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="main-content" id="main-content" role="main">
+      <!-- Content sections will be dynamically loaded here -->
+      <div class="section-container">
+        <!-- Loading screen initially -->
+        <div class="loading-screen" id="loading-screen">
+          <div class="loading-spinner">
+            <i class="fas fa-futbol fa-spin"></i>
+          </div>
+          <h2>Loading Eoin's Football Game...</h2>
+          <p>Preparing your football empire</p>
+        </div>
+      </div>
+    </main>
   </div>
-  <script type="module" src="src/ui/mainUI.js"></script>
-  <script type="module" src="src/game.js"></script>
+
+  <!-- Match Overlay (hidden by default) -->
+  <div class="match-overlay hidden" id="match-overlay">
+    <!-- Match UI will be dynamically created here -->
+  </div>
+
+  <!-- Notification Container -->
+  <div id="notification-container" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- Screen Reader Announcements -->
+  <div id="sr-announcements" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- Scripts -->
+  <script type="module" src="src/main.js"></script>
 </body>
 </html>

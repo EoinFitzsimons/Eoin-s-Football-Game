@@ -73,4 +73,18 @@ export class League {
       b.points - a.points || (b.goalsFor - b.goalsAgainst) - (a.goalsFor - a.goalsAgainst)
     );
   }
+
+  getStandings() {
+    // Returns the league table sorted by points, then goal difference, then goals for
+    return [...this.teams].sort((a, b) =>
+      b.points - a.points ||
+      (b.goalsFor - b.goalsAgainst) - (a.goalsFor - a.goalsAgainst) ||
+      b.goalsFor - a.goalsFor
+    );
+  }
+
+  getPosition(team) {
+    const standings = this.getStandings();
+    return standings.findIndex(t => t.id === team.id) + 1;
+  }
 }

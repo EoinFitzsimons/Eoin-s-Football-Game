@@ -3,14 +3,12 @@
  * Connects UI, transfers, matches, and world football systems
  */
 
-import { MatchEngine } from './match/matchEngine.js';
 import { MatchController } from './match/matchController.js';
-import { League } from './league/league.js';
+import { MatchEngine } from './match/matchEngine.js';
 import { generateWorldFootballSystem } from './utils/randomData.js';
 import { TransferMarket } from './transfers/transferMarket.js';
 import { TransferWindow } from './transfers/transferWindow.js';
 import { RegistrationRules } from './transfers/registrationRules.js';
-import { initializeUI } from './ui/interactiveUI.js';
 
 export class GameState {
   constructor() {
@@ -18,13 +16,14 @@ export class GameState {
     this.worldSystem = null;
     this.userTeam = null;
     this.currentSeason = 2024;
-    this.currentDate = new Date(2024, 8, 1); // September 1st, 2024
+    this.currentDate = new Date(2024, 5, 1); // June 1st, 2024 (summer transfer window)
     this.gameSpeed = 1;
     
     // Match systems
     this.fixtures = [];
     this.matchHistory = [];
     this.currentMatch = null;
+    this.MatchEngine = MatchEngine; // Expose MatchEngine class for UI
     
     // Transfer systems
     this.transferMarket = null;
@@ -50,11 +49,35 @@ export class GameState {
       transfersCompleted: 0,
       seasonsCompleted: 0
     };
-    
-    this.initialize();
+
+    // Don't auto-initialize - let main.js control initialization
+    console.log('🎮 GameState created, awaiting initialization...');
   }
 
-  async initialize() {
+  /**
+   * Set the user team after selection from UI
+   */
+  setUserTeam(team, league, country) {
+    this.userTeam = team;
+    this.league = league;
+    this.userCountry = country;
+    
+    console.log(`🏟️ User team selected: ${team.name} (${country.name})`);
+    
+    // Generate fixtures now that team is selected
+    this.generateSeasonFixtures();
+    
+    // Initialize transfer window with selected team
+    this.transferWindow.initializeSeason(this.currentSeason);
+    this.transferWindow.openTransferWindow('summer');
+    
+    // Trigger UI update
+    if (this.eventCallbacks.uiUpdate) {
+      this.eventCallbacks.uiUpdate();
+    }
+    
+    console.log('🎯 Team selection completed, game ready to play!');
+  }  async initialize() {
     console.log('🎮 Initializing Football Management Game...');
     
     try {
@@ -69,33 +92,33 @@ export class GameState {
       this.transferWindow = new TransferWindow(this);
       this.registrationRules = new RegistrationRules(this);
       
-      // Select user team (first team from first country's top league)
-      const firstCountry = this.worldSystem.countries[0];
-      const topLeague = firstCountry.leagues[0];
-      this.userTeam = topLeague.teams[0];
-      this.league = topLeague;
+      // User team will be selected through UI - no auto-selection
+      this.userTeam = null;
+      this.league = null;
       
-      console.log(`🏟️ User team selected: ${this.userTeam.name} (${firstCountry.name})`);
+      console.log('🏟️ User team selection deferred to UI...');
       
-      // Generate initial fixtures
-      this.generateSeasonFixtures();
+      // Fixtures will be generated after team selection
       
-      // Initialize transfer window
-      this.transferWindow.initializeSeason(this.currentSeason);
-      this.transferWindow.openTransferWindow('summer');
+      // Transfer window initialization will happen after team selection
+      console.log('💰 Transfer systems ready, awaiting team selection...');
       
-      // Initialize UI
-      console.log('🎨 Initializing interactive UI...');
-      const ui = initializeUI(this);
-      this.ui = ui;
+      // Skip old UI initialization - will be handled by GameUI
+      console.log('🎨 Game core systems initialized, UI will be handled separately...');
       
       console.log('✅ Game initialization completed successfully');
+      
+      // Trigger UI update now that game is fully initialized
+      if (this.eventCallbacks.uiUpdate) {
+        this.eventCallbacks.uiUpdate();
+      }
       
       // Auto-save system
       this.setupAutoSave();
       
     } catch (error) {
       console.error('❌ Game initialization failed:', error);
+      throw error;
     }
   }
 
@@ -215,19 +238,39 @@ export class GameState {
    * Advance game time
    */
   advanceTime(days = 1) {
-    this.currentDate.setDate(this.currentDate.getDate() + days);
-    
-    // Update transfer windows
-    this.transferWindow.updateTransferWindows(this.currentDate);
-    
-    // Update transfer market dynamics
-    this.transferMarket.updateMarketDynamics();
-    
-    // Process player development/decay
-    this.processPlayerDevelopment();
-    
-    // Check for season end
-    this.checkSeasonEnd();
+    // Advance day by day until we hit a match day or reach the target
+    for (let i = 0; i < days; i++) {
+      this.currentDate.setDate(this.currentDate.getDate() + 1);
+      
+      // Check if there are any matches scheduled for today
+      const todaysMatches = this.fixtures.filter(fixture => {
+        if (fixture.played) return false;
+        
+        const fixtureDate = new Date(fixture.date);
+        return fixtureDate.toDateString() === this.currentDate.toDateString();
+      });
+      
+      // Update transfer windows
+      this.transferWindow.updateTransferWindows(this.currentDate);
+      
+      // Update transfer market dynamics
+      this.transferMarket.updateMarketDynamics();
+      
+      // Process player development/decay (lighter processing for daily updates)
+      if (i === days - 1 || todaysMatches.length > 0) {
+        this.processPlayerDevelopment();
+      }
+      
+      // If we hit a match day, stop advancing and notify
+      if (todaysMatches.length > 0) {
+        console.log(`📅 Stopped on match day: ${this.currentDate.toDateString()}`);
+        console.log(`⚽ Matches today: ${todaysMatches.length}`);
+        break;
+      }
+      
+      // Check for season end
+      this.checkSeasonEnd();
+    }
     
     // Update UI
     if (this.eventCallbacks.uiUpdate) {
@@ -330,16 +373,39 @@ export class GameState {
         currentDate: this.currentDate.toISOString(),
         userTeamId: this.userTeam?.id,
         stats: this.stats,
-        worldSystemData: this.serializeWorldSystem(),
-        fixtures: this.fixtures,
-        matchHistory: this.matchHistory.slice(-50) // Keep last 50 matches
+        // Serialize only essential world data to save space
+        worldSystemData: this.serializeMinimalWorldSystem(),
+        fixtures: this.fixtures.slice(0, 100), // Keep only next 100 fixtures
+        matchHistory: this.matchHistory.slice(-20) // Keep last 20 matches only
       };
+      
+      const jsonData = JSON.stringify(saveData);
+      // Check size before saving
+      const sizeInMB = new Blob([jsonData]).size / (1024 * 1024);
+      
+      if (sizeInMB > 4) { // Limit to 4MB
+        console.warn(`⚠️ Save data too large (${sizeInMB.toFixed(2)}MB), clearing history...`);
+        saveData.matchHistory = [];
+        saveData.fixtures = this.fixtures.slice(0, 50);
+      }
       
       localStorage.setItem('footballManagerSave', JSON.stringify(saveData));
       console.log('💾 Game saved successfully');
       
     } catch (error) {
       console.error('❌ Failed to save game:', error);
+      // Try emergency save with minimal data
+      try {
+        const minimalSave = {
+          currentSeason: this.currentSeason,
+          currentDate: this.currentDate.toISOString(),
+          userTeamId: this.userTeam?.id
+        };
+        localStorage.setItem('footballManagerSave_minimal', JSON.stringify(minimalSave));
+        console.log('💾 Minimal save completed');
+      } catch (emergencyError) {
+        console.error('❌ Emergency save also failed:', emergencyError);
+      }
     }
   }
 
@@ -374,6 +440,22 @@ export class GameState {
       console.error('❌ Failed to load game:', error);
       return false;
     }
+  }
+
+  serializeMinimalWorldSystem() {
+    // Very minimal serialization to save storage space
+    return {
+      userTeamData: this.userTeam ? {
+        id: this.userTeam.id,
+        name: this.userTeam.name,
+        league: this.userTeam.league,
+        country: this.userTeam.country
+      } : null,
+      countryCount: this.worldSystem?.countries?.length || 0,
+      teamCount: this.worldSystem?.countries?.reduce((total, country) => 
+        total + country.leagues.reduce((leagueTotal, league) => 
+          leagueTotal + league.teams.length, 0), 0) || 0
+    };
   }
 
   serializeWorldSystem() {
@@ -433,47 +515,3 @@ export class GameState {
     };
   }
 }
-
-// Initialize game when page loads
-let gameState = null;
-
-// Create a promise that resolves when gameState is initialized
-let gameStatePromise = new Promise((resolve) => {
-  document.addEventListener('DOMContentLoaded', async () => {
-    console.log('🚀 Starting Football Management Game...');
-    
-    gameState = new GameState();
-    
-    // Try to load saved game
-    if (!gameState.load()) {
-      console.log('🆕 Starting new game...');
-    }
-    
-    // Make game state globally accessible for debugging
-    window.gameState = gameState;
-    
-    // Resolve the promise with the initialized gameState
-    resolve(gameState);
-    
-    // Legacy match engine for canvas demo
-    const canvas = document.getElementById('pitch');
-    if (canvas && gameState.userTeam) {
-      // Create demo match
-      const opponent = gameState.league?.teams?.find(t => t.id !== gameState.userTeam.id);
-      if (opponent) {
-        const engine = new MatchEngine(gameState.userTeam, opponent, canvas, gameState);
-        
-        function gameLoop() {
-          engine.update();
-          engine.draw();
-          requestAnimationFrame(gameLoop);
-        }
-        
-        gameLoop();
-      }
-    }
-  });
-});
-
-// Export for use in other modules
-export { gameState, gameStatePromise };

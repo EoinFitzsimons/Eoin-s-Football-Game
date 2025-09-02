@@ -1,6 +1,7 @@
 // worldFootballData.js - Generate comprehensive fictional football world with 10 countries
 import { Player } from '../player/player.js';
 import { Team } from '../team/team.js';
+import { League } from '../league/league.js';
 
 // World Football System - 10 Countries, 3 Leagues Each
 const WORLD_FOOTBALL_DATA = {
@@ -14,8 +15,8 @@ const WORLD_FOOTBALL_DATA = {
       cities: ['London', 'Manchester', 'Liverpool', 'Birmingham', 'Leeds', 'Sheffield', 'Newcastle', 'Bristol', 'Coventry', 'Leicester', 'Nottingham', 'Portsmouth', 'Southampton', 'Brighton', 'Norwich', 'Derby', 'Hull', 'Middlesbrough', 'Burnley', 'Blackburn', 'Preston', 'Oldham', 'Rochdale', 'Wigan'],
       teamSuffixes: ['United', 'City', 'Town', 'FC', 'Rovers', 'Wanderers', 'Athletic', 'Albion'],
       playerNames: {
-        first: ['Jack', 'Harry', 'Oliver', 'George', 'Charlie', 'Alfie', 'Freddie', 'Archie', 'Henry', 'Thomas', 'James', 'William', 'Joshua', 'Daniel', 'Matthew', 'Samuel', 'Luke', 'Alexander', 'Lewis', 'Owen'],
-        last: ['Smith', 'Jones', 'Taylor', 'Brown', 'Williams', 'Wilson', 'Johnson', 'Davies', 'Robinson', 'Wright', 'Thompson', 'Evans', 'Walker', 'White', 'Roberts', 'Green', 'Hall', 'Wood', 'Jackson', 'Clarke']
+        first: ['James', 'John', 'Robert', 'Michael', 'William', 'David', 'Richard', 'Joseph', 'Thomas', 'Christopher', 'Charles', 'Daniel', 'Matthew', 'Anthony', 'Mark', 'Donald', 'Steven', 'Paul', 'Andrew', 'Joshua', 'Kenneth', 'Kevin', 'Brian', 'George', 'Timothy', 'Ronald', 'Jason', 'Edward', 'Jeffrey', 'Ryan', 'Jacob', 'Gary', 'Nicholas', 'Eric', 'Jonathan', 'Stephen', 'Larry', 'Justin', 'Scott', 'Brandon', 'Benjamin', 'Samuel', 'Gregory', 'Patrick', 'Frank', 'Raymond', 'Jack', 'Dennis', 'Jerry', 'Tyler', 'Aaron', 'Jose', 'Henry', 'Adam', 'Douglas', 'Nathan', 'Peter', 'Zachary', 'Kyle', 'Ethan', 'Oliver', 'Harry', 'Charlie', 'Jacob', 'Leo', 'Mason', 'Lucas', 'Alexander', 'Liam', 'Noah', 'William', 'Logan', 'Elijah', 'Aiden', 'Caden', 'Grayson', 'Jackson', 'Hunter', 'Connor', 'Caleb', 'Sebastian', 'Jack', 'Luke', 'Owen', 'Dylan', 'Isaac', 'Nathan', 'Mason', 'Cole', 'Eli', 'Blake', 'Austin', 'Carter', 'Hayden', 'Jaxon', 'Ryder', 'Cooper', 'Ian', 'Oscar', 'Declan', 'Felix', 'Kai', 'Theo', 'Max', 'Finn', 'Archie', 'Harrison', 'Hugo', 'Alfred', 'Arthur', 'Freddie', 'Albert', 'Stanley', 'Alfie', 'Toby', 'Louis', 'George', 'Ralph', 'Frederick', 'Sidney', 'Ernest', 'Walter', 'Percy', 'Herbert', 'Harold', 'Claude', 'Arthur', 'Wilfred', 'Edgar', 'Bernard', 'Roy', 'Frank', 'Leonard', 'Horace', 'Victor', 'Cecil'],
+        last: ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez', 'Hernandez', 'Lopez', 'Gonzalez', 'Wilson', 'Anderson', 'Thomas', 'Taylor', 'Moore', 'Jackson', 'Martin', 'Lee', 'Perez', 'Thompson', 'White', 'Harris', 'Sanchez', 'Clark', 'Ramirez', 'Lewis', 'Robinson', 'Walker', 'Young', 'Allen', 'King', 'Wright', 'Scott', 'Torres', 'Nguyen', 'Hill', 'Flores', 'Green', 'Adams', 'Nelson', 'Baker', 'Hall', 'Rivera', 'Campbell', 'Mitchell', 'Carter', 'Roberts', 'Cooper', 'Reed', 'Evans', 'Murphy', 'Cook', 'Rogers', 'Morgan', 'Peterson', 'Bailey', 'Ward', 'Turner', 'Phillips', 'Parker', 'Morris', 'Watson', 'Brooks', 'Kelly', 'Sanders', 'Price', 'Bennett', 'Wood', 'Barnes', 'Ross', 'Henderson', 'Coleman', 'Jenkins', 'Perry', 'Powell', 'Long', 'Patterson', 'Hughes', 'Flores', 'Washington', 'Butler', 'Simmons', 'Foster', 'Gonzales', 'Bryant', 'Alexander', 'Griffin', 'Diaz', 'Hayes', 'Myers', 'Ford', 'Hamilton', 'Graham', 'Sullivan', 'Wallace', 'Woods', 'Cole', 'West', 'Jordan', 'Owens', 'Reynolds', 'Fisher', 'Ellis', 'Harrison', 'Gibson', 'McDonald', 'Cruz', 'Marshall', 'Ortiz', 'Gomez', 'Murray', 'Freeman', 'Wells', 'Webb', 'Simpson', 'Stevens', 'Tucker', 'Porter', 'Hunter', 'Hicks', 'Crawford', 'Henry', 'Boyd', 'Mason', 'Morales', 'Kennedy', 'Warren', 'Dixon', 'Ramos', 'Reyes', 'Burns', 'Gordon', 'Shaw', 'Holmes', 'Rice', 'Robertson', 'Hunt', 'Black', 'Daniels', 'Palmer', 'Mills', 'Nichols', 'Grant', 'Knight', 'Ferguson', 'Rose', 'Stone', 'Hawkins', 'Dunn', 'Perkins', 'Hudson', 'Spencer', 'Gardner', 'Stephens', 'Payne', 'Pierce', 'Berry', 'Matthews', 'Arnold', 'Wagner', 'Willis', 'Ray', 'Watkins', 'Olson', 'Carroll', 'Duncan', 'Snyder', 'Hart', 'Cunningham', 'Bradley', 'Lane', 'Andrews', 'Ruiz', 'Harper', 'Fox', 'Riley', 'Armstrong', 'Carpenter', 'Weaver', 'Greene', 'Lawrence', 'Elliott', 'Chavez', 'Sims', 'Austin', 'Peters', 'Kelley', 'Franklin', 'Lawson']
       }
     },
     'Spain': {
@@ -27,8 +28,8 @@ const WORLD_FOOTBALL_DATA = {
       cities: ['Madrid', 'Barcelona', 'Valencia', 'Sevilla', 'Bilbao', 'Málaga', 'Murcia', 'Palma', 'Las Palmas', 'Gijón', 'Alicante', 'Córdoba', 'Valladolid', 'Vigo', 'Granada', 'Oviedo', 'Pamplona', 'Santander', 'Toledo', 'Burgos', 'León', 'Salamanca'],
       teamSuffixes: ['CF', 'FC', 'CD', 'UD', 'Real', 'Atlético'],
       playerNames: {
-        first: ['Alejandro', 'Pablo', 'Hugo', 'Daniel', 'Diego', 'Javier', 'Marcos', 'Adrian', 'Sergio', 'Raul', 'Carlos', 'Miguel', 'Antonio', 'Manuel', 'Francisco', 'José', 'Juan', 'Pedro', 'Luis', 'Fernando'],
-        last: ['García', 'Fernández', 'González', 'Rodríguez', 'López', 'Martínez', 'Sánchez', 'Pérez', 'Gómez', 'Díaz', 'Moreno', 'Muñoz', 'Álvarez', 'Romero', 'Alonso', 'Gutiérrez', 'Navarro', 'Torres', 'Domínguez', 'Vázquez']
+        first: ['Alejandro', 'Pablo', 'Hugo', 'Daniel', 'Diego', 'Javier', 'Marcos', 'Adrian', 'Sergio', 'Raul', 'Carlos', 'Miguel', 'Antonio', 'Manuel', 'Francisco', 'José', 'Juan', 'Pedro', 'Luis', 'Fernando', 'Roberto', 'Ricardo', 'Eduardo', 'Andrés', 'Gonzalo', 'Rafael', 'Álvaro', 'Ángel', 'Mario', 'Ignacio', 'Víctor', 'Emilio', 'Rubén', 'Iván', 'César', 'Joaquín', 'Óscar', 'Patricio', 'Lorenzo', 'Agustín', 'Salvador', 'Rodrigo', 'Nicolás', 'Tomás', 'Gabriel', 'Mateo', 'Lucas', 'Leo', 'Bruno', 'Martín', 'Sebastián', 'Santiago', 'Valentín', 'Thiago', 'Gael', 'Iker', 'Unai', 'Aitor', 'Jon', 'Mikel', 'Asier', 'Gorka', 'Eneko', 'Andoni', 'Iñaki', 'Xabi', 'Miquel', 'Jordi', 'Marc', 'Pau', 'Oriol', 'Roger', 'Gerard', 'Pol', 'Jan', 'Arnau', 'Biel'],
+        last: ['García', 'Fernández', 'González', 'Rodríguez', 'López', 'Martínez', 'Sánchez', 'Pérez', 'Gómez', 'Díaz', 'Moreno', 'Muñoz', 'Álvarez', 'Romero', 'Alonso', 'Gutiérrez', 'Navarro', 'Torres', 'Domínguez', 'Vázquez', 'Ramos', 'Gil', 'Ramírez', 'Serrano', 'Blanco', 'Suárez', 'Molina', 'Morales', 'Ortega', 'Delgado', 'Castro', 'Ortiz', 'Rubio', 'Marín', 'Sanz', 'Iglesias', 'Nuñez', 'Medina', 'Garrido', 'Cortés', 'Castillo', 'Santos', 'Lozano', 'Guerrero', 'Cano', 'Prieto', 'Méndez', 'Cruz', 'Gallego', 'Vidal', 'León', 'Herrera', 'Peña', 'Flores', 'Cabrera', 'Campos', 'Vega', 'Fuentes', 'Carrasco', 'Diez', 'Reyes', 'Caballero', 'Nieto', 'Aguilar', 'Pascual', 'Herrero', 'Montero', 'Lorenzo', 'Hidalgo', 'Giménez', 'Vargas', 'Ibáñez', 'Calvo', 'Ferrer', 'Marti', 'Vila', 'Roca', 'Pons', 'Serra', 'Soler', 'Llopis', 'Company']
       }
     },
     'Germany': {
@@ -40,8 +41,8 @@ const WORLD_FOOTBALL_DATA = {
       cities: ['Berlin', 'München', 'Hamburg', 'Köln', 'Frankfurt', 'Stuttgart', 'Düsseldorf', 'Dortmund', 'Bremen', 'Dresden', 'Hannover', 'Leipzig', 'Nürnberg', 'Duisburg', 'Bochum', 'Wuppertal', 'Bielefeld', 'Bonn', 'Münster', 'Karlsruhe', 'Augsburg', 'Chemnitz'],
       teamSuffixes: ['FC', 'SV', 'VfB', 'VfL', 'FSV', 'TSV', 'Borussia'],
       playerNames: {
-        first: ['Leon', 'Paul', 'Jonas', 'Elias', 'Finn', 'Noah', 'Luis', 'Felix', 'Emil', 'Max', 'Moritz', 'Jakob', 'Anton', 'Luca', 'David', 'Ben', 'Tim', 'Jan', 'Tom', 'Nico'],
-        last: ['Müller', 'Schmidt', 'Schneider', 'Fischer', 'Weber', 'Meyer', 'Wagner', 'Becker', 'Schulz', 'Hoffmann', 'Schäfer', 'Koch', 'Bauer', 'Richter', 'Klein', 'Wolf', 'Schröder', 'Neumann', 'Schwarz', 'Zimmermann']
+        first: ['Leon', 'Paul', 'Jonas', 'Elias', 'Finn', 'Noah', 'Luis', 'Felix', 'Emil', 'Max', 'Moritz', 'Jakob', 'Anton', 'Luca', 'David', 'Ben', 'Tim', 'Jan', 'Tom', 'Nico', 'Alexander', 'Michael', 'Christian', 'Daniel', 'Thomas', 'Andreas', 'Stefan', 'Patrick', 'Markus', 'Matthias', 'Florian', 'Sebastian', 'Oliver', 'Tobias', 'Jörg', 'Marco', 'Martin', 'Peter', 'Thorsten', 'Jens', 'Klaus', 'Uwe', 'Frank', 'Ralf', 'Wolfgang', 'Bernd', 'Holger', 'Dieter', 'Hans', 'Günter', 'Karl', 'Heinz', 'Gerhard', 'Helmut', 'Walter', 'Rudolf', 'Hermann', 'Friedrich', 'Gustav', 'Otto', 'Wilhelm', 'Heinrich', 'Ludwig', 'Franz', 'Johann', 'Georg', 'Joseph', 'Ernst', 'Bruno', 'Kurt', 'Arthur', 'Paul', 'Albert', 'Richard', 'Robert', 'Willy', 'Fritz', 'Theodor', 'Josef', 'Adolf'],
+        last: ['Müller', 'Schmidt', 'Schneider', 'Fischer', 'Weber', 'Meyer', 'Wagner', 'Becker', 'Schulz', 'Hoffmann', 'Schäfer', 'Koch', 'Bauer', 'Richter', 'Klein', 'Wolf', 'Schröder', 'Neumann', 'Schwarz', 'Zimmermann', 'Braun', 'Krüger', 'Hofmann', 'Hartmann', 'Lange', 'Schmitt', 'Werner', 'Schmitz', 'Krause', 'Meier', 'Lehmann', 'Schmid', 'Schulze', 'Maier', 'Köhler', 'Herrmann', 'König', 'Walter', 'Mayer', 'Huber', 'Kaiser', 'Fuchs', 'Peters', 'Lang', 'Scholz', 'Möller', 'Weiß', 'Jung', 'Hahn', 'Schubert', 'Vogel', 'Friedrich', 'Keller', 'Günther', 'Frank', 'Berger', 'Winkler', 'Roth', 'Beck', 'Lorenz', 'Baumann', 'Franke', 'Albrecht', 'Boehm', 'Winter', 'Kraus', 'Martin', 'Schumacher', 'Krämer', 'Vogt', 'Stein', 'Jäger', 'Otto', 'Sommer', 'Groß', 'Seidel', 'Heinrich', 'Brandt', 'Haas', 'Schreiber', 'Graf', 'Schulte', 'Dietrich', 'Ziegler', 'Kuhn', 'Kühn', 'Pohl', 'Engel', 'Horn', 'Busch', 'Bergmann', 'Thomas', 'Voigt', 'Sauer', 'Arnold', 'Wolff', 'Pfeiffer']
       }
     },
     'Italy': {
@@ -79,8 +80,8 @@ const WORLD_FOOTBALL_DATA = {
       cities: ['Amsterdam', 'Rotterdam', 'Utrecht', 'Eindhoven', 'Tilburg', 'Groningen', 'Almere', 'Breda', 'Nijmegen', 'Enschede', 'Haarlem', 'Arnhem', 'Zaanstad', 'Den Haag', 'Amersfoort', 'Maastricht', 'Dordrecht', 'Leiden', 'Zwolle', 'Deventer'],
       teamSuffixes: ['FC', 'PSV', 'Ajax', 'AZ', 'SC', 'VVV', 'RKC'],
       playerNames: {
-        first: ['Daan', 'Sem', 'Milan', 'Levi', 'Bram', 'Lars', 'Finn', 'Jesse', 'Luuk', 'Thijs', 'Noah', 'Liam', 'Noud', 'Siem', 'Koen', 'Gijs', 'Stijn', 'Mees', 'Joep', 'Cas'],
-        last: ['de Jong', 'Jansen', 'de Vries', 'van den Berg', 'Bakker', 'van Dijk', 'Visser', 'Smit', 'Meijer', 'de Boer', 'Mulder', 'de Wit', 'Bos', 'Vos', 'Peters', 'Hendriks', 'van Leeuwen', 'Dekker', 'Brouwer', 'de Groot']
+        first: ['Daan', 'Sem', 'Milan', 'Levi', 'Bram', 'Lars', 'Finn', 'Jesse', 'Luuk', 'Thijs', 'Noah', 'Liam', 'Noud', 'Siem', 'Koen', 'Gijs', 'Stijn', 'Mees', 'Joep', 'Cas', 'Sven', 'Jayden', 'Tim', 'Max', 'Ruben', 'Olivier', 'Mats', 'Teun', 'Hugo', 'Sebastiaan', 'Jens', 'Thomas', 'Sam', 'Niels', 'Ryan', 'Guus', 'Floris', 'Quinten', 'David', 'Nathan', 'Morris', 'Jason', 'Benjamin', 'Dean', 'Pepijn', 'Fabian', 'Damian', 'Robin', 'Wouter', 'Jordy', 'Timo', 'Jop', 'Jayden', 'Bas', 'Dex', 'Lex', 'Owen', 'Mick', 'Stan', 'Felix', 'Ties'],
+        last: ['de Jong', 'Jansen', 'de Vries', 'van den Berg', 'Bakker', 'van Dijk', 'Visser', 'Smit', 'Meijer', 'de Boer', 'Mulder', 'de Wit', 'Bos', 'Vos', 'Peters', 'Hendriks', 'van Leeuwen', 'Dekker', 'Brouwer', 'de Groot', 'van der Berg', 'Willems', 'van der Meer', 'de Vos', 'Hoekstra', 'van der Laan', 'Jacobs', 'de Haan', 'van der Pol', 'de Koning', 'van der Ven', 'Koster', 'van der Wal', 'Huisman', 'van Veen', 'Vermeulen', 'van den Heuvel', 'van der Heide', 'Zijlstra', 'van der Meulen', 'Scholten', 'van Es', 'Postma', 'Boer', 'Koning', 'Brink', 'van Dam', 'Wit', 'Berg', 'Groot']
       }
     },
     'Portugal': {
@@ -92,8 +93,8 @@ const WORLD_FOOTBALL_DATA = {
       cities: ['Lisboa', 'Porto', 'Vila Nova de Gaia', 'Amadora', 'Braga', 'Funchal', 'Coimbra', 'Setúbal', 'Almada', 'Agualva-Cacém', 'Queluz', 'Rio Tinto', 'Barreiro', 'Montijo', 'Faro', 'Aveiro', 'Viseu', 'Guimarães', 'Évora', 'Leiria'],
       teamSuffixes: ['FC', 'SC', 'CD', 'CF', 'AC'],
       playerNames: {
-        first: ['João', 'Rodrigo', 'Martim', 'Santiago', 'Tomás', 'Afonso', 'Francisco', 'Miguel', 'Rafael', 'Gabriel', 'António', 'Gonçalo', 'Diogo', 'Pedro', 'Tiago', 'Bruno', 'André', 'Carlos', 'José', 'Manuel'],
-        last: ['Silva', 'Santos', 'Ferreira', 'Pereira', 'Oliveira', 'Costa', 'Martins', 'Rodrigues', 'Sousa', 'Fernandes', 'Gomes', 'Lopes', 'Marques', 'Alves', 'Almeida', 'Ribeiro', 'Pinto', 'Carvalho', 'Teixeira', 'Moreira']
+        first: ['João', 'Rodrigo', 'Martim', 'Santiago', 'Tomás', 'Afonso', 'Francisco', 'Miguel', 'Rafael', 'Gabriel', 'António', 'Gonçalo', 'Diogo', 'Pedro', 'Tiago', 'Bruno', 'André', 'Carlos', 'José', 'Manuel', 'Luís', 'Paulo', 'Rui', 'Nuno', 'Sérgio', 'Hugo', 'Marco', 'Vítor', 'Ricardo', 'Fernando', 'Daniel', 'Nelson', 'Mário', 'Jorge', 'Alexandre', 'Filipe', 'Hélder', 'Fábio', 'César', 'Renato', 'Armando', 'Leonardo', 'Cristiano', 'Bernardo', 'Samuel', 'Henrique', 'Márcio', 'Eduardo', 'Vasco', 'Ivo'],
+        last: ['Silva', 'Santos', 'Ferreira', 'Pereira', 'Oliveira', 'Costa', 'Martins', 'Rodrigues', 'Sousa', 'Fernandes', 'Gomes', 'Lopes', 'Marques', 'Alves', 'Almeida', 'Ribeiro', 'Pinto', 'Carvalho', 'Teixeira', 'Moreira', 'Correia', 'Mendes', 'Nunes', 'Soares', 'Vieira', 'Monteiro', 'Cardoso', 'Rocha', 'Neves', 'Coelho', 'Cruz', 'Cunha', 'Pires', 'Ramos', 'Reis', 'Simões', 'Antunes', 'Matos', 'Fonseca', 'Machado', 'Guerreiro', 'Dias', 'Campos', 'Freitas', 'Barbosa', 'Carneiro', 'Lima', 'Miranda', 'Tavares', 'Esteves']
       }
     },
     'Brazil': {
@@ -167,7 +168,7 @@ const TEAM_COLORS = [
  */
 export function generateWorldFootballSystem() {
   const worldSystem = {
-    countries: {},
+    countries: [],
     allTeams: [],
     allPlayers: []
   };
@@ -184,15 +185,9 @@ export function generateWorldFootballSystem() {
     let colorIndex = 0;
 
     for (const leagueData of countryData.leagues) {
-      const league = {
-        name: leagueData.name,
-        tier: leagueData.tier,
-        teams: [],
-        promotionSpots: leagueData.tier === 1 ? 0 : (leagueData.tier === 2 ? 3 : 3),
-        relegationSpots: leagueData.tier === 3 ? 0 : (leagueData.tier === 1 ? 3 : 3)
-      };
-
-      // Generate teams for this league
+      // Create teams for this league first
+      const leagueTeams = [];
+      
       for (let i = 0; i < leagueData.teams; i++) {
         const cityIndex = Math.floor(Math.random() * usedCities.length);
         const city = usedCities[cityIndex];
@@ -208,6 +203,7 @@ export function generateWorldFootballSystem() {
         colorIndex++;
 
         const players = generateSquad(countryData.playerNames, leagueData.tier, countryName);
+        const foundedYear = Math.floor(Math.random() * 120) + 1900; // 1900-2020
         
         const team = new Team({
           name: teamName,
@@ -215,6 +211,7 @@ export function generateWorldFootballSystem() {
           country: countryName,
           league: leagueData.name,
           tier: leagueData.tier,
+          founded: foundedYear,
           color: teamColor,
           players: players,
           stats: {
@@ -223,16 +220,27 @@ export function generateWorldFootballSystem() {
           }
         });
 
-        league.teams.push(team);
+        leagueTeams.push(team);
         country.teams.push(team);
         worldSystem.allTeams.push(team);
         worldSystem.allPlayers.push(...players);
       }
 
+      // Create League instance with the teams
+      const league = new League({
+        name: leagueData.name,
+        teams: leagueTeams
+      });
+      
+      // Add additional properties
+      league.tier = leagueData.tier;
+      league.promotionSpots = leagueData.tier === 1 ? 0 : (leagueData.tier === 2 ? 3 : 3);
+      league.relegationSpots = leagueData.tier === 3 ? 0 : (leagueData.tier === 1 ? 3 : 3);
+
       country.leagues.push(league);
     }
 
-    worldSystem.countries[countryName] = country;
+  worldSystem.countries.push(country);
   }
 
   return worldSystem;
