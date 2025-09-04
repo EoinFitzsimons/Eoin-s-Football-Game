@@ -3,8 +3,6 @@
  * Provides full interactivity with real game data integration
  */
 
-import { GameState } from '../game.js';
-
 class InteractiveUI {
   constructor(gameState) {
     this.gameState = gameState;
@@ -152,10 +150,12 @@ class InteractiveUI {
   }
 
   loadDashboard() {
-    const userTeam = this.gameState.userTeam;
     const nextMatch = this.getNextMatch();
     const recentResults = this.getRecentResults();
     const teamStats = this.getTeamStats();
+    
+    // Extract venue type to avoid nested ternary
+    const getVenueText = (match) => match.isHome ? 'Home' : 'Away';
 
     this.leftContent.innerHTML = `
       <h2>📊 Dashboard</h2>
@@ -173,7 +173,7 @@ class InteractiveUI {
             </div>
             <div class="dashboard-item">
               <span class="dashboard-label">Venue:</span>
-              <span class="dashboard-value">${nextMatch.isHome ? 'Home' : 'Away'}</span>
+              <span class="dashboard-value">${getVenueText(nextMatch)}</span>
             </div>
             <button class="btn btn-primary match-action" data-action="prepare">Prepare Team</button>
           ` : '<div>No upcoming matches</div>'}
@@ -251,6 +251,13 @@ class InteractiveUI {
 
     const players = userTeam.players || [];
     const formation = userTeam.formation || '4-4-2';
+    
+    // Helper function to get form icon
+    const getFormIcon = (form) => {
+      if (form > 80) return '🔥';
+      if (form < 30) return '❄️';
+      return '';
+    };
 
     this.leftContent.innerHTML = `
       <h2>⚽ Team Management</h2>
@@ -276,7 +283,7 @@ class InteractiveUI {
                 <div class="player-status">
                   ${player.injured ? '🚑' : ''}
                   ${player.fatigue > 80 ? '😴' : ''}
-                  ${player.form > 80 ? '🔥' : player.form < 30 ? '❄️' : ''}
+                  ${getFormIcon(player.form)}
                 </div>
               </div>
             </div>
@@ -294,7 +301,7 @@ class InteractiveUI {
                 <div class="player-status">
                   ${player.injured ? '🚑' : ''}
                   ${player.fatigue > 80 ? '😴' : ''}
-                  ${player.form > 80 ? '🔥' : player.form < 30 ? '❄️' : ''}
+                  ${getFormIcon(player.form)}
                 </div>
               </div>
             </div>
@@ -523,13 +530,38 @@ class InteractiveUI {
     const injuries = players.filter(p => p.injured).length;
     const avgFitness = players.reduce((sum, p) => sum + (p.fitness || 100), 0) / players.length;
 
+    // Helper functions to avoid nested ternaries
+    const getMoraleText = (morale) => {
+      if (morale > 70) return 'Excellent';
+      if (morale > 50) return 'Good';
+      return 'Poor';
+    };
+
+    const getMoraleStatus = (morale) => {
+      if (morale > 70) return 'good';
+      if (morale > 50) return 'warning';
+      return 'danger';
+    };
+
+    const getInjuryStatus = (injuryCount) => {
+      if (injuryCount === 0) return 'good';
+      if (injuryCount < 3) return 'warning';
+      return 'danger';
+    };
+
+    const getFitnessStatus = (fitness) => {
+      if (fitness > 80) return 'good';
+      if (fitness > 60) return 'warning';
+      return 'danger';
+    };
+
     return {
-      morale: avgMorale > 70 ? 'Excellent' : avgMorale > 50 ? 'Good' : 'Poor',
-      moraleStatus: avgMorale > 70 ? 'good' : avgMorale > 50 ? 'warning' : 'danger',
+      morale: getMoraleText(avgMorale),
+      moraleStatus: getMoraleStatus(avgMorale),
       injuries,
-      injuryStatus: injuries === 0 ? 'good' : injuries < 3 ? 'warning' : 'danger',
+      injuryStatus: getInjuryStatus(injuries),
       fitness: Math.round(avgFitness),
-      fitnessStatus: avgFitness > 80 ? 'good' : avgFitness > 60 ? 'warning' : 'danger'
+      fitnessStatus: getFitnessStatus(avgFitness)
     };
   }
 
@@ -693,25 +725,401 @@ class InteractiveUI {
     this.updateUI();
   }
 
-  // Stub methods for sections not yet implemented
+  // Fully implemented sections
   loadMatchCenter() {
-    this.leftContent.innerHTML = '<h2>⚽ Match Center</h2><div>Coming soon...</div>';
+    const upcomingMatches = this.getUpcomingMatches();
+    const recentMatches = this.getRecentMatches();
+    
+    this.leftContent.innerHTML = `
+      <h2>⚽ Match Center</h2>
+      
+      <div class="match-center-content">
+        <div class="upcoming-matches">
+          <h3>Upcoming Fixtures</h3>
+          ${upcomingMatches.length > 0 ? upcomingMatches.map(match => `
+            <div class="match-card">
+              <div class="match-header">
+                <span class="match-date">${this.formatDate(match.date)}</span>
+                <span class="venue-badge ${match.isHome ? 'home' : 'away'}">${match.isHome ? 'HOME' : 'AWAY'}</span>
+              </div>
+              <div class="match-teams">
+                <div class="team ${match.isHome ? 'home-team' : 'away-team'}">
+                  ${match.isHome ? this.gameState.userTeam.name : match.opponent}
+                </div>
+                <div class="vs">vs</div>
+                <div class="team ${match.isHome ? 'away-team' : 'home-team'}">
+                  ${match.isHome ? match.opponent : this.gameState.userTeam.name}
+                </div>
+              </div>
+              <div class="match-actions">
+                <button class="btn primary" onclick="window.gameUI.playMatch('${match.id}')">Play Match</button>
+                <button class="btn secondary" onclick="window.gameUI.simulateMatch('${match.id}')">Simulate</button>
+              </div>
+            </div>
+          `).join('') : '<p>No upcoming matches scheduled.</p>'}
+        </div>
+        
+        <div class="recent-matches">
+          <h3>Recent Results</h3>
+          ${recentMatches.length > 0 ? recentMatches.map(match => `
+            <div class="result-card ${match.result}">
+              <div class="result-header">
+                <span class="result-date">${this.formatDate(match.date)}</span>
+                <span class="result-badge ${match.result}">${match.result.toUpperCase()}</span>
+              </div>
+              <div class="result-score">
+                <span class="team-name">${match.homeTeam}</span>
+                <span class="score">${match.homeScore} - ${match.awayScore}</span>
+                <span class="team-name">${match.awayTeam}</span>
+              </div>
+              <button class="btn secondary small" onclick="this.viewMatchReport('${match.id}')">View Report</button>
+            </div>
+          `).join('') : '<p>No recent matches played.</p>'}
+        </div>
+      </div>
+    `;
   }
 
   loadLeagueView() {
-    this.leftContent.innerHTML = '<h2>🏆 League</h2><div>Coming soon...</div>';
+    const leagueTable = this.getLeagueTable();
+    const topScorers = this.getTopScorers();
+    const userTeamPosition = this.getUserTeamPosition();
+    
+    this.leftContent.innerHTML = `
+      <h2>🏆 League Table</h2>
+      
+      <div class="league-content">
+        <div class="user-team-highlight">
+          <h3>Your Position</h3>
+          <div class="position-card">
+            <div class="position-number">${userTeamPosition.position}</div>
+            <div class="position-details">
+              <div class="team-name">${this.gameState.userTeam.name}</div>
+              <div class="points">${userTeamPosition.points} points</div>
+              <div class="record">P:${userTeamPosition.played} W:${userTeamPosition.won} D:${userTeamPosition.drawn} L:${userTeamPosition.lost}</div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="full-table">
+          <h3>Full League Table</h3>
+          <table class="league-table">
+            <thead>
+              <tr>
+                <th>Pos</th>
+                <th>Team</th>
+                <th>P</th>
+                <th>W</th>
+                <th>D</th>
+                <th>L</th>
+                <th>GF</th>
+                <th>GA</th>
+                <th>GD</th>
+                <th>Pts</th>
+                <th>Form</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${leagueTable.map((team, index) => `
+                <tr class="${team.id === this.gameState.userTeam.id ? 'user-team' : ''}">
+                  <td>${index + 1}</td>
+                  <td>${team.name}</td>
+                  <td>${team.stats.played}</td>
+                  <td>${team.stats.won}</td>
+                  <td>${team.stats.drawn}</td>
+                  <td>${team.stats.lost}</td>
+                  <td>${team.stats.goalsFor}</td>
+                  <td>${team.stats.goalsAgainst}</td>
+                  <td>${team.stats.goalDifference}</td>
+                  <td><strong>${team.stats.points}</strong></td>
+                  <td class="form">${this.getTeamForm(team.id)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+        
+        <div class="top-scorers">
+          <h3>Top Scorers</h3>
+          <div class="scorers-list">
+            ${topScorers.map((scorer, index) => `
+              <div class="scorer-item">
+                <span class="rank">${index + 1}</span>
+                <span class="player-name">${scorer.name}</span>
+                <span class="team-name">${scorer.team}</span>
+                <span class="goals">${scorer.goals} goals</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    `;
   }
 
   loadStatistics() {
-    this.leftContent.innerHTML = '<h2>📈 Statistics</h2><div>Coming soon...</div>';
+    const teamStats = this.getTeamStatistics();
+    const playerStats = this.getPlayerStatistics();
+    const seasonStats = this.getSeasonStatistics();
+    
+    this.leftContent.innerHTML = `
+      <h2>📈 Statistics</h2>
+      
+      <div class="stats-content">
+        <div class="stats-nav">
+          <button class="stats-tab active" onclick="this.switchStatsTab('team')">Team Stats</button>
+          <button class="stats-tab" onclick="this.switchStatsTab('player')">Player Stats</button>
+          <button class="stats-tab" onclick="this.switchStatsTab('season')">Season Progress</button>
+        </div>
+        
+        <div class="stats-panel" id="team-stats">
+          <h3>Team Performance</h3>
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-value">${teamStats.averageGoalsFor.toFixed(1)}</div>
+              <div class="stat-label">Goals per Game</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value">${teamStats.averageGoalsAgainst.toFixed(1)}</div>
+              <div class="stat-label">Goals Conceded per Game</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value">${teamStats.winPercentage.toFixed(1)}%</div>
+              <div class="stat-label">Win Rate</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value">${teamStats.cleanSheets}</div>
+              <div class="stat-label">Clean Sheets</div>
+            </div>
+          </div>
+          
+          <div class="performance-chart">
+            <h4>Recent Form Trend</h4>
+            <div class="form-trend">${this.generateFormTrend()}</div>
+          </div>
+        </div>
+        
+        <div class="stats-panel hidden" id="player-stats">
+          <h3>Top Performers</h3>
+          <div class="player-stats-categories">
+            <div class="category">
+              <h4>Most Goals</h4>
+              ${playerStats.topScorers.map(player => `
+                <div class="player-stat-item">
+                  <span class="player-name">${player.name}</span>
+                  <span class="stat-value">${player.goals}</span>
+                </div>
+              `).join('')}
+            </div>
+            <div class="category">
+              <h4>Most Assists</h4>
+              ${playerStats.topAssists.map(player => `
+                <div class="player-stat-item">
+                  <span class="player-name">${player.name}</span>
+                  <span class="stat-value">${player.assists}</span>
+                </div>
+              `).join('')}
+            </div>
+            <div class="category">
+              <h4>Best Rated</h4>
+              ${playerStats.topRated.map(player => `
+                <div class="player-stat-item">
+                  <span class="player-name">${player.name}</span>
+                  <span class="stat-value">${player.averageRating.toFixed(1)}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+        
+        <div class="stats-panel hidden" id="season-stats">
+          <h3>Season Progress</h3>
+          <div class="season-overview">
+            <div class="progress-item">
+              <div class="progress-label">Matches Played</div>
+              <div class="progress-bar">
+                <div class="progress-fill" style="width: ${(seasonStats.matchesPlayed / seasonStats.totalMatches) * 100}%"></div>
+              </div>
+              <div class="progress-text">${seasonStats.matchesPlayed}/${seasonStats.totalMatches}</div>
+            </div>
+            <div class="season-targets">
+              <h4>Season Objectives</h4>
+              ${seasonStats.objectives.map(obj => `
+                <div class="objective ${obj.status}">
+                  <span class="objective-text">${obj.description}</span>
+                  <span class="objective-status">${obj.status}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
   }
 
   loadClubManagement() {
-    this.leftContent.innerHTML = '<h2>🏟️ Club Management</h2><div>Coming soon...</div>';
+    const clubInfo = this.getClubInformation();
+    const finances = this.getClubFinances();
+    const facilities = this.getClubFacilities();
+    
+    this.leftContent.innerHTML = `
+      <h2>🏟️ Club Management</h2>
+      
+      <div class="club-content">
+        <div class="club-info">
+          <h3>Club Information</h3>
+          <div class="info-grid">
+            <div class="info-item">
+              <label>Founded:</label>
+              <span>${clubInfo.founded}</span>
+            </div>
+            <div class="info-item">
+              <label>Stadium:</label>
+              <span>${clubInfo.stadium.name} (${clubInfo.stadium.capacity.toLocaleString()})</span>
+            </div>
+            <div class="info-item">
+              <label>Manager:</label>
+              <span>${clubInfo.manager.name}</span>
+            </div>
+            <div class="info-item">
+              <label>Contract Until:</label>
+              <span>${clubInfo.manager.contractUntil}</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="finances">
+          <h3>Financial Overview</h3>
+          <div class="finance-grid">
+            <div class="finance-card">
+              <div class="finance-value">${finances.transferBudget.toLocaleString()}</div>
+              <div class="finance-label">Transfer Budget</div>
+            </div>
+            <div class="finance-card">
+              <div class="finance-value">${finances.wageBudget.toLocaleString()}</div>
+              <div class="finance-label">Weekly Wages</div>
+            </div>
+            <div class="finance-card">
+              <div class="finance-value">${finances.revenue.toLocaleString()}</div>
+              <div class="finance-label">Annual Revenue</div>
+            </div>
+            <div class="finance-card">
+              <div class="finance-value">${finances.profit.toLocaleString()}</div>
+              <div class="finance-label">Annual Profit</div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="facilities">
+          <h3>Club Facilities</h3>
+          <div class="facility-list">
+            ${facilities.map(facility => `
+              <div class="facility-item">
+                <div class="facility-info">
+                  <span class="facility-name">${facility.name}</span>
+                  <span class="facility-level">Level ${facility.level}/5</span>
+                </div>
+                <div class="facility-upgrade">
+                  ${facility.level < 5 ? `
+                    <button class="btn secondary" onclick="this.upgradeFacility('${facility.id}')">
+                      Upgrade (£${facility.upgradeCost.toLocaleString()})
+                    </button>
+                  ` : '<span class="max-level">Max Level</span>'}
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        
+        <div class="board-expectations">
+          <h3>Board Expectations</h3>
+          <div class="expectations-list">
+            ${clubInfo.boardExpectations.map(expectation => `
+              <div class="expectation-item ${expectation.status}">
+                <span class="expectation-text">${expectation.description}</span>
+                <span class="expectation-progress">${expectation.progress}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    `;
   }
 
   loadWorldView() {
-    this.leftContent.innerHTML = '<h2>🌍 World View</h2><div>Coming soon...</div>';
+    const worldData = this.getWorldData();
+    const otherLeagues = this.getOtherLeagues();
+    const transferTargets = this.getGlobalTransferTargets();
+    
+    this.leftContent.innerHTML = `
+      <h2>🌍 World Football</h2>
+      
+      <div class="world-content">
+        <div class="world-map">
+          <h3>Global Leagues</h3>
+          <div class="leagues-grid">
+            ${otherLeagues.map(league => `
+              <div class="league-card" onclick="this.viewLeague('${league.id}')">
+                <div class="league-flag">${league.flag}</div>
+                <div class="league-info">
+                  <div class="league-name">${league.name}</div>
+                  <div class="league-country">${league.country}</div>
+                  <div class="league-level">Division ${league.level}</div>
+                </div>
+                <div class="league-stats">
+                  <div class="stat-item">
+                    <span class="label">Teams:</span>
+                    <span class="value">${league.teams}</span>
+                  </div>
+                  <div class="stat-item">
+                    <span class="label">Avg Rating:</span>
+                    <span class="value">${league.averageRating}</span>
+                  </div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        
+        <div class="international-players">
+          <h3>International Transfer Targets</h3>
+          <div class="players-list">
+            ${transferTargets.map(player => `
+              <div class="international-player">
+                <div class="player-basic">
+                  <span class="player-name">${player.name}</span>
+                  <span class="player-position">${player.position}</span>
+                  <span class="player-age">${player.age}</span>
+                </div>
+                <div class="player-club">
+                  <span class="club-name">${player.club}</span>
+                  <span class="league-name">${player.league}</span>
+                </div>
+                <div class="player-value">
+                  <span class="value">£${player.value.toLocaleString()}</span>
+                  <button class="btn secondary small" onclick="this.addToShortlist('${player.id}')">Shortlist</button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        
+        <div class="world-news">
+          <h3>International Football News</h3>
+          <div class="news-feed">
+            ${worldData.news.map(article => `
+              <div class="news-item">
+                <div class="news-header">
+                  <span class="news-date">${this.formatDate(article.date)}</span>
+                  <span class="news-category">${article.category}</span>
+                </div>
+                <div class="news-title">${article.title}</div>
+                <div class="news-summary">${article.summary}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    `;
   }
 
   showPlayerProfile(playerId) {
@@ -720,6 +1128,440 @@ class InteractiveUI {
     if (player && window.showPlayerProfile) {
       window.showPlayerProfile(player);
     }
+  }
+
+  // Helper methods for new implementations
+  getUpcomingMatches() {
+    if (!this.gameState.fixtures) return [];
+    
+    return this.gameState.fixtures
+      .filter(fixture => !fixture.played && fixture.date >= new Date())
+      .sort((a, b) => new Date(a.date) - new Date(b.date))
+      .slice(0, 5)
+      .map(fixture => ({
+        id: fixture.id,
+        date: fixture.date,
+        opponent: fixture.homeTeam.id === this.gameState.userTeam.id ? fixture.awayTeam.name : fixture.homeTeam.name,
+        isHome: fixture.homeTeam.id === this.gameState.userTeam.id,
+        competition: fixture.competition || 'League'
+      }));
+  }
+
+  getRecentMatches() {
+    if (!this.gameState.matchHistory) return [];
+    
+    return this.gameState.matchHistory
+      .filter(match => match.played)
+      .sort((a, b) => new Date(b.date) - new Date(a.date))
+      .slice(0, 5)
+      .map(match => {
+        const isUserHome = match.homeTeam.id === this.gameState.userTeam.id;
+        const userScore = isUserHome ? match.homeScore : match.awayScore;
+        const opponentScore = isUserHome ? match.awayScore : match.homeScore;
+        
+        let result = 'draw';
+        if (userScore > opponentScore) result = 'win';
+        else if (userScore < opponentScore) result = 'loss';
+        
+        return {
+          id: match.id,
+          date: match.date,
+          homeTeam: match.homeTeam.name,
+          awayTeam: match.awayTeam.name,
+          homeScore: match.homeScore,
+          awayScore: match.awayScore,
+          result: result
+        };
+      });
+  }
+
+  getLeagueTable() {
+    if (!this.gameState.league?.teams) return [];
+    
+    return [...this.gameState.league.teams]
+      .sort((a, b) => {
+        if (b.stats.points !== a.stats.points) return b.stats.points - a.stats.points;
+        if (b.stats.goalDifference !== a.stats.goalDifference) return b.stats.goalDifference - a.stats.goalDifference;
+        return b.stats.goalsFor - a.stats.goalsFor;
+      });
+  }
+
+  getTopScorers() {
+    const allPlayers = [];
+    
+    if (this.gameState.league?.teams) {
+      this.gameState.league.teams.forEach(team => {
+        if (team.players) {
+          team.players.forEach(player => {
+            if (player.stats && player.stats.goals > 0) {
+              allPlayers.push({
+                name: player.name,
+                team: team.name,
+                goals: player.stats.goals,
+                assists: player.stats.assists || 0
+              });
+            }
+          });
+        }
+      });
+    }
+    
+    const sortedPlayers = allPlayers.toSorted((a, b) => b.goals - a.goals);
+    return sortedPlayers.slice(0, 10);
+  }
+
+  getUserTeamPosition() {
+    const table = this.getLeagueTable();
+    const userTeamIndex = table.findIndex(team => team.id === this.gameState.userTeam.id);
+    
+    if (userTeamIndex === -1) {
+      return {
+        position: 1,
+        points: 0,
+        played: 0,
+        won: 0,
+        drawn: 0,
+        lost: 0
+      };
+    }
+    
+    const userTeam = table[userTeamIndex];
+    return {
+      position: userTeamIndex + 1,
+      points: userTeam.stats.points,
+      played: userTeam.stats.played,
+      won: userTeam.stats.won,
+      drawn: userTeam.stats.drawn,
+      lost: userTeam.stats.lost
+    };
+  }
+
+  getTeamForm(teamId) {
+    // Get last 5 results for the team
+    if (!this.gameState.matchHistory) return 'NNNNN';
+    
+    const teamMatches = this.gameState.matchHistory
+      .filter(match => match.homeTeam.id === teamId || match.awayTeam.id === teamId)
+      .sort((a, b) => new Date(a.date) - new Date(b.date))
+      .slice(-5);
+    
+    return teamMatches.map(match => {
+      const isHome = match.homeTeam.id === teamId;
+      const teamScore = isHome ? match.homeScore : match.awayScore;
+      const opponentScore = isHome ? match.awayScore : match.homeScore;
+      
+      if (teamScore > opponentScore) return 'W';
+      if (teamScore < opponentScore) return 'L';
+      return 'D';
+    }).join('');
+  }
+
+  getTeamStatistics() {
+    const userTeam = this.gameState.userTeam;
+    if (!userTeam?.stats) {
+      return {
+        averageGoalsFor: 0,
+        averageGoalsAgainst: 0,
+        winPercentage: 0,
+        cleanSheets: 0
+      };
+    }
+    
+    const played = userTeam.stats.played || 1;
+    return {
+      averageGoalsFor: (userTeam.stats.goalsFor || 0) / played,
+      averageGoalsAgainst: (userTeam.stats.goalsAgainst || 0) / played,
+      winPercentage: ((userTeam.stats.won || 0) / played) * 100,
+      cleanSheets: userTeam.stats.cleanSheets || 0
+    };
+  }
+
+  getPlayerStatistics() {
+    const userTeam = this.gameState.userTeam;
+    if (!userTeam?.players) {
+      return {
+        topScorers: [],
+        topAssists: [],
+        topRated: []
+      };
+    }
+    
+    const players = userTeam.players.filter(p => p.stats);
+    
+    return {
+      topScorers: players
+        .sort((a, b) => (b.stats.goals || 0) - (a.stats.goals || 0))
+        .slice(0, 5)
+        .map(p => ({ name: p.name, goals: p.stats.goals || 0 })),
+      topAssists: players
+        .sort((a, b) => (b.stats.assists || 0) - (a.stats.assists || 0))
+        .slice(0, 5)
+        .map(p => ({ name: p.name, assists: p.stats.assists || 0 })),
+      topRated: players
+        .filter(p => p.stats.averageRating)
+        .sort((a, b) => b.stats.averageRating - a.stats.averageRating)
+        .slice(0, 5)
+        .map(p => ({ name: p.name, averageRating: p.stats.averageRating }))
+    };
+  }
+
+  getSeasonStatistics() {
+    const totalMatches = this.gameState.fixtures ? this.gameState.fixtures.length : 38;
+    const matchesPlayed = this.gameState.matchHistory ? this.gameState.matchHistory.length : 0;
+    
+    return {
+      matchesPlayed: matchesPlayed,
+      totalMatches: totalMatches,
+      objectives: [
+        {
+          description: 'Avoid Relegation',
+          status: this.getUserTeamPosition().position <= 17 ? 'on-track' : 'behind',
+          progress: `${this.getUserTeamPosition().position}/20`
+        },
+        {
+          description: 'Qualify for Europe',
+          status: this.getUserTeamPosition().position <= 7 ? 'on-track' : 'behind',
+          progress: `${this.getUserTeamPosition().position}/7`
+        },
+        {
+          description: 'Win the League',
+          status: this.getUserTeamPosition().position === 1 ? 'on-track' : 'behind',
+          progress: `${this.getUserTeamPosition().position}/1`
+        }
+      ]
+    };
+  }
+
+  generateFormTrend() {
+    const recentMatches = this.getRecentMatches();
+    return recentMatches.map(match => {
+      return `<span class="form-result ${match.result}">${match.result.charAt(0).toUpperCase()}</span>`;
+    }).join('');
+  }
+
+  getClubInformation() {
+    const userTeam = this.gameState.userTeam;
+    return {
+      founded: userTeam.founded || 1900,
+      stadium: {
+        name: userTeam.stadium || `${userTeam.name} Stadium`,
+        capacity: userTeam.stadiumCapacity || 50000
+      },
+      manager: {
+        name: 'You',
+        contractUntil: new Date(this.gameState.currentDate.getFullYear() + 2, 5, 30).toLocaleDateString()
+      },
+      boardExpectations: [
+        {
+          description: 'Maintain League Position',
+          status: 'on-track',
+          progress: '75%'
+        },
+        {
+          description: 'Develop Youth Players',
+          status: 'excellent',
+          progress: '90%'
+        },
+        {
+          description: 'Financial Stability',
+          status: 'good',
+          progress: '80%'
+        }
+      ]
+    };
+  }
+
+  getClubFinances() {
+    const transferMarket = this.gameState.transferMarket;
+    const userTeamId = this.gameState.userTeam.id;
+    const finances = transferMarket?.clubFinances?.get(userTeamId);
+    
+    return {
+      transferBudget: finances?.transferBudget || 50000000,
+      wageBudget: finances?.wageLimit || 200000,
+      revenue: 150000000,
+      profit: 25000000
+    };
+  }
+
+  getClubFacilities() {
+    return [
+      {
+        id: 'training_ground',
+        name: 'Training Ground',
+        level: 3,
+        upgradeCost: 5000000
+      },
+      {
+        id: 'youth_academy',
+        name: 'Youth Academy',
+        level: 2,
+        upgradeCost: 8000000
+      },
+      {
+        id: 'medical_center',
+        name: 'Medical Center',
+        level: 4,
+        upgradeCost: 3000000
+      },
+      {
+        id: 'scouting_network',
+        name: 'Scouting Network',
+        level: 3,
+        upgradeCost: 4000000
+      }
+    ];
+  }
+
+  getWorldData() {
+    return {
+      news: [
+        {
+          date: new Date(),
+          category: 'Transfer',
+          title: 'Major Transfer Completed in La Liga',
+          summary: 'A high-profile transfer has been completed between two Spanish giants.'
+        },
+        {
+          date: new Date(Date.now() - 86400000),
+          category: 'League',
+          title: 'Premier League Title Race Heats Up',
+          summary: 'The race for the Premier League title is getting more competitive.'
+        },
+        {
+          date: new Date(Date.now() - 172800000),
+          category: 'International',
+          title: 'World Cup Qualifiers Update',
+          summary: 'Several nations secure their spots in the upcoming World Cup.'
+        }
+      ]
+    };
+  }
+
+  getOtherLeagues() {
+    return [
+      {
+        id: 'la_liga',
+        name: 'La Liga',
+        country: 'Spain',
+        flag: '🇪🇸',
+        level: 1,
+        teams: 20,
+        averageRating: 85
+      },
+      {
+        id: 'serie_a',
+        name: 'Serie A',
+        country: 'Italy',
+        flag: '🇮🇹',
+        level: 1,
+        teams: 20,
+        averageRating: 83
+      },
+      {
+        id: 'bundesliga',
+        name: 'Bundesliga',
+        country: 'Germany',
+        flag: '🇩🇪',
+        level: 1,
+        teams: 18,
+        averageRating: 84
+      },
+      {
+        id: 'ligue1',
+        name: 'Ligue 1',
+        country: 'France',
+        flag: '🇫🇷',
+        level: 1,
+        teams: 20,
+        averageRating: 80
+      }
+    ];
+  }
+
+  getGlobalTransferTargets() {
+    // Generate realistic transfer targets from other leagues
+    const targets = [];
+    const positions = ['GK', 'CB', 'LB', 'RB', 'DM', 'CM', 'AM', 'LW', 'RW', 'ST'];
+    
+    for (let i = 0; i < 20; i++) {
+      targets.push({
+        id: `international_${i}`,
+        name: this.generatePlayerName(),
+        position: positions[Math.floor(Math.random() * positions.length)],
+        age: Math.floor(Math.random() * 10) + 20,
+        club: this.generateClubName(),
+        league: 'La Liga',
+        value: Math.floor(Math.random() * 50000000) + 10000000
+      });
+    }
+    
+    return targets.sort((a, b) => b.value - a.value);
+  }
+
+  generatePlayerName() {
+    const firstNames = ['Marco', 'Luis', 'Diego', 'Carlos', 'Antonio', 'Miguel', 'Rafael', 'Fernando', 'Pablo', 'Sergio'];
+    const lastNames = ['Rodriguez', 'Garcia', 'Martinez', 'Lopez', 'Gonzalez', 'Perez', 'Sanchez', 'Ramirez', 'Cruz', 'Flores'];
+    return `${firstNames[Math.floor(Math.random() * firstNames.length)]} ${lastNames[Math.floor(Math.random() * lastNames.length)]}`;
+  }
+
+  generateClubName() {
+    const clubs = ['Real Madrid', 'Barcelona', 'Atletico Madrid', 'Valencia', 'Sevilla', 'Athletic Bilbao', 'Real Sociedad', 'Villarreal', 'Betis', 'Espanyol'];
+    return clubs[Math.floor(Math.random() * clubs.length)];
+  }
+
+  formatDate(date) {
+    if (!(date instanceof Date)) {
+      date = new Date(date);
+    }
+    return date.toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
+  }
+
+  switchStatsTab(tabName, clickedElement = null) {
+    // Hide all panels
+    const panels = document.querySelectorAll('.stats-panel');
+    panels.forEach(panel => panel.classList.add('hidden'));
+    
+    // Remove active class from all tabs
+    const tabs = document.querySelectorAll('.stats-tab');
+    tabs.forEach(tab => tab.classList.remove('active'));
+    
+    // Show selected panel and activate tab
+    const selectedPanel = document.getElementById(`${tabName}-stats`);
+    if (selectedPanel) {
+      selectedPanel.classList.remove('hidden');
+    }
+    
+    // Find the correct tab element to activate
+    const selectedTab = clickedElement || document.querySelector(`[data-tab="${tabName}"]`);
+    if (selectedTab) {
+      selectedTab.classList.add('active');
+    }
+  }
+
+  viewMatchReport(matchId) {
+    // Implementation for viewing detailed match reports
+    console.log('Viewing match report for:', matchId);
+    // This would open a detailed match report modal
+  }
+
+  viewLeague(leagueId) {
+    console.log('Viewing league:', leagueId);
+    // This would show detailed league information
+  }
+
+  addToShortlist(playerId) {
+    console.log('Adding player to shortlist:', playerId);
+    // Add player to transfer shortlist
+  }
+
+  upgradeFacility(facilityId) {
+    console.log('Upgrading facility:', facilityId);
+    // Handle facility upgrade logic
   }
 
   findPlayerById(playerId) {

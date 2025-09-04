@@ -118,99 +118,109 @@ export class FixturesSection extends BaseSection {
     const timeStr = this.formatTime(fixture.date);
     
     if (type === 'upcoming') {
-      return `
-        <div class="fixture-card upcoming" data-fixture-id="${fixture.id}">
-          <div class="fixture-header">
-            <div class="fixture-date">
-              <span class="date">${dateStr}</span>
-              <span class="time">${timeStr}</span>
-            </div>
-            <div class="venue-badge ${venue.toLowerCase()}">${venue}</div>
-          </div>
-          
-          <div class="fixture-teams">
-            <div class="team home ${isUserHome ? 'user-team' : ''}">
-              <div class="team-name">${fixture.homeTeam.name}</div>
-              <div class="team-badge">🏟️</div>
-            </div>
-            
-            <div class="fixture-vs">VS</div>
-            
-            <div class="team away ${!isUserHome ? 'user-team' : ''}">
-              <div class="team-name">${fixture.awayTeam.name}</div>
-              <div class="team-badge">⚽</div>
-            </div>
-          </div>
-          
-          <div class="fixture-actions">
-            ${this.canPlayMatch(fixture) ? `
-              <button class="play-match-btn primary-btn" data-fixture-id="${fixture.id}">
-                Play Match
-              </button>
-            ` : ''}
-            ${this.canSimulateMatch(fixture) ? `
-              <button class="simulate-btn secondary-btn" data-fixture-id="${fixture.id}">
-                Simulate
-              </button>
-            ` : ''}
-            ${(!this.canPlayMatch(fixture) && !this.canSimulateMatch(fixture)) ? `
-              <div class="match-pending">
-                <span>⏰ Match not ready</span>
-              </div>
-            ` : ''}
-          </div>
-          
-          <div class="fixture-info">
-            <div class="opponent-form">
-              ${this.renderOpponentForm(opponent)}
-            </div>
-          </div>
-        </div>
-      `;
+      return this.renderUpcomingFixture(fixture, isUserHome, venue, dateStr, timeStr, opponent);
     } else {
-      const result = fixture.result;
-      const userScore = isUserHome ? result.homeScore : result.awayScore;
-      const opponentScore = isUserHome ? result.awayScore : result.homeScore;
-      let resultType;
-      if (userScore > opponentScore) {
-        resultType = 'win';
-      } else if (userScore < opponentScore) {
-        resultType = 'loss';
-      } else {
-        resultType = 'draw';
-      }
-      
-      return `
-        <div class="fixture-card result ${resultType}" data-fixture-id="${fixture.id}">
-          <div class="result-header">
-            <div class="fixture-date">
-              <span class="date">${dateStr}</span>
-            </div>
-            <div class="result-badge ${resultType}">${resultType.charAt(0).toUpperCase()}</div>
+      return this.renderCompletedFixture(fixture, isUserHome, dateStr);
+    }
+  }
+
+  renderUpcomingFixture(fixture, isUserHome, venue, dateStr, timeStr, opponent) {
+    return `
+      <div class="fixture-card upcoming" data-fixture-id="${fixture.id}">
+        <div class="fixture-header">
+          <div class="fixture-date">
+            <span class="date">${dateStr}</span>
+            <span class="time">${timeStr}</span>
+          </div>
+          <div class="venue-badge ${venue.toLowerCase()}">${venue}</div>
+        </div>
+        
+        <div class="fixture-teams">
+          <div class="team home ${isUserHome ? 'user-team' : ''}">
+            <div class="team-name">${fixture.homeTeam.name}</div>
+            <div class="team-badge">🏟️</div>
           </div>
           
-          <div class="result-teams">
-            <div class="team home ${isUserHome ? 'user-team' : ''}">
-              <div class="team-name">${fixture.homeTeam.name}</div>
-              <div class="team-score">${result.homeScore}</div>
-            </div>
-            
-            <div class="result-separator">-</div>
-            
-            <div class="team away ${!isUserHome ? 'user-team' : ''}">
-              <div class="team-score">${result.awayScore}</div>
-              <div class="team-name">${fixture.awayTeam.name}</div>
-            </div>
-          </div>
+          <div class="fixture-vs">VS</div>
           
-          <div class="result-actions">
-            <button class="view-report-btn secondary-btn" data-fixture-id="${fixture.id}">
-              View Report
-            </button>
+          <div class="team away ${!isUserHome ? 'user-team' : ''}">
+            <div class="team-name">${fixture.awayTeam.name}</div>
+            <div class="team-badge">⚽</div>
           </div>
         </div>
-      `;
+        
+        <div class="fixture-actions">
+          ${this.renderFixtureActions(fixture)}
+        </div>
+        
+        <div class="fixture-info">
+          <div class="opponent-form">
+            ${this.renderOpponentForm(opponent)}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  renderFixtureActions(fixture) {
+    const canPlay = this.canPlayMatch(fixture);
+    const canSimulate = this.canSimulateMatch(fixture);
+    
+    if (canPlay) {
+      return `<button class="play-match-btn primary-btn" data-fixture-id="${fixture.id}">Play Match</button>`;
     }
+    
+    if (canSimulate) {
+      return `<button class="simulate-btn secondary-btn" data-fixture-id="${fixture.id}">Simulate</button>`;
+    }
+    
+    return `<div class="match-pending"><span>⏰ Match not ready</span></div>`;
+  }
+
+  renderCompletedFixture(fixture, isUserHome, dateStr) {
+    const result = fixture.result;
+    const userScore = isUserHome ? result.homeScore : result.awayScore;
+    const opponentScore = isUserHome ? result.awayScore : result.homeScore;
+    
+    let resultType;
+    if (userScore > opponentScore) {
+      resultType = 'win';
+    } else if (userScore < opponentScore) {
+      resultType = 'loss';
+    } else {
+      resultType = 'draw';
+    }
+    
+    return `
+      <div class="fixture-card result ${resultType}" data-fixture-id="${fixture.id}">
+        <div class="result-header">
+          <div class="fixture-date">
+            <span class="date">${dateStr}</span>
+          </div>
+          <div class="result-badge ${resultType}">${resultType.charAt(0).toUpperCase()}</div>
+        </div>
+        
+        <div class="result-teams">
+          <div class="team home ${isUserHome ? 'user-team' : ''}">
+            <div class="team-name">${fixture.homeTeam.name}</div>
+            <div class="team-score">${result.homeScore}</div>
+          </div>
+          
+          <div class="result-separator">-</div>
+          
+          <div class="team away ${!isUserHome ? 'user-team' : ''}">
+            <div class="team-score">${result.awayScore}</div>
+            <div class="team-name">${fixture.awayTeam.name}</div>
+          </div>
+        </div>
+        
+        <div class="result-actions">
+          <button class="view-report-btn secondary-btn" data-fixture-id="${fixture.id}">
+            View Report
+          </button>
+        </div>
+      </div>
+    `;
   }
 
   renderCalendarFixture(fixture) {
@@ -236,8 +246,30 @@ export class FixturesSection extends BaseSection {
   }
 
   renderOpponentForm(opponent) {
-    // Get last 5 results for opponent - simplified
-    const form = ['W', 'D', 'L', 'W', 'L']; // Mock data
+    // Get actual last 5 results for opponent from match history
+    let form = [];
+    
+    if (this.gameState.matchHistory && opponent.id) {
+      const opponentMatches = this.gameState.matchHistory
+        .filter(match => match.homeTeam.id === opponent.id || match.awayTeam.id === opponent.id)
+        .sort((a, b) => new Date(a.date) - new Date(b.date))
+        .slice(-5);
+      
+      form = opponentMatches.map(match => {
+        const isHome = match.homeTeam.id === opponent.id;
+        const teamScore = isHome ? match.homeScore : match.awayScore;
+        const opponentScore = isHome ? match.awayScore : match.homeScore;
+        
+        if (teamScore > opponentScore) return 'W';
+        if (teamScore < opponentScore) return 'L';
+        return 'D';
+      });
+    }
+    
+    // Fill with neutral results if not enough matches
+    while (form.length < 5) {
+      form.unshift('N'); // N for no result
+    }
     
     return `
       <div class="form-display">
@@ -406,12 +438,190 @@ export class FixturesSection extends BaseSection {
 
   viewMatchReport(fixtureId) {
     try {
-      // Could open detailed match report modal
       console.log('📊 View match report for:', fixtureId);
-      // TODO: Implement match report modal
+      
+      // Find the match in history
+      const match = this.gameState.matchHistory?.find(m => m.id === fixtureId);
+      if (!match) {
+        alert('Match report not found');
+        return;
+      }
+      
+      // Create and show match report modal
+      this.showMatchReportModal(match);
     } catch (error) {
       console.error('❌ Error viewing match report:', error);
+      alert('Error loading match report');
     }
+  }
+
+  showMatchReportModal(match) {
+    // Create modal overlay
+    const modal = document.createElement('div');
+    modal.className = 'match-report-modal';
+    modal.innerHTML = `
+      <div class="modal-backdrop">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2>Match Report</h2>
+            <button class="close-btn">&times;</button>
+          </div>
+          <div class="modal-body">
+            ${this.renderMatchReport(match)}
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // Add to document
+    document.body.appendChild(modal);
+    
+    // Setup close functionality
+    const closeBtn = modal.querySelector('.close-btn');
+    const backdrop = modal.querySelector('.modal-backdrop');
+    
+    const closeModal = () => {
+      document.body.removeChild(modal);
+    };
+    
+    closeBtn.addEventListener('click', closeModal);
+    backdrop.addEventListener('click', (e) => {
+      if (e.target === backdrop) closeModal();
+    });
+    
+    // Close on Escape key
+    const escapeHandler = (e) => {
+      if (e.key === 'Escape') {
+        closeModal();
+        document.removeEventListener('keydown', escapeHandler);
+      }
+    };
+    document.addEventListener('keydown', escapeHandler);
+  }
+
+  renderMatchReport(match) {
+    const isUserHome = match.homeTeam.id === this.gameState.userTeam?.id;
+    const userScore = isUserHome ? match.homeScore : match.awayScore;
+    const opponentScore = isUserHome ? match.awayScore : match.homeScore;
+    
+    let result = 'Draw';
+    let resultClass = 'draw';
+    if (userScore > opponentScore) {
+      result = 'Win';
+      resultClass = 'win';
+    } else if (userScore < opponentScore) {
+      result = 'Loss';
+      resultClass = 'loss';
+    }
+    
+    return `
+      <div class="match-report">
+        <div class="match-summary">
+          <div class="match-teams">
+            <div class="team home-team">
+              <div class="team-name">${match.homeTeam.name}</div>
+              <div class="team-score">${match.homeScore}</div>
+            </div>
+            <div class="vs-separator">-</div>
+            <div class="team away-team">
+              <div class="team-score">${match.awayScore}</div>
+              <div class="team-name">${match.awayTeam.name}</div>
+            </div>
+          </div>
+          <div class="match-result ${resultClass}">
+            ${result} for ${this.gameState.userTeam?.name}
+          </div>
+          <div class="match-details">
+            <div class="detail-item">
+              <span class="label">Date:</span>
+              <span class="value">${new Date(match.date).toLocaleDateString()}</span>
+            </div>
+            <div class="detail-item">
+              <span class="label">Competition:</span>
+              <span class="value">${match.competition || 'League'}</span>
+            </div>
+            <div class="detail-item">
+              <span class="label">Attendance:</span>
+              <span class="value">${match.attendance?.toLocaleString() || 'N/A'}</span>
+            </div>
+          </div>
+        </div>
+        
+        ${match.events ? `
+          <div class="match-events">
+            <h3>Match Events</h3>
+            <div class="events-timeline">
+              ${match.events.map(event => `
+                <div class="event-item ${event.type}">
+                  <div class="event-minute">${event.minute}'</div>
+                  <div class="event-description">${event.description}</div>
+                  <div class="event-team">${event.team === 'home' ? match.homeTeam.name : match.awayTeam.name}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+        
+        ${match.stats ? `
+          <div class="match-statistics">
+            <h3>Match Statistics</h3>
+            <div class="stats-comparison">
+              <div class="stat-row">
+                <div class="stat-label">Possession</div>
+                <div class="stat-home">${match.stats.possession?.home || 50}%</div>
+                <div class="stat-away">${match.stats.possession?.away || 50}%</div>
+              </div>
+              <div class="stat-row">
+                <div class="stat-label">Shots</div>
+                <div class="stat-home">${match.stats.shots?.home || 0}</div>
+                <div class="stat-away">${match.stats.shots?.away || 0}</div>
+              </div>
+              <div class="stat-row">
+                <div class="stat-label">Shots on Target</div>
+                <div class="stat-home">${match.stats.shotsOnTarget?.home || 0}</div>
+                <div class="stat-away">${match.stats.shotsOnTarget?.away || 0}</div>
+              </div>
+              <div class="stat-row">
+                <div class="stat-label">Corners</div>
+                <div class="stat-home">${match.stats.corners?.home || 0}</div>
+                <div class="stat-away">${match.stats.corners?.away || 0}</div>
+              </div>
+              <div class="stat-row">
+                <div class="stat-label">Fouls</div>
+                <div class="stat-home">${match.stats.fouls?.home || 0}</div>
+                <div class="stat-away">${match.stats.fouls?.away || 0}</div>
+              </div>
+            </div>
+          </div>
+        ` : ''}
+        
+        ${match.playerRatings ? `
+          <div class="player-ratings">
+            <h3>Player Ratings</h3>
+            <div class="ratings-grid">
+              <div class="team-ratings">
+                <h4>${match.homeTeam.name}</h4>
+                ${match.playerRatings.home?.map(player => `
+                  <div class="player-rating">
+                    <span class="player-name">${player.name}</span>
+                    <span class="rating">${player.rating}</span>
+                  </div>
+                `).join('') || 'No ratings available'}
+              </div>
+              <div class="team-ratings">
+                <h4>${match.awayTeam.name}</h4>
+                ${match.playerRatings.away?.map(player => `
+                  <div class="player-rating">
+                    <span class="player-name">${player.name}</span>
+                    <span class="rating">${player.rating}</span>
+                  </div>
+                `).join('') || 'No ratings available'}
+              </div>
+            </div>
+          </div>
+        ` : ''}
+      </div>
+    `;
   }
 
   // Helper methods to control when matches can be played/simulated

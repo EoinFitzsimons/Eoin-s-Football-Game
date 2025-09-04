@@ -410,13 +410,166 @@ export class TeamSection extends BaseSection {
   }
 
   showFullPlayerProfile() {
-    // Could open a modal or navigate to detailed player view
-    console.log('Show full profile for:', this.selectedPlayer.name);
+    if (!this.selectedPlayer) return;
+    
+    // Create and show player profile modal
+    this.showPlayerProfileModal(this.selectedPlayer);
+  }
+
+  showPlayerProfileModal(player) {
+    const modal = document.createElement('div');
+    modal.className = 'modal-backdrop player-profile-modal';
+    modal.innerHTML = `
+      <div class="modal-content player-profile-content">
+        <div class="modal-header">
+          <h2>${player.name}</h2>
+          <button class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="player-profile-grid">
+            <div class="player-basic-info">
+              <div class="player-photo">
+                <div class="player-avatar">${player.name.charAt(0)}</div>
+              </div>
+              <div class="player-details">
+                <h3>${player.name}</h3>
+                <p><strong>Position:</strong> ${player.position}</p>
+                <p><strong>Age:</strong> ${player.age}</p>
+                <p><strong>Overall:</strong> ${player.overall}</p>
+                <p><strong>Potential:</strong> ${player.potential}</p>
+                <p><strong>Value:</strong> $${(player.value || 0).toLocaleString()}</p>
+                <p><strong>Wage:</strong> $${(player.wage || 0).toLocaleString()}/week</p>
+              </div>
+            </div>
+            
+            <div class="player-attributes">
+              <h4>Attributes</h4>
+              <div class="attributes-grid">
+                <div class="attribute-item">
+                  <span class="attr-name">Pace:</span>
+                  <div class="attr-bar">
+                    <div class="attr-fill" style="width: ${player.pace || 50}%"></div>
+                    <span class="attr-value">${player.pace || 50}</span>
+                  </div>
+                </div>
+                <div class="attribute-item">
+                  <span class="attr-name">Shooting:</span>
+                  <div class="attr-bar">
+                    <div class="attr-fill" style="width: ${player.shooting || 50}%"></div>
+                    <span class="attr-value">${player.shooting || 50}</span>
+                  </div>
+                </div>
+                <div class="attribute-item">
+                  <span class="attr-name">Passing:</span>
+                  <div class="attr-bar">
+                    <div class="attr-fill" style="width: ${player.passing || 50}%"></div>
+                    <span class="attr-value">${player.passing || 50}</span>
+                  </div>
+                </div>
+                <div class="attribute-item">
+                  <span class="attr-name">Dribbling:</span>
+                  <div class="attr-bar">
+                    <div class="attr-fill" style="width: ${player.dribbling || 50}%"></div>
+                    <span class="attr-value">${player.dribbling || 50}</span>
+                  </div>
+                </div>
+                <div class="attribute-item">
+                  <span class="attr-name">Defending:</span>
+                  <div class="attr-bar">
+                    <div class="attr-fill" style="width: ${player.defending || 50}%"></div>
+                    <span class="attr-value">${player.defending || 50}</span>
+                  </div>
+                </div>
+                <div class="attribute-item">
+                  <span class="attr-name">Physical:</span>
+                  <div class="attr-bar">
+                    <div class="attr-fill" style="width: ${player.physical || 50}%"></div>
+                    <span class="attr-value">${player.physical || 50}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="player-stats">
+              <h4>Season Statistics</h4>
+              <div class="stats-grid">
+                <div class="stat-item">
+                  <span class="stat-label">Appearances:</span>
+                  <span class="stat-value">${player.stats?.appearances || 0}</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">Goals:</span>
+                  <span class="stat-value">${player.stats?.goals || 0}</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">Assists:</span>
+                  <span class="stat-value">${player.stats?.assists || 0}</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">Yellow Cards:</span>
+                  <span class="stat-value">${player.stats?.yellowCards || 0}</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">Red Cards:</span>
+                  <span class="stat-value">${player.stats?.redCards || 0}</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">Minutes:</span>
+                  <span class="stat-value">${player.stats?.minutesPlayed || 0}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn primary transfer-btn">Add to Transfer List</button>
+          <button class="btn secondary close-btn">Close</button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Event listeners
+    modal.querySelector('.modal-close').addEventListener('click', () => {
+      document.body.removeChild(modal);
+    });
+    
+    modal.querySelector('.close-btn').addEventListener('click', () => {
+      document.body.removeChild(modal);
+    });
+    
+    modal.querySelector('.transfer-btn').addEventListener('click', () => {
+      this.addToTransferList();
+      document.body.removeChild(modal);
+    });
+    
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        document.body.removeChild(modal);
+      }
+    });
   }
 
   addToTransferList() {
+    if (!this.selectedPlayer) return;
+    
     // Add player to transfer list
-    console.log('Add to transfer list:', this.selectedPlayer.name);
+    if (this.gameState.transferMarket?.addPlayerToTransferList) {
+      this.gameState.transferMarket.addPlayerToTransferList(this.selectedPlayer);
+      
+      // Show success message
+      if (window.ErrorHandler) {
+        window.ErrorHandler.showSuccess(`${this.selectedPlayer.name} added to transfer list`);
+      }
+      
+      console.log('✅ Added to transfer list:', this.selectedPlayer.name);
+    } else {
+      console.log('⚠️ Transfer market not available');
+      if (window.ErrorHandler) {
+        window.ErrorHandler.showError('Transfer market not available', 'Please try again later');
+      }
+    }
   }
 
   refreshFormationDisplay() {
@@ -455,9 +608,7 @@ export class TeamSection extends BaseSection {
       // Re-attach event listeners
       this.attachPlayerEventListeners();
     }
-  }
-
-  refreshFormationDisplay() {
+    
     // Update formation title
     const formationTitle = document.querySelector('.formation-display h3');
     if (formationTitle) {
@@ -469,7 +620,7 @@ export class TeamSection extends BaseSection {
     if (pitchFormation) {
       pitchFormation.innerHTML = this.renderFormationDisplay();
     }
-
+    
     // Update starting lineup with new formation
     const startingLineup = document.getElementById('starting-lineup');
     if (startingLineup) {

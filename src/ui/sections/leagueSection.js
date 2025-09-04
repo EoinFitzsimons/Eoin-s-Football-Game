@@ -369,18 +369,71 @@ export class LeagueSection extends BaseSection {
   }
 
   getLastFiveResults() {
-    // Get last 5 results for user's team - simplified mock
-    return ['W', 'L', 'D', 'W', 'W'];
+    // Get actual last 5 results for user's team from match history
+    if (!this.gameState.matchHistory || !this.gameState.userTeam) {
+      return ['N', 'N', 'N', 'N', 'N']; // No results available
+    }
+    
+    const userTeamMatches = this.gameState.matchHistory
+      .filter(match => 
+        match.homeTeam.id === this.gameState.userTeam.id || 
+        match.awayTeam.id === this.gameState.userTeam.id
+      )
+      .sort((a, b) => new Date(a.date) - new Date(b.date))
+      .slice(-5);
+    
+    const results = userTeamMatches.map(match => {
+      const isHome = match.homeTeam.id === this.gameState.userTeam.id;
+      const userScore = isHome ? match.homeScore : match.awayScore;
+      const opponentScore = isHome ? match.awayScore : match.homeScore;
+      
+      if (userScore > opponentScore) return 'W';
+      if (userScore < opponentScore) return 'L';
+      return 'D';
+    });
+    
+    // Pad with 'N' if not enough matches
+    while (results.length < 5) {
+      results.unshift('N');
+    }
+    
+    return results;
   }
 
   getFormTable() {
-    // Get form guide for all teams - simplified mock
+    // Get actual form guide for all teams from match history
     const teams = this.gameState.league?.teams || [];
-    return teams.slice(0, 10).map(team => ({
-      id: team.id,
-      name: team.name,
-      form: ['W', 'L', 'D', 'W', 'L']
-    }));
+    return teams.slice(0, 10).map(team => {
+      let form = [];
+      
+      if (this.gameState.matchHistory) {
+        const teamMatches = this.gameState.matchHistory
+          .filter(match => match.homeTeam.id === team.id || match.awayTeam.id === team.id)
+          .sort((a, b) => new Date(a.date) - new Date(b.date))
+          .slice(-5);
+        
+        form = teamMatches.map(match => {
+          const isHome = match.homeTeam.id === team.id;
+          const teamScore = isHome ? match.homeScore : match.awayScore;
+          const opponentScore = isHome ? match.awayScore : match.homeScore;
+          
+          if (teamScore > opponentScore) return 'W';
+          if (teamScore < opponentScore) return 'L';
+          return 'D';
+        });
+      }
+      
+      // Pad with 'N' if not enough matches
+      while (form.length < 5) {
+        form.unshift('N');
+      }
+      
+      return {
+        id: team.id,
+        name: team.name,
+        form: form
+      };
+    });
   }
 
   getUpcomingLeagueFixtures() {

@@ -9,6 +9,8 @@ export class StatsSection extends BaseSection {
     super(gameState);
     this.currentView = 'team';
     this.selectedStat = 'goals';
+    this.selectedScope = 'division'; // division, nation, club
+    this.selectedNation = 'England'; // default nation
   }
 
   getTitle() {
@@ -159,67 +161,201 @@ export class StatsSection extends BaseSection {
   }
 
   renderPlayerStatsView() {
-    const players = this.gameState.userTeam?.players || [];
-    
-    if (players.length === 0) {
-      return '<div class="no-data">No players in squad</div>';
-    }
-
-    // Sort players by selected stat
-    const sortedPlayers = [...players].sort((a, b) => {
-      const aVal = this.getPlayerStatValue(a, this.selectedStat);
-      const bVal = this.getPlayerStatValue(b, this.selectedStat);
-      return bVal - aVal;
-    });
-
     return `
       <div class="player-stats-view">
         <div class="stats-filters">
-          <label for="stat-selector">Sort by:</label>
-          <select id="stat-selector">
-            <option value="goals" ${this.selectedStat === 'goals' ? 'selected' : ''}>Goals</option>
-            <option value="assists" ${this.selectedStat === 'assists' ? 'selected' : ''}>Assists</option>
-            <option value="appearances" ${this.selectedStat === 'appearances' ? 'selected' : ''}>Appearances</option>
-            <option value="rating" ${this.selectedStat === 'rating' ? 'selected' : ''}>Rating</option>
-            <option value="age" ${this.selectedStat === 'age' ? 'selected' : ''}>Age</option>
-            <option value="value" ${this.selectedStat === 'value' ? 'selected' : ''}>Market Value</option>
-          </select>
+          <div class="filter-section">
+            <h3>View:</h3>
+            <button class="filter-btn ${this.selectedScope === 'division' ? 'active' : ''}" 
+                    data-scope="division">Division</button>
+            <button class="filter-btn ${this.selectedScope === 'nation' ? 'active' : ''}" 
+                    data-scope="nation">Nation</button>
+            <button class="filter-btn ${this.selectedScope === 'club' ? 'active' : ''}" 
+                    data-scope="club">Club</button>
+          </div>
+          
+          <div class="filter-section">
+            <h3>Statistic:</h3>
+            <button class="filter-btn ${this.selectedStat === 'goals' ? 'active' : ''}" 
+                    data-stat="goals">Goals</button>
+            <button class="filter-btn ${this.selectedStat === 'assists' ? 'active' : ''}" 
+                    data-stat="assists">Assists</button>
+            <button class="filter-btn ${this.selectedStat === 'appearances' ? 'active' : ''}" 
+                    data-stat="appearances">Appearances</button>
+            <button class="filter-btn ${this.selectedStat === 'minutes' ? 'active' : ''}" 
+                    data-stat="minutes">Minutes</button>
+            <button class="filter-btn ${this.selectedStat === 'rating' ? 'active' : ''}" 
+                    data-stat="rating">Average Rating</button>
+            <button class="filter-btn ${this.selectedStat === 'cards' ? 'active' : ''}" 
+                    data-stat="cards">Cards</button>
+            <button class="filter-btn ${this.selectedStat === 'value' ? 'active' : ''}" 
+                    data-stat="value">Market Value</button>
+          </div>
+          
+          ${this.selectedScope === 'nation' ? this.renderNationFilter() : ''}
         </div>
-
+        
         <div class="player-stats-table">
-          <table>
-            <thead>
-              <tr>
-                <th>Rank</th>
-                <th>Player</th>
-                <th>Position</th>
-                <th>Goals</th>
-                <th>Assists</th>
-                <th>Apps</th>
-                <th>Rating</th>
-                <th>Age</th>
-                <th>Value</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${sortedPlayers.map((player, index) => `
-                <tr ${index < 3 ? `class="top-${index + 1}"` : ''}>
-                  <td>${index + 1}</td>
-                  <td class="player-name">${player.name}</td>
-                  <td>${player.position}</td>
-                  <td>${player.stats?.goals || 0}</td>
-                  <td>${player.stats?.assists || 0}</td>
-                  <td>${player.stats?.appearances || 0}</td>
-                  <td>${player.overallRating || player.rating || 'N/A'}</td>
-                  <td>${player.age}</td>
-                  <td>${this.formatMoney(this.calculatePlayerValue(player))}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
+          ${this.renderPlayerStatsTable()}
         </div>
       </div>
     `;
+  }
+
+  renderNationFilter() {
+    const nations = this.getAllNations();
+    return `
+      <div class="filter-section">
+        <h3>Nation:</h3>
+        <select class="nation-selector">
+          ${nations.map(nation => `
+            <option value="${nation}" ${this.selectedNation === nation ? 'selected' : ''}>
+              ${nation}
+            </option>
+          `).join('')}
+        </select>
+      </div>
+    `;
+  }
+
+  renderPlayerStatsTable() {
+    const players = this.getPlayersForScope();
+    const sortedPlayers = this.sortPlayersByStat(players, this.selectedStat);
+    
+    return `
+      <table class="data-table player-stats-table">
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Player</th>
+            <th>Team</th>
+            <th>Position</th>
+            <th>Age</th>
+            <th>Apps</th>
+            <th>Goals</th>
+            <th>Assists</th>
+            <th>Minutes</th>
+            <th>Rating</th>
+            <th>Cards</th>
+            <th>Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${sortedPlayers.slice(0, 50).map((player, index) => {
+            const isUserPlayer = this.gameState.userTeam?.players?.some(p => p.id === player.id);
+            return `
+              <tr class="${isUserPlayer ? 'user-player' : ''}" data-player-id="${player.id}">
+                <td class="rank">${index + 1}</td>
+                <td class="player-name">
+                  <span class="player-link">${player.name}</span>
+                </td>
+                <td class="team-name">${player.currentTeam?.name || 'Free Agent'}</td>
+                <td class="position">${player.position}</td>
+                <td class="age">${player.age}</td>
+                <td class="appearances">${player.stats?.appearances || 0}</td>
+                <td class="goals">${player.stats?.goals || 0}</td>
+                <td class="assists">${player.stats?.assists || 0}</td>
+                <td class="minutes">${(player.stats?.minutesPlayed || 0).toLocaleString()}</td>
+                <td class="rating">${(player.stats?.averageRating || 0).toFixed(1)}</td>
+                <td class="cards">
+                  <span class="yellow-cards">${player.stats?.yellowCards || 0}Y</span>
+                  <span class="red-cards">${player.stats?.redCards || 0}R</span>
+                </td>
+                <td class="value">${this.formatMoney(player.value || 0)}</td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+
+  getPlayersForScope() {
+    const userTeam = this.gameState.userTeam;
+    if (!userTeam) return [];
+
+    switch (this.selectedScope) {
+      case 'division':
+        // Get all players from the same league/division
+        return this.getDivisionPlayers();
+      
+      case 'nation':
+        // Get all players from selected nation
+        return this.getNationPlayers(this.selectedNation);
+      
+      case 'club':
+        // Get only user's team players
+        return userTeam.players || [];
+      
+      default:
+        return this.getDivisionPlayers();
+    }
+  }
+
+  getDivisionPlayers() {
+    const userLeague = this.gameState.league;
+    if (!userLeague?.teams) return [];
+
+    const allPlayers = [];
+    userLeague.teams?.forEach(team => {
+      if (team.players) {
+        team.players.forEach(player => {
+          player.currentTeam = team;
+          allPlayers.push(player);
+        });
+      }
+    });
+    
+    return allPlayers;
+  }
+
+  getNationPlayers(nation) {
+    if (!this.gameState.world?.countries?.[nation]) return [];
+    
+    const allPlayers = [];
+    const country = this.gameState.world.countries[nation];
+    
+    Object.values(country.leagues).forEach(league => {
+      league.teams.forEach(team => {
+        if (team.players) {
+          team.players.forEach(player => {
+            player.currentTeam = team;
+            allPlayers.push(player);
+          });
+        }
+      });
+    });
+    
+    return allPlayers;
+  }
+
+  getAllNations() {
+    if (!this.gameState.world?.countries) return ['England'];
+    return Object.keys(this.gameState.world.countries);
+  }
+
+  sortPlayersByStat(players, stat) {
+    return [...players].sort((a, b) => {
+      switch (stat) {
+        case 'goals':
+          return (b.stats?.goals || 0) - (a.stats?.goals || 0);
+        case 'assists':
+          return (b.stats?.assists || 0) - (a.stats?.assists || 0);
+        case 'appearances':
+          return (b.stats?.appearances || 0) - (a.stats?.appearances || 0);
+        case 'minutes':
+          return (b.stats?.minutesPlayed || 0) - (a.stats?.minutesPlayed || 0);
+        case 'rating':
+          return (b.stats?.averageRating || 0) - (a.stats?.averageRating || 0);
+        case 'cards':
+          return ((b.stats?.yellowCards || 0) + (b.stats?.redCards || 0) * 2) - 
+                 ((a.stats?.yellowCards || 0) + (a.stats?.redCards || 0) * 2);
+        case 'value':
+          return (b.value || 0) - (a.value || 0);
+        default:
+          return (b.stats?.goals || 0) - (a.stats?.goals || 0);
+      }
+    });
   }
 
   renderLeagueStatsView() {
@@ -254,7 +390,7 @@ export class StatsSection extends BaseSection {
           <div class="league-stats-grid">
             <div class="league-stat">
               <span class="stat-label">Your Position:</span>
-              <span class="stat-value position-${userTeamPosition <= 3 ? 'top' : userTeamPosition >= standings.length - 3 ? 'bottom' : 'mid'}">
+              <span class="stat-value position-${this.getPositionClass(userTeamPosition, standings.length)}">
                 ${userTeamPosition}${this.getOrdinalSuffix(userTeamPosition)}
               </span>
             </div>
@@ -392,10 +528,135 @@ export class StatsSection extends BaseSection {
       });
     });
 
-    // Player stats sorting
+    // Player stats scope filters (division, nation, club)
+    document.querySelectorAll('.filter-btn[data-scope]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        this.selectedScope = e.target.dataset.scope;
+        this.refreshPlayerStatsView();
+      });
+    });
+
+    // Player stats stat filters (goals, assists, etc.)
+    document.querySelectorAll('.filter-btn[data-stat]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        this.selectedStat = e.target.dataset.stat;
+        this.refreshPlayerStatsView();
+      });
+    });
+
+    // Nation selector
+    const nationSelector = document.querySelector('.nation-selector');
+    if (nationSelector) {
+      nationSelector.addEventListener('change', (e) => {
+        this.selectedNation = e.target.value;
+        this.refreshPlayerStatsView();
+      });
+    }
+
+    // Player name clicks for profiles
+    document.querySelectorAll('.player-link').forEach(link => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        const playerId = e.target.closest('tr').dataset.playerId;
+        if (playerId) {
+          this.showPlayerProfileModal(playerId);
+        }
+      });
+    });
+
+    // Legacy stat selector (for backwards compatibility)
     document.getElementById('stat-selector')?.addEventListener('change', (e) => {
       this.selectedStat = e.target.value;
       this.switchView('players'); // Refresh the player stats view
+    });
+  }
+
+  refreshPlayerStatsView() {
+    if (this.currentView === 'players') {
+      const contentContainer = document.getElementById('stats-view-content');
+      if (contentContainer) {
+        contentContainer.innerHTML = this.renderPlayerStatsView();
+        this.setupEventListeners(); // Re-setup listeners for new content
+      }
+    }
+  }
+
+  showPlayerProfileModal(playerId) {
+    // Find the player from all available players
+    const allPlayers = this.getPlayersForScope();
+    const player = allPlayers.find(p => p.id === playerId);
+    
+    if (!player) return;
+
+    // Create and show player profile modal (reuse the teamSection modal logic)
+    const modal = document.createElement('div');
+    modal.className = 'modal-backdrop player-profile-modal';
+    modal.innerHTML = `
+      <div class="modal-content player-profile-content">
+        <div class="modal-header">
+          <h2>${player.name}</h2>
+          <button class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="player-profile-grid">
+            <div class="player-basic-info">
+              <div class="player-photo">
+                <div class="player-avatar">${player.name.charAt(0)}</div>
+              </div>
+              <div class="player-details">
+                <h3>${player.name}</h3>
+                <p><strong>Position:</strong> ${player.position}</p>
+                <p><strong>Age:</strong> ${player.age}</p>
+                <p><strong>Overall:</strong> ${player.overall}</p>
+                <p><strong>Team:</strong> ${player.currentTeam?.name || 'Free Agent'}</p>
+                <p><strong>Value:</strong> $${(player.value || 0).toLocaleString()}</p>
+              </div>
+            </div>
+            
+            <div class="player-stats">
+              <h4>Season Statistics</h4>
+              <div class="stats-grid">
+                <div class="stat-item">
+                  <span class="stat-label">Appearances:</span>
+                  <span class="stat-value">${player.stats?.appearances || 0}</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">Goals:</span>
+                  <span class="stat-value">${player.stats?.goals || 0}</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">Assists:</span>
+                  <span class="stat-value">${player.stats?.assists || 0}</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">Minutes:</span>
+                  <span class="stat-value">${player.stats?.minutesPlayed || 0}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn secondary close-btn">Close</button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Event listeners
+    modal.querySelector('.modal-close').addEventListener('click', () => {
+      document.body.removeChild(modal);
+    });
+    
+    modal.querySelector('.close-btn').addEventListener('click', () => {
+      document.body.removeChild(modal);
+    });
+    
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        document.body.removeChild(modal);
+      }
     });
   }
 
@@ -501,6 +762,16 @@ export class StatsSection extends BaseSection {
       return `€${(amount / 1000).toFixed(0)}K`;
     } else {
       return `€${amount}`;
+    }
+  }
+
+  getPositionClass(position, totalTeams) {
+    if (position <= 3) {
+      return 'top';
+    } else if (position >= totalTeams - 3) {
+      return 'bottom';
+    } else {
+      return 'mid';
     }
   }
 }

@@ -89,27 +89,41 @@ export class TransferMarket {
   }
 
   isPlayerAvailable(player, team, filters) {
-    // Check basic availability
+    return this.checkBasicAvailability(player) &&
+           this.checkTransferStatus(player, filters) &&
+           this.checkAgeFilters(player, filters) &&
+           this.checkPositionFilters(player, filters) &&
+           this.checkNationalityFilters(player, filters) &&
+           this.checkValueFilters(player, filters);
+  }
+
+  checkBasicAvailability(player) {
     if (player.injured && player.injuryDays > 30) return false;
     if (player.suspension > 5) return false;
-    
-    // Check transfer listing
-    if (filters.transferListedOnly && !player.transferListed) return false;
-    
-    // Check age filters
+    return true;
+  }
+
+  checkTransferStatus(player, filters) {
+    return !filters.transferListedOnly || player.transferListed;
+  }
+
+  checkAgeFilters(player, filters) {
     if (filters.minAge && player.age < filters.minAge) return false;
     if (filters.maxAge && player.age > filters.maxAge) return false;
-    
-    // Check position filters
-    if (filters.positions && !filters.positions.includes(player.position)) return false;
-    
-    // Check nationality filters
-    if (filters.nationalities && !filters.nationalities.includes(player.nationality)) return false;
-    
-    // Check value range
+    return true;
+  }
+
+  checkPositionFilters(player, filters) {
+    return !filters.positions || filters.positions.includes(player.position);
+  }
+
+  checkNationalityFilters(player, filters) {
+    return !filters.nationalities || filters.nationalities.includes(player.nationality);
+  }
+
+  checkValueFilters(player, filters) {
     if (filters.minValue && player.value < filters.minValue) return false;
     if (filters.maxValue && player.value > filters.maxValue) return false;
-    
     return true;
   }
 
@@ -199,6 +213,325 @@ export class TransferMarket {
     return { success: true, transferId, transfer };
   }
 
+  /**
+   * Process daily transfer activities - called by the continuous simulation
+   */
+  processDailyTransfers() {
+    const responses = [];
+    
+    // Process pending transfers
+    for (const [, transfer] of this.transfersInProgress) {
+      if (this.shouldProcessTransfer(transfer)) {
+        const result = this.processTransferUpdate(transfer);
+        if (result) {
+          responses.push(result);
+        }
+      }
+    }
+    
+    // Generate random AI transfer activity
+    if (Math.random() < 0.15) { // 15% chance daily
+      responses.push(...this.generateAITransferActivity());
+    }
+    
+    return responses;
+  }
+
+  shouldProcessTransfer(transfer) {
+    const daysSinceBid = (Date.now() - transfer.createdAt) / (1000 * 60 * 60 * 24);
+    
+    // Process based on status and time
+    switch (transfer.status) {
+      case 'pending_club_response':
+        return daysSinceBid >= 1; // Clubs respond after 1-3 days
+      case 'pending_player_response':
+        return daysSinceBid >= 2; // Players take longer to decide
+      case 'negotiating':
+        return daysSinceBid >= 1 && Math.random() < 0.3; // 30% chance daily during negotiations
+      default:
+        return false;
+    }
+  }
+
+  processTransferUpdate(transfer) {
+    switch (transfer.status) {
+      case 'pending_club_response':
+        return this.processClubResponse(transfer.id);
+      case 'pending_player_response':
+        return this.processPlayerResponse(transfer.id);
+      case 'negotiating':
+        return this.processNegotiationUpdate(transfer.id);
+      default:
+        return null;
+    }
+  }
+
+  processClubResponse(transferId) {
+    const transfer = this.transfersInProgress.get(transferId);
+    if (!transfer) return null;
+
+    const askingPrice = this.calculateAskingPrice(transfer.player, transfer.sellingTeam);
+    const bidRatio = transfer.bidAmount / askingPrice;
+    
+    let response;
+    if (bidRatio >= 1.0) {
+      // Bid meets asking price - likely acceptance
+      response = this.processBidAtAskingPrice(transfer);
+    } else if (bidRatio >= 0.7) {
+      // Decent bid - counter offer
+      const counterOffer = Math.round(askingPrice * 0.95);
+      transfer.status = 'negotiating';
+      transfer.counterOffer = counterOffer;
+      response = {
+        type: 'club-counter',
+        title: `${transfer.sellingTeam.name} Counter Offer`,
+        text: `${transfer.sellingTeam.name} has made a counter offer of €${this.formatMoney(counterOffer)} for ${transfer.player.name}.`,
+        actions: [
+          { action: 'accept-counter', text: 'Accept', type: 'success' },
+          { action: 'reject-counter', text: 'Reject', type: 'danger' },
+          { action: 'negotiate', text: 'Make New Bid', type: 'secondary' }
+        ],
+        transferData: transfer
+      };
+    } else {
+      // Low bid - rejection
+      transfer.status = 'rejected';
+      response = {
+        type: 'club-rejected',
+        title: `${transfer.sellingTeam.name} Rejects Bid`,
+        text: `${transfer.sellingTeam.name} has rejected your €${this.formatMoney(transfer.bidAmount)} bid for ${transfer.player.name}. They want at least €${this.formatMoney(askingPrice)}.`,
+        actions: [
+          { action: 'dismiss', text: 'OK', type: 'primary' },
+          { action: 'make-new-bid', text: 'Make New Bid', type: 'secondary' }
+        ],
+        transferData: transfer
+      };
+    }
+
+    this.transfersInProgress.set(transferId, transfer);
+    return response;
+  }
+
+  processBidAtAskingPrice(transfer) {
+    if (Math.random() < 0.85) {
+      transfer.status = 'pending_player_response';
+      return {
+        type: 'club-accepted',
+        title: `${transfer.sellingTeam.name} Accepts Bid`,
+        text: `${transfer.sellingTeam.name} has accepted your €${this.formatMoney(transfer.bidAmount)} bid for ${transfer.player.name}. Now negotiating personal terms with the player.`,
+        actions: [{ action: 'dismiss', text: 'OK', type: 'primary' }]
+      };
+    } else {
+      // Even good bids can be rejected sometimes
+      transfer.status = 'rejected';
+      return {
+        type: 'club-rejected',
+        title: `${transfer.sellingTeam.name} Rejects Bid`,
+        text: `${transfer.sellingTeam.name} has rejected your €${this.formatMoney(transfer.bidAmount)} bid for ${transfer.player.name}. The player is not for sale at any price.`,
+        actions: [{ action: 'dismiss', text: 'OK', type: 'primary' }]
+      };
+    }
+  }
+
+  processPlayerResponse(transferId) {
+    const transfer = this.transfersInProgress.get(transferId);
+    if (!transfer) return null;
+
+    const playerInterest = this.calculatePlayerInterest(transfer);
+    
+    if (playerInterest > 0.7) {
+      // Player accepts
+      transfer.status = 'completed';
+      this.completeTransfer(transfer);
+      return {
+        type: 'transfer-completed',
+        title: `Transfer Completed! 🎉`,
+        text: `${transfer.player.name} has joined your club from ${transfer.sellingTeam.name} for €${this.formatMoney(transfer.bidAmount)}.`,
+        actions: [{ action: 'dismiss', text: 'Welcome!', type: 'success' }]
+      };
+    } else if (playerInterest > 0.3) {
+      // Player wants to negotiate
+      transfer.status = 'negotiating_terms';
+      const demands = this.generatePlayerDemands(transfer);
+      return {
+        type: 'player-demands',
+        title: `${transfer.player.name} Wants Better Terms`,
+        text: `${transfer.player.name} is interested but wants: ${demands.join(', ')}.`,
+        actions: [
+          { action: 'accept-terms', text: 'Accept Terms', type: 'success' },
+          { action: 'reject-terms', text: 'Withdraw Bid', type: 'danger' }
+        ],
+        transferData: { ...transfer, playerDemands: demands }
+      };
+    } else {
+      // Player rejects
+      transfer.status = 'player_rejected';
+      return {
+        type: 'player-rejected',
+        title: `${transfer.player.name} Rejects Move`,
+        text: `${transfer.player.name} has decided not to join your club. The transfer has collapsed.`,
+        actions: [{ action: 'dismiss', text: 'OK', type: 'primary' }]
+      };
+    }
+  }
+
+  processNegotiationUpdate(transferId) {
+    const transfer = this.transfersInProgress.get(transferId);
+    if (!transfer) return null;
+
+    // Handle ongoing negotiations - progress or stall
+    if (Math.random() < 0.5) {
+      // Negotiation progresses
+      if (transfer.status === 'negotiating') {
+        transfer.status = 'pending_player_response';
+        return {
+          type: 'negotiation-progress',
+          title: `${transfer.sellingTeam.name} Agreement Reached`,
+          text: `You have reached an agreement with ${transfer.sellingTeam.name} for ${transfer.player.name}. Now negotiating personal terms with the player.`,
+          actions: [{ action: 'dismiss', text: 'OK', type: 'primary' }]
+        };
+      }
+    } else {
+      // Negotiation stalls or new demands
+      const newDemand = Math.round(transfer.bidAmount * 1.1);
+      transfer.counterOffer = newDemand;
+      return {
+        type: 'negotiation-demand',
+        title: `${transfer.sellingTeam.name} Increases Demands`,
+        text: `${transfer.sellingTeam.name} now wants €${this.formatMoney(newDemand)} for ${transfer.player.name}.`,
+        actions: [
+          { action: 'accept-counter', text: 'Accept', type: 'success' },
+          { action: 'reject-counter', text: 'Reject', type: 'danger' }
+        ],
+        transferData: transfer
+      };
+    }
+    
+    return null;
+  }
+
+  calculatePlayerInterest(transfer) {
+    let interest = 0.5; // Base 50% interest
+    
+    // Wage improvement
+    const wageIncrease = transfer.playerTerms.wage / (transfer.player.wage || 10000);
+    if (wageIncrease > 1.5) interest += 0.3;
+    else if (wageIncrease > 1.2) interest += 0.2;
+    else if (wageIncrease > 1.0) interest += 0.1;
+    else interest -= 0.2; // Wage cut reduces interest
+    
+    // Club reputation
+    const buyingReputation = transfer.buyingTeam.reputation || 50;
+    const sellingReputation = transfer.sellingTeam.reputation || 50;
+    if (buyingReputation > sellingReputation) {
+      interest += 0.2;
+    } else if (buyingReputation < sellingReputation * 0.8) {
+      interest -= 0.2;
+    }
+    
+    // Random factor
+    interest += (Math.random() - 0.5) * 0.3;
+    
+    return Math.max(0, Math.min(1, interest));
+  }
+
+  generatePlayerDemands(transfer) {
+    const demands = [];
+    
+    if (Math.random() < 0.5) {
+      demands.push(`Higher wages (€${this.formatMoney(transfer.playerTerms.wage * 1.2)}/week)`);
+    }
+    
+    if (Math.random() < 0.3) {
+      demands.push('Longer contract (5 years)');
+    }
+    
+    if (Math.random() < 0.4) {
+      demands.push('Performance bonuses');
+    }
+    
+    if (Math.random() < 0.2) {
+      demands.push('Release clause');
+    }
+    
+    return demands.length > 0 ? demands : ['Better terms'];
+  }
+
+  generateAITransferActivity() {
+    // Generate transfer news about AI clubs
+    const activities = [];
+    
+    if (Math.random() < 0.3) {
+      activities.push({
+        type: 'transfer-news',
+        title: 'Transfer Update',
+        text: this.generateTransferNews(),
+        actions: [{ action: 'dismiss', text: 'OK', type: 'primary' }]
+      });
+    }
+    
+    return activities;
+  }
+
+  generateTransferNews() {
+    const newsTemplates = [
+      'Manchester City signs promising young midfielder for €25M.',
+      'Liverpool completes surprise deal for Serie A striker.',
+      'Barcelona sells veteran defender to fund new signings.',
+      'Real Madrid enters race for Premier League winger.',
+      'Chelsea negotiating with Bundesliga goalkeeper.',
+      'Arsenal considers bid for Champions League star.'
+    ];
+    
+    return newsTemplates[Math.floor(Math.random() * newsTemplates.length)];
+  }
+
+  getPendingResponses() {
+    // Get transfers that need user attention
+    const pending = [];
+    
+    for (const transfer of this.transfersInProgress.values()) {
+      if (['negotiating', 'counter_offer', 'player_demands'].includes(transfer.status)) {
+        pending.push({
+          message: `${transfer.player.name} transfer requires attention`,
+          transferId: transfer.id
+        });
+      }
+    }
+    
+    return pending;
+  }
+
+  completeTransfer(transfer) {
+    // Move player to new team
+    const playerIndex = transfer.sellingTeam.players.findIndex(p => p.id === transfer.player.id);
+    if (playerIndex !== -1) {
+      transfer.sellingTeam.players.splice(playerIndex, 1);
+    }
+    
+    // Update player data
+    transfer.player.club = transfer.buyingTeam;
+    transfer.player.wage = transfer.playerTerms.wage;
+    transfer.player.contractYears = transfer.playerTerms.contractYears;
+    
+    transfer.buyingTeam.players.push(transfer.player);
+    
+    // Record in history
+    this.marketHistory.push({
+      ...transfer,
+      completedAt: Date.now()
+    });
+    
+    // Remove from active transfers
+    this.transfersInProgress.delete(transfer.id);
+    
+    console.log(`✅ Transfer completed: ${transfer.player.name} to ${transfer.buyingTeam.name}`);
+  }
+
+  generateTransferId() {
+    return `transfer_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+  }
+
   validateBid(buyingTeam, sellingTeam, player, bidAmount) {
     // Check if player exists in selling team
     if (!sellingTeam.players.find(p => p.id === player.id)) {
@@ -240,134 +573,6 @@ export class TransferMarket {
     return true;
   }
 
-  processClubResponse(transferId) {
-    const transfer = this.transfersInProgress.get(transferId);
-    if (!transfer || transfer.status !== 'pending_club_response') return;
-    
-    const askingPrice = this.calculateAskingPrice(transfer.player, transfer.sellingTeam);
-    const bidRatio = transfer.bidAmount / askingPrice;
-    
-    let responseChance;
-    if (bidRatio >= 1.2) responseChance = 0.95; // Very high bid
-    else if (bidRatio >= 1.0) responseChance = 0.8; // Fair bid  
-    else if (bidRatio >= 0.8) responseChance = 0.4; // Low bid
-    else responseChance = 0.1; // Very low bid
-    
-    // Adjust for player/team factors
-    if (transfer.player.transferListed) responseChance += 0.2;
-    if (this.isKeyPlayer(transfer.player, transfer.sellingTeam)) responseChance -= 0.3;
-    
-    const accepted = Math.random() < responseChance;
-    
-    if (accepted) {
-      transfer.status = 'pending_player_response';
-      transfer.clubAcceptedAt = Date.now();
-      setTimeout(() => this.processPlayerResponse(transferId), 500);
-    } else {
-      // Counter offer or rejection
-      if (bidRatio > 0.7 && Math.random() < 0.6) {
-        const counterOffer = Math.round(askingPrice * (0.9 + Math.random() * 0.2));
-        transfer.status = 'counter_offer';
-        transfer.counterOffer = counterOffer;
-        transfer.bidHistory.push({
-          amount: counterOffer,
-          timestamp: Date.now(),
-          type: 'counter_offer'
-        });
-      } else {
-        transfer.status = 'rejected_by_club';
-        transfer.rejectedAt = Date.now();
-        this.transfersInProgress.delete(transferId);
-      }
-    }
-    
-    // Notify game state of transfer update
-    if (this.gameState.eventCallbacks?.transferUpdate) {
-      this.gameState.eventCallbacks.transferUpdate(transfer);
-    }
-  }
-
-  processPlayerResponse(transferId) {
-    const transfer = this.transfersInProgress.get(transferId);
-    if (!transfer || transfer.status !== 'pending_player_response') return;
-    
-    // Player acceptance based on various factors
-    let acceptanceChance = 0.7; // Base 70%
-    
-    // Wage improvement
-    const currentWage = transfer.player.wage;
-    const offeredWage = transfer.playerTerms.wage;
-    const wageRatio = offeredWage / currentWage;
-    
-    if (wageRatio > 1.5) acceptanceChance += 0.2;
-    else if (wageRatio > 1.2) acceptanceChance += 0.1;
-    else if (wageRatio < 1.0) acceptanceChance -= 0.3;
-    
-    // League tier comparison
-    const currentTier = transfer.sellingTeam.league?.tier || 3;
-    const newTier = transfer.buyingTeam.league?.tier || 3;
-    
-    if (newTier < currentTier) acceptanceChance += 0.2; // Moving to better league
-    else if (newTier > currentTier) acceptanceChance -= 0.2; // Moving to worse league
-    
-    // Team reputation
-    const repDiff = (transfer.buyingTeam.reputation || 50) - (transfer.sellingTeam.reputation || 50);
-    acceptanceChance += repDiff * 0.01;
-    
-    // Player traits influence
-    if (transfer.player.traits?.includes('Ambitious')) acceptanceChance += 0.1;
-    if (transfer.player.traits?.includes('Loyal')) acceptanceChance -= 0.15;
-    
-    const accepted = Math.random() < Math.max(0.1, Math.min(0.95, acceptanceChance));
-    
-    if (accepted) {
-      this.completeTransfer(transferId);
-    } else {
-      transfer.status = 'rejected_by_player';
-      transfer.rejectedAt = Date.now();
-      this.transfersInProgress.delete(transferId);
-    }
-    
-    // Notify game state
-    if (this.gameState.eventCallbacks?.transferUpdate) {
-      this.gameState.eventCallbacks.transferUpdate(transfer);
-    }
-  }
-
-  completeTransfer(transferId) {
-    const transfer = this.transfersInProgress.get(transferId);
-    if (!transfer) return;
-    
-    // Execute the transfer
-    const success = this.executePlayerTransfer(transfer);
-    
-    if (success) {
-      transfer.status = 'completed';
-      transfer.completedAt = Date.now();
-      
-      // Update club finances
-      this.updateClubFinances(transfer);
-      
-      // Record in history
-      this.marketHistory.push({
-        ...transfer,
-        season: this.gameState.currentSeason,
-        window: this.currentWindow
-      });
-      
-      console.log(`✅ Transfer completed: ${transfer.player.name} → ${transfer.buyingTeam.name} for €${transfer.bidAmount.toLocaleString()}`);
-    } else {
-      transfer.status = 'failed';
-      transfer.failedAt = Date.now();
-    }
-    
-    this.transfersInProgress.delete(transferId);
-    
-    if (this.gameState.eventCallbacks?.transferCompleted) {
-      this.gameState.eventCallbacks.transferCompleted(transfer);
-    }
-  }
-
   executePlayerTransfer(transfer) {
     try {
       // Remove player from selling team
@@ -407,10 +612,6 @@ export class TransferMarket {
       sellingFinances.netSpend -= transfer.bidAmount;
       sellingFinances.transfersOut.push(transfer);
     }
-  }
-
-  generateTransferId() {
-    return 'T' + Date.now() + Math.random().toString(36).substr(2, 5);
   }
 
   sortPlayersByRelevance(players, filters) {
@@ -577,7 +778,7 @@ export class TransferMarket {
       
       // Record transfer in history
       const transferRecord = {
-        id: `transfer_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        id: `transfer_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
         player: {
           id: player.id,
           name: player.name,

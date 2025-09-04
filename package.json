@@ -1,0 +1,23 @@
+{
+  "name": "eoin-football-manager",
+  "version": "1.0.0",
+  "description": "A comprehensive football management game",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx http-server . -p 8080 -o",
+    "dev": "npx http-server . -p 8080 -o -c-1",
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "keywords": [
+    "football",
+    "manager",
+    "game",
+    "sports",
+    "simulation"
+  ],
+  "author": "Eoin",
+  "license": "MIT",
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+}

@@ -110,100 +110,153 @@ export class TransferSection extends BaseSection {
     
     return `
       <div class="market-view">
-        ${!isWindowOpen ? `
-          <div class="market-warning">
-            <div class="warning-message">
-              <h3>⚠️ Transfer Window Closed</h3>
-              <p>You can browse players but cannot make bids until the next window opens: ${this.getNextWindowDate()}</p>
-            </div>
-          </div>
-        ` : ''}
-        
-        <div class="market-search">
-          <div class="search-bar">
-            <input type="text" id="player-search" placeholder="Search players by name..." 
-                   value="${this.searchFilters.nameSearch || ''}"
-                   class="search-input">
-            <button id="search-btn" class="search-btn">🔍</button>
-          </div>
+        ${this.renderWindowWarning(isWindowOpen)}
+        ${this.renderSearchBar()}
+        ${this.renderFilters(availablePlayers.length)}
+        ${this.renderPlayerResults(availablePlayers)}
+      </div>
+    `;
+  }
+
+  renderWindowWarning(isWindowOpen) {
+    if (isWindowOpen) return '';
+    
+    return `
+      <div class="market-warning">
+        <div class="warning-message">
+          <h3>⚠️ Transfer Window Closed</h3>
+          <p>You can browse players but cannot make bids until the next window opens: ${this.getNextWindowDate()}</p>
+        </div>
+      </div>
+    `;
+  }
+
+  renderSearchBar() {
+    return `
+      <div class="market-search">
+        <div class="search-bar">
+          <input type="text" id="player-search" placeholder="Search players by name..." 
+                 value="${this.searchFilters.nameSearch || ''}"
+                 class="search-input">
+          <button id="search-btn" class="search-btn">🔍</button>
+        </div>
+      </div>
+    `;
+  }
+
+  renderFilters(resultsCount) {
+    return `
+      <div class="market-filters">
+        <div class="filter-row">
+          ${this.renderPositionFilter()}
+          ${this.renderCountryFilter()}
+          ${this.renderAgeFilter()}
         </div>
         
-        <div class="market-filters">
-          <div class="filter-row">
-            <div class="filter-group">
-              <label for="position-filter">Position:</label>
-              <select id="position-filter">
-                <option value="all" ${this.searchFilters.position === 'all' ? 'selected' : ''}>All Positions</option>
-                <option value="GK" ${this.searchFilters.position === 'GK' ? 'selected' : ''}>Goalkeeper</option>
-                <option value="CB" ${this.searchFilters.position === 'CB' ? 'selected' : ''}>Centre Back</option>
-                <option value="RB" ${this.searchFilters.position === 'RB' ? 'selected' : ''}>Right Back</option>
-                <option value="LB" ${this.searchFilters.position === 'LB' ? 'selected' : ''}>Left Back</option>
-                <option value="DM" ${this.searchFilters.position === 'DM' ? 'selected' : ''}>Defensive Mid</option>
-                <option value="CM" ${this.searchFilters.position === 'CM' ? 'selected' : ''}>Centre Mid</option>
-                <option value="AM" ${this.searchFilters.position === 'AM' ? 'selected' : ''}>Attacking Mid</option>
-                <option value="RW" ${this.searchFilters.position === 'RW' ? 'selected' : ''}>Right Wing</option>
-                <option value="LW" ${this.searchFilters.position === 'LW' ? 'selected' : ''}>Left Wing</option>
-                <option value="ST" ${this.searchFilters.position === 'ST' ? 'selected' : ''}>Striker</option>
-              </select>
-            </div>
-            
-            <div class="filter-group">
-              <label for="country-filter">Country:</label>
-              <select id="country-filter">
-                <option value="all" ${this.searchFilters.country === 'all' ? 'selected' : ''}>All Countries</option>
-                ${this.getAvailableCountries().map(country => 
-                  `<option value="${country}" ${this.searchFilters.country === country ? 'selected' : ''}>${country}</option>`
-                ).join('')}
-              </select>
-            </div>
-            
-            <div class="filter-group">
-              <label for="age-range">Age Range:</label>
-              <input type="number" id="min-age" min="16" max="40" value="${this.searchFilters.minAge}" class="age-input">
-              <span>to</span>
-              <input type="number" id="max-age" min="16" max="40" value="${this.searchFilters.maxAge}" class="age-input">
-            </div>
-          </div>
-          
-          <div class="filter-row">
-            <div class="filter-group">
-              <label for="rating-range">Rating Range:</label>
-              <input type="number" id="min-rating" min="1" max="100" value="${this.searchFilters.minRating}" class="rating-input">
-              <span>to</span>
-              <input type="number" id="max-rating" min="1" max="100" value="${this.searchFilters.maxRating}" class="rating-input">
-            </div>
-            
-            <div class="filter-group">
-              <label for="max-price">Max Price:</label>
-              <input type="range" id="max-price" min="1000000" max="100000000" 
-                     value="${this.searchFilters.maxPrice}" step="1000000">
-              <span id="price-display">${this.formatMoney(this.searchFilters.maxPrice)}</span>
-            </div>
-            
-            <div class="filter-group">
-              <label for="max-results">Show Results:</label>
-              <select id="max-results">
-                <option value="50" ${this.searchFilters.maxResults === 50 ? 'selected' : ''}>50 players</option>
-                <option value="100" ${this.searchFilters.maxResults === 100 ? 'selected' : ''}>100 players</option>
-                <option value="200" ${this.searchFilters.maxResults === 200 ? 'selected' : ''}>200 players</option>
-                <option value="500" ${this.searchFilters.maxResults === 500 ? 'selected' : ''}>All results</option>
-              </select>
-            </div>
-          </div>
-          
-          <div class="filter-actions">
-            <button id="apply-filters" class="primary-btn">Apply Filters</button>
-            <button id="clear-filters" class="secondary-btn">Clear All</button>
-            <span class="results-count">${availablePlayers.length} players found</span>
-          </div>
+        <div class="filter-row">
+          ${this.renderRatingFilter()}
+          ${this.renderPriceFilter()}
+          ${this.renderResultsFilter()}
         </div>
         
-        <div class="players-list" id="players-list">
-          ${availablePlayers.length > 0 ? 
-            availablePlayers.map(player => this.renderPlayerCard(player, !isWindowOpen)).join('') :
-            '<div class="no-results">No players found matching your criteria</div>'
-          }
+        <div class="filter-actions">
+          <button id="apply-filters" class="primary-btn">Apply Filters</button>
+          <button id="clear-filters" class="secondary-btn">Clear All</button>
+          <span class="results-count">${resultsCount} players found</span>
         </div>
+      </div>
+    `;
+  }
+
+  renderPositionFilter() {
+    return `
+      <div class="filter-group">
+        <label for="position-filter">Position:</label>
+        <select id="position-filter">
+          <option value="all" ${this.searchFilters.position === 'all' ? 'selected' : ''}>All Positions</option>
+          <option value="GK" ${this.searchFilters.position === 'GK' ? 'selected' : ''}>Goalkeeper</option>
+          <option value="CB" ${this.searchFilters.position === 'CB' ? 'selected' : ''}>Centre Back</option>
+          <option value="RB" ${this.searchFilters.position === 'RB' ? 'selected' : ''}>Right Back</option>
+          <option value="LB" ${this.searchFilters.position === 'LB' ? 'selected' : ''}>Left Back</option>
+          <option value="DM" ${this.searchFilters.position === 'DM' ? 'selected' : ''}>Defensive Mid</option>
+          <option value="CM" ${this.searchFilters.position === 'CM' ? 'selected' : ''}>Centre Mid</option>
+          <option value="AM" ${this.searchFilters.position === 'AM' ? 'selected' : ''}>Attacking Mid</option>
+          <option value="RW" ${this.searchFilters.position === 'RW' ? 'selected' : ''}>Right Wing</option>
+          <option value="LW" ${this.searchFilters.position === 'LW' ? 'selected' : ''}>Left Wing</option>
+          <option value="ST" ${this.searchFilters.position === 'ST' ? 'selected' : ''}>Striker</option>
+        </select>
+      </div>
+    `;
+  }
+
+  renderCountryFilter() {
+    return `
+      <div class="filter-group">
+        <label for="country-filter">Country:</label>
+        <select id="country-filter">
+          <option value="all" ${this.searchFilters.country === 'all' ? 'selected' : ''}>All Countries</option>
+          ${this.getAvailableCountries().map(country => 
+            `<option value="${country}" ${this.searchFilters.country === country ? 'selected' : ''}>${country}</option>`
+          ).join('')}
+        </select>
+      </div>
+    `;
+  }
+
+  renderAgeFilter() {
+    return `
+      <div class="filter-group">
+        <label for="age-range">Age Range:</label>
+        <input type="number" id="min-age" min="16" max="40" value="${this.searchFilters.minAge}" class="age-input">
+        <span>to</span>
+        <input type="number" id="max-age" min="16" max="40" value="${this.searchFilters.maxAge}" class="age-input">
+      </div>
+    `;
+  }
+
+  renderRatingFilter() {
+    return `
+      <div class="filter-group">
+        <label for="rating-range">Rating Range:</label>
+        <input type="number" id="min-rating" min="1" max="100" value="${this.searchFilters.minRating}" class="rating-input">
+        <span>to</span>
+        <input type="number" id="max-rating" min="1" max="100" value="${this.searchFilters.maxRating}" class="rating-input">
+      </div>
+    `;
+  }
+
+  renderPriceFilter() {
+    return `
+      <div class="filter-group">
+        <label for="max-price">Max Price:</label>
+        <input type="range" id="max-price" min="1000000" max="100000000" 
+               value="${this.searchFilters.maxPrice}" step="1000000">
+        <span id="price-display">${this.formatMoney(this.searchFilters.maxPrice)}</span>
+      </div>
+    `;
+  }
+
+  renderResultsFilter() {
+    return `
+      <div class="filter-group">
+        <label for="max-results">Show Results:</label>
+        <select id="max-results">
+          <option value="50" ${this.searchFilters.maxResults === 50 ? 'selected' : ''}>50 players</option>
+          <option value="100" ${this.searchFilters.maxResults === 100 ? 'selected' : ''}>100 players</option>
+          <option value="200" ${this.searchFilters.maxResults === 200 ? 'selected' : ''}>200 players</option>
+          <option value="500" ${this.searchFilters.maxResults === 500 ? 'selected' : ''}>All results</option>
+        </select>
+      </div>
+    `;
+  }
+
+  renderPlayerResults(availablePlayers) {
+    return `
+      <div class="players-list" id="players-list">
+        ${availablePlayers.length > 0 ? 
+          availablePlayers.map(player => this.renderPlayerCard(player, !this.isTransferWindowOpen())).join('') :
+          '<div class="no-results">No players found matching your criteria</div>'
+        }
       </div>
     `;
   }
@@ -211,33 +264,282 @@ export class TransferSection extends BaseSection {
   renderPlayerCard(player, disableBidding = false) {
     const askingPrice = this.getAskingPrice(player);
     const isAffordable = askingPrice <= this.getTransferBudget();
+    const club = this.getPlayerClub(player);
+    const contractExpiry = player.contractExpiry || 'Unknown';
+    const marketValue = player.value || askingPrice;
+    const wage = player.wage || 0;
     
     return `
-      <div class="player-card ${isAffordable ? '' : 'unaffordable'}" data-player-id="${player.id}">
+      <div class="player-card detailed-card ${isAffordable ? '' : 'unaffordable'}" data-player-id="${player.id}">
+        
+        <!-- Player Header -->
         <div class="player-card-header">
-          <div class="player-name">${player.name}</div>
-          <div class="player-age">${player.age}y</div>
+          <div class="player-photo">
+            <div class="player-avatar">${player.name.charAt(0)}</div>
+            <div class="player-nationality">${player.nationality || 'Unknown'}</div>
+          </div>
+          <div class="player-identity">
+            <div class="player-name">${player.name}</div>
+            <div class="player-meta">
+              <span class="player-age">${player.age} years old</span>
+              <span class="player-position">${player.position}</span>
+              <span class="player-foot">${player.preferredFoot || 'Right'} foot</span>
+            </div>
+            <div class="player-club-info">
+              <span class="current-club">${club?.name || 'Free Agent'}</span>
+              <span class="contract-expiry">Contract: ${contractExpiry}</span>
+            </div>
+          </div>
+          <div class="player-overall-rating">
+            <div class="rating-circle">
+              <span class="rating-value">${player.getOverallRating?.() || player.overall || 'N/A'}</span>
+              <span class="rating-label">OVR</span>
+            </div>
+            <div class="potential-rating">
+              <span class="potential-value">${player.potential || 'N/A'}</span>
+              <span class="potential-label">POT</span>
+            </div>
+          </div>
         </div>
-        
-        <div class="player-card-info">
-          <div class="player-position">${player.position}</div>
-          <div class="player-rating">${player.getOverallRating?.() || 'N/A'}</div>
-          <div class="player-club">${this.getPlayerClub(player)?.name || 'Free Agent'}</div>
+
+        <!-- Detailed Attributes -->
+        <div class="player-attributes-grid">
+          <div class="attribute-section technical">
+            <h4>Technical</h4>
+            <div class="attributes">
+              <div class="attr-item">
+                <span class="attr-name">Pace:</span>
+                <div class="attr-bar-container">
+                  <div class="attr-bar">
+                    <div class="attr-fill" style="width: ${player.pace || 50}%"></div>
+                  </div>
+                  <span class="attr-value">${player.pace || 50}</span>
+                </div>
+              </div>
+              <div class="attr-item">
+                <span class="attr-name">Shooting:</span>
+                <div class="attr-bar-container">
+                  <div class="attr-bar">
+                    <div class="attr-fill" style="width: ${player.shooting || 50}%"></div>
+                  </div>
+                  <span class="attr-value">${player.shooting || 50}</span>
+                </div>
+              </div>
+              <div class="attr-item">
+                <span class="attr-name">Passing:</span>
+                <div class="attr-bar-container">
+                  <div class="attr-bar">
+                    <div class="attr-fill" style="width: ${player.passing || 50}%"></div>
+                  </div>
+                  <span class="attr-value">${player.passing || 50}</span>
+                </div>
+              </div>
+              <div class="attr-item">
+                <span class="attr-name">Dribbling:</span>
+                <div class="attr-bar-container">
+                  <div class="attr-bar">
+                    <div class="attr-fill" style="width: ${player.dribbling || 50}%"></div>
+                  </div>
+                  <span class="attr-value">${player.dribbling || 50}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="attribute-section defensive">
+            <h4>Defensive</h4>
+            <div class="attributes">
+              <div class="attr-item">
+                <span class="attr-name">Defending:</span>
+                <div class="attr-bar-container">
+                  <div class="attr-bar">
+                    <div class="attr-fill" style="width: ${player.defending || 50}%"></div>
+                  </div>
+                  <span class="attr-value">${player.defending || 50}</span>
+                </div>
+              </div>
+              <div class="attr-item">
+                <span class="attr-name">Heading:</span>
+                <div class="attr-bar-container">
+                  <div class="attr-bar">
+                    <div class="attr-fill" style="width: ${player.heading || 50}%"></div>
+                  </div>
+                  <span class="attr-value">${player.heading || 50}</span>
+                </div>
+              </div>
+              <div class="attr-item">
+                <span class="attr-name">Tackling:</span>
+                <div class="attr-bar-container">
+                  <div class="attr-bar">
+                    <div class="attr-fill" style="width: ${player.tackling || 50}%"></div>
+                  </div>
+                  <span class="attr-value">${player.tackling || 50}</span>
+                </div>
+              </div>
+              <div class="attr-item">
+                <span class="attr-name">Marking:</span>
+                <div class="attr-bar-container">
+                  <div class="attr-bar">
+                    <div class="attr-fill" style="width: ${player.marking || 50}%"></div>
+                  </div>
+                  <span class="attr-value">${player.marking || 50}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="attribute-section physical">
+            <h4>Physical</h4>
+            <div class="attributes">
+              <div class="attr-item">
+                <span class="attr-name">Strength:</span>
+                <div class="attr-bar-container">
+                  <div class="attr-bar">
+                    <div class="attr-fill" style="width: ${player.strength || 50}%"></div>
+                  </div>
+                  <span class="attr-value">${player.strength || 50}</span>
+                </div>
+              </div>
+              <div class="attr-item">
+                <span class="attr-name">Stamina:</span>
+                <div class="attr-bar-container">
+                  <div class="attr-bar">
+                    <div class="attr-fill" style="width: ${player.stamina || 50}%"></div>
+                  </div>
+                  <span class="attr-value">${player.stamina || 50}</span>
+                </div>
+              </div>
+              <div class="attr-item">
+                <span class="attr-name">Acceleration:</span>
+                <div class="attr-bar-container">
+                  <div class="attr-bar">
+                    <div class="attr-fill" style="width: ${player.acceleration || 50}%"></div>
+                  </div>
+                  <span class="attr-value">${player.acceleration || 50}</span>
+                </div>
+              </div>
+              <div class="attr-item">
+                <span class="attr-name">Jumping:</span>
+                <div class="attr-bar-container">
+                  <div class="attr-bar">
+                    <div class="attr-fill" style="width: ${player.jumping || 50}%"></div>
+                  </div>
+                  <span class="attr-value">${player.jumping || 50}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="attribute-section mental">
+            <h4>Mental</h4>
+            <div class="attributes">
+              <div class="attr-item">
+                <span class="attr-name">Decisions:</span>
+                <div class="attr-bar-container">
+                  <div class="attr-bar">
+                    <div class="attr-fill" style="width: ${player.decisions || 50}%"></div>
+                  </div>
+                  <span class="attr-value">${player.decisions || 50}</span>
+                </div>
+              </div>
+              <div class="attr-item">
+                <span class="attr-name">Composure:</span>
+                <div class="attr-bar-container">
+                  <div class="attr-bar">
+                    <div class="attr-fill" style="width: ${player.composure || 50}%"></div>
+                  </div>
+                  <span class="attr-value">${player.composure || 50}</span>
+                </div>
+              </div>
+              <div class="attr-item">
+                <span class="attr-name">Vision:</span>
+                <div class="attr-bar-container">
+                  <div class="attr-bar">
+                    <div class="attr-fill" style="width: ${player.vision || 50}%"></div>
+                  </div>
+                  <span class="attr-value">${player.vision || 50}</span>
+                </div>
+              </div>
+              <div class="attr-item">
+                <span class="attr-name">Work Rate:</span>
+                <div class="attr-bar-container">
+                  <div class="attr-bar">
+                    <div class="attr-fill" style="width: ${player.workRate || 50}%"></div>
+                  </div>
+                  <span class="attr-value">${player.workRate || 50}</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-        
-        <div class="player-key-stats">
-          ${this.renderPlayerKeyStats(player)}
+
+        <!-- Season Statistics -->
+        <div class="player-season-stats">
+          <h4>Season Statistics</h4>
+          <div class="stats-grid">
+            <div class="stat-item">
+              <span class="stat-value">${player.stats?.appearances || 0}</span>
+              <span class="stat-label">Apps</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value">${player.stats?.goals || 0}</span>
+              <span class="stat-label">Goals</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value">${player.stats?.assists || 0}</span>
+              <span class="stat-label">Assists</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value">${(player.stats?.minutesPlayed || 0).toLocaleString()}</span>
+              <span class="stat-label">Minutes</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value">${(player.stats?.averageRating || 0).toFixed(1)}</span>
+              <span class="stat-label">Rating</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value">${player.stats?.yellowCards || 0}/${player.stats?.redCards || 0}</span>
+              <span class="stat-label">Cards</span>
+            </div>
+          </div>
         </div>
-        
+
+        <!-- Financial Information -->
+        <div class="player-financial-info">
+          <div class="financial-row">
+            <div class="financial-item">
+              <span class="label">Market Value:</span>
+              <span class="value market-value">${this.formatMoney(marketValue)}</span>
+            </div>
+            <div class="financial-item">
+              <span class="label">Asking Price:</span>
+              <span class="value asking-price">${this.formatMoney(askingPrice)}</span>
+            </div>
+          </div>
+          <div class="financial-row">
+            <div class="financial-item">
+              <span class="label">Current Wage:</span>
+              <span class="value wage">${this.formatMoney(wage)}/week</span>
+            </div>
+            <div class="financial-item">
+              <span class="label">Value Trend:</span>
+              <span class="value trend ${this.getValueTrend(player)}">${this.getValueTrendText(player)}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Player Actions -->
         <div class="player-card-footer">
-          <div class="asking-price">${this.formatMoney(askingPrice)}</div>
-          <div class="player-actions">
-            <button class="shortlist-btn" data-player-id="${player.id}">
-              Shortlist
+          <div class="action-buttons">
+            <button class="btn secondary shortlist-btn" data-player-id="${player.id}">
+              📋 Shortlist
             </button>
-            <button class="bid-btn primary-btn ${(isAffordable && !disableBidding) ? '' : 'disabled'}" 
+            <button class="btn primary bid-btn ${(isAffordable && !disableBidding) ? '' : 'disabled'}" 
                     data-player-id="${player.id}" ${(!isAffordable || disableBidding) ? 'disabled' : ''}>
-              ${disableBidding ? 'Window Closed' : 'Make Bid'}
+              ${disableBidding ? '🚫 Window Closed' : '💰 Make Bid'}
+            </button>
+            <button class="btn info scout-btn" data-player-id="${player.id}">
+              🔍 View Report
             </button>
           </div>
         </div>
@@ -552,7 +854,7 @@ export class TransferSection extends BaseSection {
   getAvailableCountries() {
     const allPlayers = this.gameState.worldSystem?.allPlayers || [];
     const countries = [...new Set(allPlayers.map(player => player.nationality))];
-    return countries.sort();
+    return countries.sort((a, b) => a.localeCompare(b));
   }
 
   isPlayerAvailable(player) {
@@ -643,28 +945,106 @@ export class TransferSection extends BaseSection {
   }
 
   getShortlistedPlayers() {
-    // Return shortlisted players - would be stored in game state
-    return [];
+    // Return actual shortlisted players from game state
+    if (!this.gameState.userShortlist || !Array.isArray(this.gameState.userShortlist)) {
+      return [];
+    }
+    
+    return this.gameState.userShortlist.filter(playerId => {
+      // Verify player still exists and is available
+      const player = this.gameState.worldSystem?.allPlayers?.find(p => p.id === playerId);
+      return player && this.isPlayerAvailable(player);
+    });
   }
 
   getOutgoingOffers() {
-    // Return outgoing transfer offers
-    return [];
+    // Return actual outgoing transfer offers from game state
+    if (!this.gameState.transferOffers) {
+      this.gameState.transferOffers = { outgoing: [], incoming: [] };
+    }
+    
+    return this.gameState.transferOffers.outgoing.map(offer => ({
+      id: offer.id,
+      player: offer.player,
+      targetClub: offer.targetClub,
+      amount: offer.amount,
+      date: new Date(offer.date),
+      status: offer.status || 'pending',
+      expiryDate: new Date(offer.expiryDate)
+    }));
   }
 
   getIncomingOffers() {
-    // Return incoming offers for user's players
-    return [];
+    // Return actual incoming offers for user's players from game state
+    if (!this.gameState.transferOffers) {
+      this.gameState.transferOffers = { outgoing: [], incoming: [] };
+    }
+    
+    return this.gameState.transferOffers.incoming.map(offer => ({
+      id: offer.id,
+      player: offer.player,
+      fromClub: offer.fromClub,
+      fromLeague: offer.fromLeague,
+      amount: offer.amount,
+      date: new Date(offer.date),
+      status: offer.status || 'pending',
+      wages: offer.wages,
+      contractLength: offer.contractLength
+    }));
   }
 
   getCompletedTransfers() {
-    // Return completed transfers for current season
-    return [];
+    // Return actual completed transfers for current season from game state
+    if (!this.gameState.transferHistory) {
+      this.gameState.transferHistory = [];
+    }
+    
+    const currentSeasonStart = new Date(this.gameState.currentSeason, 5, 1); // June 1st
+    const currentSeasonEnd = new Date(this.gameState.currentSeason + 1, 4, 31); // May 31st next year
+    
+    return this.gameState.transferHistory
+      .filter(transfer => {
+        const transferDate = new Date(transfer.date);
+        return transferDate >= currentSeasonStart && transferDate <= currentSeasonEnd;
+      })
+      .map(transfer => ({
+        id: transfer.id,
+        player: transfer.player,
+        from: transfer.from,
+        to: transfer.to,
+        fee: transfer.fee,
+        wages: transfer.wages,
+        contractLength: transfer.contractLength,
+        date: new Date(transfer.date),
+        type: transfer.type || 'permanent'
+      }))
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
   }
 
   getCommittedSpending() {
-    // Return money committed to pending transfers
-    return 0;
+    // Return actual money committed to pending transfers
+    let committed = 0;
+    
+    // Add pending outgoing offers
+    const outgoingOffers = this.getOutgoingOffers();
+    outgoingOffers.forEach(offer => {
+      if (offer.status === 'accepted') {
+        committed += offer.amount;
+      }
+    });
+    
+    // Add any installment payments due this season
+    const completedTransfers = this.getCompletedTransfers();
+    completedTransfers.forEach(transfer => {
+      if (transfer.installments) {
+        const remainingInstallments = transfer.installments.filter(installment => 
+          !installment.paid && new Date(installment.dueDate) <= new Date()
+        );
+        committed += remainingInstallments.reduce((sum, installment) => sum + installment.amount, 0);
+      }
+    });
+    
+    return committed;
   }
 
   getAvailableBudget() {
@@ -672,8 +1052,35 @@ export class TransferSection extends BaseSection {
   }
 
   getNextWindowDate() {
-    // Return date when next transfer window opens
-    return 'January 1st';
+    // Return actual date when next transfer window opens
+    const currentDate = this.gameState.currentDate || new Date();
+    const currentMonth = currentDate.getMonth();
+    const currentYear = currentDate.getFullYear();
+    
+    // Summer window: June 10 - August 31
+    // Winter window: January 1 - January 31
+    
+    let nextWindowDate;
+    
+    if (currentMonth >= 5 && currentMonth <= 7) {
+      // Currently summer window or just after - next is winter
+      nextWindowDate = new Date(currentYear + 1, 0, 1); // January 1st next year
+    } else if (currentMonth === 0) {
+      // Currently winter window - next is summer
+      nextWindowDate = new Date(currentYear, 5, 10); // June 10th this year
+    } else if (currentMonth < 5) {
+      // Before summer window - next is summer this year
+      nextWindowDate = new Date(currentYear, 5, 10); // June 10th this year
+    } else {
+      // After summer window - next is winter
+      nextWindowDate = new Date(currentYear + 1, 0, 1); // January 1st next year
+    }
+    
+    return nextWindowDate.toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
   }
 
   // Action methods
@@ -746,26 +1153,78 @@ export class TransferSection extends BaseSection {
       
       if (confirmation) {
         // Simulate successful transfer
-        if (this.gameState.transferMarket?.processTransfer) {
-          const result = this.gameState.transferMarket.processTransfer(player, this.gameState.userTeam, askingPrice);
-          if (result.success) {
-            alert(`✅ Transfer completed!\n${player.name} has joined your team for ${this.formatMoney(askingPrice)}`);
-            this.refreshPlayersList();
-            window.gameUI?.refreshCurrentSection();
-          } else {
-            alert(`❌ Transfer failed: ${result.message}`);
-          }
-        } else {
-          // Fallback simple implementation
-          this.gameState.userTeam.players.push(player);
-          alert(`✅ ${player.name} has joined your team!`);
-          this.refreshPlayersList();
-        }
+        this.completeTransfer(player, askingPrice);
+        alert(`✅ Transfer completed!\n${player.name} has joined your squad for ${this.formatMoney(askingPrice)}`);
+        
+        // Refresh the view
+        this.render(document.querySelector('.main-content'));
       }
-      
     } catch (error) {
-      console.error('❌ Error making bid:', error);
-      alert('Error processing bid. Please try again.');
+      console.error('Error making bid:', error);
+      alert('❌ Transfer failed. Please try again.');
+    }
+  }
+
+  getValueTrend(player) {
+    // Simple logic for value trend - could be enhanced with historical data
+    const age = player.age;
+    const potential = player.potential || player.overall || 50;
+    const current = player.overall || 50;
+    
+    if (age < 23 && potential > current) return 'rising';
+    if (age > 30) return 'declining';
+    return 'stable';
+  }
+
+  getValueTrendText(player) {
+    const trend = this.getValueTrend(player);
+    switch (trend) {
+      case 'rising': return '📈 Rising';
+      case 'declining': return '📉 Declining';
+      default: return '➡️ Stable';
+    }
+  }
+
+  completeTransfer(player, price) {
+    try {
+      // Add player to user team
+      if (this.gameState.userTeam?.players) {
+        // Remove from current team if any
+        const currentClub = this.getPlayerClub(player);
+        if (currentClub?.players) {
+          const playerIndex = currentClub.players.findIndex(p => p.id === player.id);
+          if (playerIndex !== -1) {
+            currentClub.players.splice(playerIndex, 1);
+          }
+        }
+        
+        // Add to user team
+        this.gameState.userTeam.players.push(player);
+        
+        // Update budget (if implemented)
+        if (this.gameState.transferBudget !== undefined) {
+          this.gameState.transferBudget -= price;
+        }
+        
+        // Record the transfer
+        if (!this.gameState.transferHistory) {
+          this.gameState.transferHistory = [];
+        }
+        
+        this.gameState.transferHistory.push({
+          player: player,
+          fromClub: currentClub?.name || 'Free Agent',
+          toClub: this.gameState.userTeam.name,
+          fee: price,
+          date: new Date(),
+          type: 'incoming'
+        });
+        
+        console.log(`✅ Transfer completed: ${player.name} to ${this.gameState.userTeam.name} for ${this.formatMoney(price)}`);
+      }
+    } catch (error) {
+      console.error('Error completing transfer:', error);
+      throw error;
     }
   }
 

@@ -1,23 +1,182 @@
 import { GameState } from './game.js';
 import { GameUI } from './ui/gameUI.js';
 
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('Initializing Football Manager...');
-    
-    // Create main game instance
-    const game = new GameState();
-    
-    // Create UI manager (but don't initialize yet)
-    const gameUI = new GameUI(game);
-    
-    // Initialize the game first, then the UI
-    game.initialize().then(() => {
-        console.log('Game state initialized, setting up UI...');
-        return gameUI.initialize();
-    }).then(() => {
-        console.log('Football Manager initialized successfully');
+// Enhanced error handling and user feedback system
+class ErrorHandler {
+    static showError(message, details = null, recoverable = true) {
+        console.error('Game Error:', message, details);
         
-        // UI will show main menu by default - no need to force dashboard
+        // Create error modal
+        const errorModal = document.createElement('div');
+        errorModal.className = 'error-modal';
+        errorModal.innerHTML = `
+            <div class="error-backdrop">
+                <div class="error-content">
+                    <div class="error-header">
+                        <h2>⚠️ ${recoverable ? 'Error' : 'Critical Error'}</h2>
+                    </div>
+                    <div class="error-body">
+                        <p class="error-message">${message}</p>
+                        ${details ? `<details class="error-details">
+                            <summary>Technical Details</summary>
+                            <pre>${details}</pre>
+                        </details>` : ''}
+                    </div>
+                    <div class="error-actions">
+                        ${recoverable ? `
+                            <button class="retry-btn primary-btn">Try Again</button>
+                            <button class="continue-btn secondary-btn">Continue Anyway</button>
+                        ` : `
+                            <button class="reload-btn primary-btn">Reload Game</button>
+                        `}
+                        <button class="dismiss-btn secondary-btn">Dismiss</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(errorModal);
+        
+        // Setup event handlers
+        const retryBtn = errorModal.querySelector('.retry-btn');
+        const continueBtn = errorModal.querySelector('.continue-btn');
+        const reloadBtn = errorModal.querySelector('.reload-btn');
+        const dismissBtn = errorModal.querySelector('.dismiss-btn');
+        
+        const closeModal = () => {
+            if (document.body.contains(errorModal)) {
+                document.body.removeChild(errorModal);
+            }
+        };
+        
+        retryBtn?.addEventListener('click', () => {
+            closeModal();
+            // Retry the last action if available
+            if (ErrorHandler.lastAction) {
+                ErrorHandler.lastAction();
+            }
+        });
+        
+        continueBtn?.addEventListener('click', closeModal);
+        dismissBtn?.addEventListener('click', closeModal);
+        reloadBtn?.addEventListener('click', () => {
+            window.location.reload();
+        });
+        
+        return errorModal;
+    }
+    
+    static showSuccess(message, duration = 3000) {
+        const notification = document.createElement('div');
+        notification.className = 'success-notification';
+        notification.innerHTML = `
+            <div class="notification-content">
+                <span class="success-icon">✅</span>
+                <span class="success-message">${message}</span>
+            </div>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Auto remove after duration
+        setTimeout(() => {
+            if (document.body.contains(notification)) {
+                notification.classList.add('fade-out');
+                setTimeout(() => {
+                    if (document.body.contains(notification)) {
+                        document.body.removeChild(notification);
+                    }
+                }, 300);
+            }
+        }, duration);
+        
+        return notification;
+    }
+    
+    static showLoading(message = 'Loading...') {
+        const loader = document.createElement('div');
+        loader.className = 'loading-overlay';
+        loader.innerHTML = `
+            <div class="loading-content">
+                <div class="loading-spinner"></div>
+                <div class="loading-message">${message}</div>
+            </div>
+        `;
+        
+        document.body.appendChild(loader);
+        return loader;
+    }
+    
+    static hideLoading(loader) {
+        if (loader && document.body.contains(loader)) {
+            document.body.removeChild(loader);
+        }
+    }
+    
+    static setLastAction(action) {
+        ErrorHandler.lastAction = action;
+    }
+}
+
+// Performance monitoring
+class PerformanceMonitor {
+    static startTiming(label) {
+        console.time(label);
+        performance.mark(`${label}-start`);
+    }
+    
+    static endTiming(label) {
+        console.timeEnd(label);
+        performance.mark(`${label}-end`);
+        performance.measure(label, `${label}-start`, `${label}-end`);
+    }
+    
+    static logMemoryUsage() {
+        if (performance.memory) {
+            console.log('Memory Usage:', {
+                used: Math.round(performance.memory.usedJSHeapSize / 1024 / 1024),
+                total: Math.round(performance.memory.totalJSHeapSize / 1024 / 1024),
+                limit: Math.round(performance.memory.jsHeapSizeLimit / 1024 / 1024)
+            });
+        }
+    }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('🚀 Initializing Football Manager...');
+    PerformanceMonitor.startTiming('game-initialization');
+    
+    const loader = ErrorHandler.showLoading('Initializing game systems...');
+    
+    try {
+        // Create main game instance
+        console.log('📦 Creating game state...');
+        const game = new GameState();
+        
+        // Create UI manager (but don't initialize yet)
+        console.log('🎨 Creating UI manager...');
+        const gameUI = new GameUI(game);
+        
+        // Make gameUI available globally for dashboard and other components
+        window.gameUI = gameUI;
+        
+        // Initialize the game first, then the UI
+        console.log('⚙️ Initializing game state...');
+        ErrorHandler.setLastAction(() => game.initialize());
+        await game.initialize();
+        
+        console.log('🖥️ Setting up user interface...');
+        ErrorHandler.setLastAction(() => gameUI.initialize());
+        gameUI.initialize();
+        
+        ErrorHandler.hideLoading(loader);
+        PerformanceMonitor.endTiming('game-initialization');
+        
+        console.log('✅ Football Manager initialized successfully');
+        ErrorHandler.showSuccess('Football Manager loaded successfully!');
+        
+        // Log initial memory usage
+        PerformanceMonitor.logMemoryUsage();
         
         // Set up responsive design detection
         const checkResponsive = () => {
@@ -38,51 +197,79 @@ document.addEventListener('DOMContentLoaded', () => {
         checkResponsive();
         window.addEventListener('resize', checkResponsive);
         
-        // Set up keyboard shortcuts
+        // Enhanced keyboard shortcuts with error handling
         document.addEventListener('keydown', (e) => {
-            // ESC to exit match mode
-            if (e.key === 'Escape' && gameUI.isMatchMode()) {
-                gameUI.endMatchMode();
-            }
-            
-            // Number keys for navigation (1-5)
-            if (e.key >= '1' && e.key <= '5' && !gameUI.isMatchMode()) {
-                const sections = ['dashboard', 'team', 'fixtures', 'transfers', 'league'];
-                const index = parseInt(e.key) - 1;
-                if (sections[index]) {
-                    gameUI.showSection(sections[index]);
+            try {
+                // ESC to exit match mode
+                if (e.key === 'Escape' && gameUI.isMatchMode()) {
+                    gameUI.endMatchMode();
                 }
+                
+                // Number keys for navigation (1-5)
+                if (e.key >= '1' && e.key <= '5' && !gameUI.isMatchMode()) {
+                    const sections = ['dashboard', 'team', 'fixtures', 'transfers', 'league'];
+                    const index = parseInt(e.key) - 1;
+                    if (sections[index]) {
+                        gameUI.showSection(sections[index]);
+                    }
+                }
+            } catch (keyError) {
+                console.error('Keyboard shortcut error:', keyError);
+                ErrorHandler.showError('Error processing keyboard shortcut', keyError.message);
             }
         });
         
-    }).catch(error => {
-        console.error('Failed to initialize Football Manager:', error);
+        // Set up periodic performance monitoring
+        setInterval(() => {
+            PerformanceMonitor.logMemoryUsage();
+        }, 60000); // Every minute
         
-        // Show error message to user
-        const container = document.querySelector('#center-content') || document.body;
-        container.innerHTML = `
-            <div style="
-                text-align: center; 
-                padding: 40px; 
-                color: #dc3545;
-                background: rgba(220, 53, 69, 0.1);
-                border-radius: 12px;
-                border: 2px solid #dc3545;
-                margin: 20px;
-            ">
-                <h2>⚠️ Initialization Error</h2>
-                <p>Failed to load the game. Please refresh the page and try again.</p>
-                <pre style="color: #ccc; margin-top: 15px; font-size: 12px;">${error.message}</pre>
-            </div>
-        `;
-    });
+        // Auto-save functionality
+        setInterval(() => {
+            try {
+                if (game?.save) {
+                    game.save();
+                    console.log('💾 Auto-save completed');
+                }
+            } catch (saveError) {
+                console.error('Auto-save failed:', saveError);
+            }
+        }, 300000); // Every 5 minutes
+        
+    } catch (error) {
+        console.error('Failed to initialize Football Manager:', error);
+        ErrorHandler.hideLoading(loader);
+        
+        ErrorHandler.showError(
+            'Failed to initialize the game. Please refresh the page and try again.',
+            error.message,
+            false // Not recoverable
+        );
+        
+        PerformanceMonitor.endTiming('game-initialization');
+    }
 });
 
-// Global error handler
+// Enhanced global error handlers
 window.addEventListener('error', (event) => {
     console.error('Global error:', event.error);
+    ErrorHandler.showError(
+        'An unexpected error occurred',
+        event.error?.message || 'Unknown error',
+        true
+    );
 });
 
+// Export error handler for use in other modules
+window.ErrorHandler = ErrorHandler;
+window.PerformanceMonitor = PerformanceMonitor;
+
+// Global promise rejection handler
 window.addEventListener('unhandledrejection', (event) => {
     console.error('Unhandled promise rejection:', event.reason);
+    ErrorHandler.showError(
+        'An asynchronous operation failed',
+        event.reason?.message || 'Promise rejection',
+        true
+    );
 });

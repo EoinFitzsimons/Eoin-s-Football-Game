@@ -1,6 +1,4 @@
 // league.js - League class for Football Manager
-import { Team } from '../team/team.js';
-
 export class League {
   constructor({ name = 'Premier League', teams = [] }) {
     this.name = name;
@@ -75,11 +73,12 @@ export class League {
   }
 
   getStandings() {
-    // Returns the league table sorted by points, then goal difference, then goals for
+    // Returns the league table sorted by points, then goal difference, then goals for, then alphabetically
     return [...this.teams].sort((a, b) =>
       b.points - a.points ||
       (b.goalsFor - b.goalsAgainst) - (a.goalsFor - a.goalsAgainst) ||
-      b.goalsFor - a.goalsFor
+      b.goalsFor - a.goalsFor ||
+      a.name.localeCompare(b.name)
     );
   }
 

@@ -254,42 +254,52 @@ export class PlayerStats {
     this.stats.passing.passesAttempted++;
     
     if (completed) {
-      this.stats.passing.passesCompleted++;
-      
-      // Distance categorization
-      switch (distance) {
-        case 'short':
-          this.stats.passing.shortPasses++;
-          break;
-        case 'medium':
-          this.stats.passing.mediumPasses++;
-          break;
-        case 'long':
-          this.stats.passing.longPasses++;
-          this.stats.passingTypes.longBalls++;
-          this.stats.passingTypes.longBallsCompleted++;
-          break;
-      }
-      
-      if (isProgressive) this.stats.passing.progressivePasses++;
-      if (isKey) this.stats.passing.keyPasses++;
-      if (intoFinalThird) this.stats.passing.passesIntoFinalThird++;
-      if (intoPenaltyArea) this.stats.passing.passesIntoPenaltyArea++;
-    } else {
-      // Incomplete pass
-      if (distance === 'long') {
-        this.stats.passingTypes.longBalls++;
-      }
+      this._recordCompletedPass(distance, isProgressive, isKey, intoFinalThird, intoPenaltyArea);
+    } else if (distance === 'long') {
+      this.stats.passingTypes.longBalls++;
     }
     
     if (underPressure) {
-      this.stats.passingTypes.passesUnderPressure++;
-      if (completed) {
-        this.stats.passingTypes.passesUnderPressureCompleted++;
-      }
+      this._recordPassUnderPressure(completed);
     }
     
     this.calculatePassingStats();
+  }
+
+  _recordCompletedPass(distance, isProgressive, isKey, intoFinalThird, intoPenaltyArea) {
+    this.stats.passing.passesCompleted++;
+    this._recordPassByDistance(distance);
+    this._recordSpecialPassTypes(isProgressive, isKey, intoFinalThird, intoPenaltyArea);
+  }
+
+  _recordPassByDistance(distance) {
+    switch (distance) {
+      case 'short':
+        this.stats.passing.shortPasses++;
+        break;
+      case 'medium':
+        this.stats.passing.mediumPasses++;
+        break;
+      case 'long':
+        this.stats.passing.longPasses++;
+        this.stats.passingTypes.longBalls++;
+        this.stats.passingTypes.longBallsCompleted++;
+        break;
+    }
+  }
+
+  _recordSpecialPassTypes(isProgressive, isKey, intoFinalThird, intoPenaltyArea) {
+    if (isProgressive) this.stats.passing.progressivePasses++;
+    if (isKey) this.stats.passing.keyPasses++;
+    if (intoFinalThird) this.stats.passing.passesIntoFinalThird++;
+    if (intoPenaltyArea) this.stats.passing.passesIntoPenaltyArea++;
+  }
+
+  _recordPassUnderPressure(completed) {
+    this.stats.passingTypes.passesUnderPressure++;
+    if (completed) {
+      this.stats.passingTypes.passesUnderPressureCompleted++;
+    }
   }
 
   recordCross(completed = false) {
@@ -369,12 +379,12 @@ export class PlayerStats {
     }
   }
 
-  recordFoul(committed = true) {
-    if (committed) {
-      this.stats.discipline.foulsCommitted++;
-    } else {
-      this.stats.discipline.foulsSuffered++;
-    }
+  recordFoulCommitted() {
+    this.stats.discipline.foulsCommitted++;
+  }
+
+  recordFoulSuffered() {
+    this.stats.discipline.foulsSuffered++;
   }
 
   // Goalkeeper specific methods

@@ -126,11 +126,14 @@ export class TeamSelectionSection extends BaseSection {
   renderTeamSelection() {
     const teams = this.selectedLeague?.teams || [];
     
+    // Sort teams alphabetically by name
+    const sortedTeams = [...teams].sort((a, b) => a.name.localeCompare(b.name));
+    
     return `
       <div class="team-selection">
         <h3>⚽ Select Your Team from ${this.selectedLeague.name}</h3>
         <div class="teams-grid">
-          ${teams.map(team => `
+          ${sortedTeams.map(team => `
             <div class="team-card" data-team-id="${team.id || team.name}" data-team-name="${team.name}">
               <div class="team-badge">🏟️</div>
               <div class="team-info">

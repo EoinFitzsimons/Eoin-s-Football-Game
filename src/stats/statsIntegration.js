@@ -2,7 +2,6 @@
  * StatsIntegration - Connects match events to comprehensive statistics tracking
  * Integrates with MatchEngine to record detailed player and team statistics
  */
-import { PlayerStats } from './playerStats.js';
 import { TeamStatsManager } from './teamStatsManager.js';
 
 export class StatsIntegration {
@@ -50,8 +49,8 @@ export class StatsIntegration {
 
   startMatch(homeTeam, awayTeam) {
     // Initialize teams if not already done
-    const homeManager = this.initializeTeam(homeTeam);
-    const awayManager = this.initializeTeam(awayTeam);
+    this.initializeTeam(homeTeam);
+    this.initializeTeam(awayTeam);
     
     // Reset real-time stats
     this.realTimeStats = {
@@ -117,8 +116,17 @@ export class StatsIntegration {
     this.realTimeStats.shots[teamSide]++;
   }
 
-  recordPass(passingTeam, passingPlayer, completed = true, distance = 'short', isProgressive = false, 
-            isKey = false, intoFinalThird = false, intoPenaltyArea = false, underPressure = false) {
+  recordPass(passingTeam, passingPlayer, options = {}) {
+    const {
+      completed = true,
+      distance = 'short',
+      isProgressive = false,
+      isKey = false,
+      intoFinalThird = false,
+      intoPenaltyArea = false,
+      underPressure = false
+    } = options;
+    
     const teamManager = this.getTeamManager(passingTeam.id);
     if (teamManager) {
       const player = teamManager.getPlayer(passingPlayer.id);
@@ -228,8 +236,17 @@ export class StatsIntegration {
     if (!homeTeamManager || !awayTeamManager) return null;
     
     // Determine results
-    const homeResult = homeScore > awayScore ? 'win' : homeScore < awayScore ? 'loss' : 'draw';
-    const awayResult = homeScore > awayScore ? 'loss' : homeScore < awayScore ? 'win' : 'draw';
+    let homeResult, awayResult;
+    if (homeScore > awayScore) {
+      homeResult = 'win';
+      awayResult = 'loss';
+    } else if (homeScore < awayScore) {
+      homeResult = 'loss';
+      awayResult = 'win';
+    } else {
+      homeResult = 'draw';
+      awayResult = 'draw';
+    }
     
     // Prepare match performance data
     const homePerformance = this.generateMatchPerformance('home');
@@ -297,15 +314,12 @@ export class StatsIntegration {
   }
 
   generateMatchReport(homeScore, awayScore, duration) {
-    const totalShots = this.realTimeStats.shots.home + this.realTimeStats.shots.away;
-    const totalPasses = this.realTimeStats.passes.home + this.realTimeStats.passes.away;
-    
     return {
       summary: {
         homeScore: homeScore,
         awayScore: awayScore,
         duration: duration,
-        attendance: Math.floor(Math.random() * 30000) + 20000 // Mock attendance
+        attendance: this.calculateAttendance(this.homeTeam, this.awayTeam) // Realistic attendance calculation
       },
       keyStats: {
         shots: {
@@ -439,7 +453,7 @@ export class StatsIntegration {
     });
     
     return allScorers
-      .sort((a, b) => b.goals - a.goals)
+      .toSorted((a, b) => b.goals - a.goals)
       .slice(0, limit);
   }
 
@@ -463,7 +477,7 @@ export class StatsIntegration {
     });
     
     return allAssisters
-      .sort((a, b) => b.assists - a.assists)
+      .toSorted((a, b) => b.assists - a.assists)
       .slice(0, limit);
   }
 
@@ -479,5 +493,48 @@ export class StatsIntegration {
     });
     
     return JSON.stringify(data, null, 2);
+  }
+
+  /**
+   * Calculate realistic attendance based on team popularity, stadium capacity, and form
+   */
+  calculateAttendance(homeTeam, awayTeam) {
+    // Base attendance on stadium capacity
+    const stadiumCapacity = homeTeam.stadiumCapacity || 50000;
+    
+    // Base attendance percentage (40-90% depending on team performance)
+    let attendanceRate = 0.6; // Base 60%
+    
+    // Adjust for home team league position (better position = higher attendance)
+    const homePosition = homeTeam.position || 10;
+    if (homePosition <= 4) {
+      attendanceRate += 0.2; // Top 4 teams get +20%
+    } else if (homePosition <= 10) {
+      attendanceRate += 0.1; // Mid-table teams get +10%
+    } else if (homePosition >= 18) {
+      attendanceRate -= 0.1; // Relegation battle teams lose 10%
+    }
+    
+    // Adjust for recent form
+    const homeForm = homeTeam.recentForm || 'NNNNN';
+    const wins = homeForm.split('').filter(result => result === 'W').length;
+    const formBonus = (wins - 2.5) * 0.05; // Each win above average adds 5%
+    attendanceRate += formBonus;
+    
+    // Adjust for opponent quality (big teams draw bigger crowds)
+    const awayPosition = awayTeam.position || 10;
+    if (awayPosition <= 6) {
+      attendanceRate += 0.05; // Top 6 away teams boost attendance
+    }
+    
+    // Weather and other factors (small random variation)
+    const weatherFactor = 0.95 + (Math.random() * 0.1); // 95-105%
+    
+    // Calculate final attendance
+    const baseAttendance = Math.floor(stadiumCapacity * attendanceRate);
+    const finalAttendance = Math.floor(baseAttendance * weatherFactor);
+    
+    // Ensure it doesn't exceed stadium capacity
+    return Math.min(finalAttendance, stadiumCapacity);
   }
 }
