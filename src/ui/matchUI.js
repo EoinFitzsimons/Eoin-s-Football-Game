@@ -1,463 +1,178 @@
 /**
- * MatchUI - Full-screen immersive match experience
+ * MatchUI - the full-screen playable match: canvas, controls and commentary.
  */
+import { MatchEngine } from '../match/matchEngine.js';
+import { Soundscape } from '../audio/soundscape.js';
+import { updateSettings } from '../settings.js';
 
 export class MatchUI {
   constructor(gameState, fixture) {
     this.gameState = gameState;
     this.fixture = fixture;
-    this.matchEngine = null;
-    this.isPlaying = false;
-    this.isPaused = false;
-    this.currentMinute = 0;
-    this.score = { home: 0, away: 0 };
+    this.engine = null;
+    this.sound = new Soundscape(gameState.settings.soundEnabled);
     this.events = [];
-    this.stats = {
-      shots: { home: 0, away: 0 },
-      possession: { home: 50, away: 50 },
-      corners: { home: 0, away: 0 },
-      fouls: { home: 0, away: 0 }
-    };
-    
-    this.updateInterval = null;
+    this.finished = false;
+    this.onResize = () => this.engine?.resize();
+    this.onKeyUp = e => this.engine?.keyUp(e.key);
   }
 
   render(container) {
-    container.innerHTML = '';
-    
-    const matchContainer = document.createElement('div');
-    matchContainer.className = 'match-container';
-    matchContainer.setAttribute('tabindex', '0');
-    
-    matchContainer.innerHTML = `
-      <div class="match-header">
-        <button id="exit-match" class="exit-btn" aria-label="Exit Match">
-          <span aria-hidden="true">×</span>
-        </button>
-        <h1 class="match-title">
-          ${this.fixture.homeTeam.name} vs ${this.fixture.awayTeam.name}
-        </h1>
-      </div>
-      
-      <div class="match-main">
-        <div class="match-scoreboard">
-          <div class="team-section home-team">
-            <div class="team-badge">${this.getTeamBadge(this.fixture.homeTeam)}</div>
-            <div class="team-name">${this.fixture.homeTeam.name}</div>
-            <div class="team-score" id="home-score">0</div>
+    const { homeTeam, awayTeam } = this.fixture;
+    const userIsHome = homeTeam === this.gameState.userTeam;
+    container.innerHTML = `
+      <div class="match-screen">
+        <header class="match-header">
+          <div class="match-title">
+            <span class="match-competition">${this.gameState.league?.name || 'League'} · Round ${this.fixture.round}</span>
+            <h2>${homeTeam.name} <span class="match-v">v</span> ${awayTeam.name}</h2>
+            <span class="match-you">You manage ${this.gameState.userTeam.name} (${userIsHome ? 'home' : 'away'})</span>
           </div>
-          
-          <div class="match-status">
-            <div class="match-time" id="match-time">0'</div>
-            <div class="match-controls">
-              <button id="play-pause-btn" class="control-btn primary-btn">
-                <span class="play-icon">▶</span>
-                <span class="pause-icon hidden">⏸</span>
-              </button>
-              <button id="skip-btn" class="control-btn secondary-btn">Skip ⏭</button>
-            </div>
+          <div class="match-toolbar">
+            <button id="match-pause" class="match-tool-btn" title="Pause (P)">Pause</button>
+            <button id="match-mute" class="match-tool-btn" aria-pressed="${!this.sound.enabled}" title="Mute (M)">${this.sound.enabled ? 'Sound on' : 'Muted'}</button>
+            <button id="match-quit" class="match-tool-btn danger" title="Abandon and simulate the result">Abandon</button>
           </div>
-          
-          <div class="team-section away-team">
-            <div class="team-badge">${this.getTeamBadge(this.fixture.awayTeam)}</div>
-            <div class="team-name">${this.fixture.awayTeam.name}</div>
-            <div class="team-score" id="away-score">0</div>
+        </header>
+        <div class="match-stage">
+          <canvas id="match-canvas" aria-label="Match pitch"></canvas>
+        </div>
+        <div class="match-lower">
+          <div class="match-controls-card">
+            <h3>Controls</h3>
+            <ul class="controls-list">
+              <li><kbd>Arrows</kbd> / <kbd>WASD</kbd> move the highlighted player</li>
+              <li><kbd>Space</kbd> shoot (aim with the arrows) or tackle a loose ball</li>
+              <li><kbd>Shift</kbd> / <kbd>X</kbd> pass to the teammate you are facing</li>
+              <li><kbd>Ctrl</kbd> / <kbd>C</kbd> sprint &nbsp; <kbd>Q</kbd> switch player &nbsp; <kbd>P</kbd> pause &nbsp; <kbd>M</kbd> mute</li>
+            </ul>
+            <p class="controls-note">Two halves of ${this.gameState.settings.halfLengthMinutes} real minutes each. Your nearest player is picked automatically when the other side has the ball.</p>
+          </div>
+          <div class="match-events-card">
+            <h3>Commentary</h3>
+            <ul id="match-events" class="match-events"></ul>
           </div>
         </div>
-        
-        <div class="match-content">
-          <div class="match-pitch">
-            <canvas id="match-canvas" width="800" height="400"></canvas>
+        <div id="match-result" class="match-result hidden"></div>
+      </div>
+    `;
+
+    const canvas = container.querySelector('#match-canvas');
+    this.engine = new MatchEngine({
+      homeTeam,
+      awayTeam,
+      userTeam: this.gameState.userTeam,
+      canvas,
+      soundscape: this.sound,
+      halfLengthMinutes: this.gameState.settings.halfLengthMinutes,
+      difficulty: this.gameState.settings.difficulty,
+      onEvent: (type, payload) => this.handleEvent(type, payload)
+    });
+
+    container.querySelector('#match-pause').addEventListener('click', () => this.togglePause());
+    container.querySelector('#match-mute').addEventListener('click', () => this.toggleMute());
+    container.querySelector('#match-quit').addEventListener('click', () => this.abandon());
+    window.addEventListener('resize', this.onResize);
+    document.addEventListener('keyup', this.onKeyUp);
+
+    this.engine.start();
+  }
+
+  handleEvent(type, payload) {
+    const names = { home: this.fixture.homeTeam.name, away: this.fixture.awayTeam.name };
+    const line = {
+      kickoff: () => 'Kick-off! The referee gets us under way.',
+      shot: () => `${payload.minute}' Shot from ${payload.player} (${names[payload.side]}).`,
+      save: () => `${payload.minute}' Fine save by ${payload.keeper}.`,
+      goal: () => `${payload.minute}' GOAL! ${payload.player} scores for ${names[payload.side]}. ${payload.score.home}-${payload.score.away}.`,
+      halfTime: () => `Half time: ${names.home} ${payload.score.home}-${payload.score.away} ${names.away}.`,
+      secondHalf: () => 'The second half is under way.',
+      fullTime: () => `Full time: ${names.home} ${payload.score.home}-${payload.score.away} ${names.away}.`,
+      pause: () => (payload.paused ? 'Match paused.' : 'Play resumes.')
+    }[type];
+    if (line) this.addCommentary(line());
+    if (type === 'fullTime') this.finish(payload.result);
+    if (type === 'pause') {
+      const button = document.getElementById('match-pause');
+      if (button) button.textContent = payload.paused ? 'Resume' : 'Pause';
+    }
+  }
+
+  addCommentary(text) {
+    this.events.unshift(text);
+    this.events = this.events.slice(0, 12);
+    const list = document.getElementById('match-events');
+    if (list) list.innerHTML = this.events.map(e => `<li>${e}</li>`).join('');
+  }
+
+  togglePause() {
+    this.engine?.togglePause();
+  }
+
+  toggleMute() {
+    const enabled = !this.sound.enabled;
+    this.sound.setEnabled(enabled);
+    if (enabled) this.sound.startCrowd();
+    this.gameState.settings = updateSettings({ soundEnabled: enabled });
+    const button = document.getElementById('match-mute');
+    if (button) {
+      button.textContent = enabled ? 'Sound on' : 'Muted';
+      button.setAttribute('aria-pressed', String(!enabled));
+    }
+  }
+
+  abandon() {
+    if (this.finished) return;
+    if (!window.confirm('Abandon the match? The result will be simulated instead.')) return;
+    this.engine?.stop();
+    this.finished = true;
+    this.gameState.startMatch(this.fixture.id, 'simulate');
+  }
+
+  finish(result) {
+    if (this.finished) return;
+    this.finished = true;
+    const { homeTeam, awayTeam } = this.fixture;
+    const panel = document.getElementById('match-result');
+    const scorerList = (scorers, side) => scorers.length
+      ? `<ul class="scorer-list ${side}">${scorers.map(s => `<li>${s.player} ${s.minute}'</li>`).join('')}</ul>`
+      : '<p class="no-scorers">No goals</p>';
+    panel.innerHTML = `
+      <div class="match-result-card">
+        <p class="result-label">Full time</p>
+        <h2>${homeTeam.name} <span class="result-score">${result.homeScore} - ${result.awayScore}</span> ${awayTeam.name}</h2>
+        <div class="result-columns">
+          <div>${scorerList(result.homeScorers, 'home')}</div>
+          <div class="result-stats">
+            <p><span>${result.shots.home}</span> Shots <span>${result.shots.away}</span></p>
+            <p><span>${result.possession.home}%</span> Possession <span>${result.possession.away}%</span></p>
           </div>
-          
-          <div class="match-sidebar">
-            <div class="match-events">
-              <h3>Match Events</h3>
-              <div id="events-list" class="events-list"></div>
-            </div>
-            
-            <div class="match-stats">
-              <h3>Match Statistics</h3>
-              <div class="stats-grid">
-                <div class="stat-row">
-                  <span class="stat-label">Shots</span>
-                  <span class="stat-home" id="shots-home">0</span>
-                  <span class="stat-away" id="shots-away">0</span>
-                </div>
-                <div class="stat-row">
-                  <span class="stat-label">Possession</span>
-                  <span class="stat-home" id="possession-home">50%</span>
-                  <span class="stat-away" id="possession-away">50%</span>
-                </div>
-                <div class="stat-row">
-                  <span class="stat-label">Corners</span>
-                  <span class="stat-home" id="corners-home">0</span>
-                  <span class="stat-away" id="corners-away">0</span>
-                </div>
-                <div class="stat-row">
-                  <span class="stat-label">Fouls</span>
-                  <span class="stat-home" id="fouls-home">0</span>
-                  <span class="stat-away" id="fouls-away">0</span>
-                </div>
-              </div>
-            </div>
-          </div>
+          <div>${scorerList(result.awayScorers, 'away')}</div>
         </div>
-      </div>
-      
-      <div class="match-footer">
-        <div class="formations">
-          <div class="formation home-formation">
-            <h4>${this.fixture.homeTeam.name} Formation</h4>
-            <div class="formation-display" id="home-formation">
-              ${this.renderFormation(this.fixture.homeTeam)}
-            </div>
-          </div>
-          
-          <div class="formation away-formation">
-            <h4>${this.fixture.awayTeam.name} Formation</h4>
-            <div class="formation-display" id="away-formation">
-              ${this.renderFormation(this.fixture.awayTeam)}
-            </div>
-          </div>
-        </div>
+        <button id="match-continue" class="primary-btn">Continue</button>
       </div>
     `;
-    
-    container.appendChild(matchContainer);
-    
-    this.setupEventListeners();
-    this.initializeMatch();
-  }
-
-  setupEventListeners() {
-    // Exit match
-    document.getElementById('exit-match').addEventListener('click', () => {
-      this.exitMatch();
+    panel.classList.remove('hidden');
+    panel.querySelector('#match-continue').addEventListener('click', () => {
+      this.sound.click();
+      this.engine?.stop();
+      this.gameState.completeMatch(this.fixture, result);
     });
-    
-    // Play/Pause
-    document.getElementById('play-pause-btn').addEventListener('click', () => {
-      this.togglePlayPause();
-    });
-    
-    // Skip match
-    document.getElementById('skip-btn').addEventListener('click', () => {
-      this.skipMatch();
-    });
-  }
-
-  initializeMatch() {
-    // Initialize match engine or simulation
-    this.setupCanvas();
-    console.log('🎮 Match initialized');
-  }
-
-  setupCanvas() {
-    const canvas = document.getElementById('match-canvas');
-    if (canvas && this.gameState.MatchEngine) {
-      // Initialize 2D match visualization
-      this.matchEngine = new this.gameState.MatchEngine(
-        this.fixture.homeTeam,
-        this.fixture.awayTeam,
-        canvas,
-        this.gameState
-      );
-    }
-  }
-
-  startMatch() {
-    if (this.isPlaying) return;
-    
-    this.isPlaying = true;
-    this.isPaused = false;
-    
-    // Update UI
-    document.querySelector('.play-icon').classList.add('hidden');
-    document.querySelector('.pause-icon').classList.remove('hidden');
-    
-    // Start match simulation
-    this.updateInterval = setInterval(() => {
-      this.updateMatch();
-    }, 1000); // Update every second
-    
-    console.log('⚽ Match started');
-  }
-
-  pauseMatch() {
-    this.isPaused = true;
-    
-    // Update UI
-    document.querySelector('.play-icon').classList.remove('hidden');
-    document.querySelector('.pause-icon').classList.add('hidden');
-    
-    if (this.updateInterval) {
-      clearInterval(this.updateInterval);
-      this.updateInterval = null;
-    }
-    
-    console.log('⏸ Match paused');
-  }
-
-  togglePlayPause() {
-    if (this.isPlaying && !this.isPaused) {
-      this.pauseMatch();
-    } else {
-      this.startMatch();
-    }
-  }
-
-  updateMatch() {
-    if (!this.isPlaying || this.isPaused) return;
-    
-    this.currentMinute++;
-    
-    // Update time display
-    document.getElementById('match-time').textContent = `${this.currentMinute}'`;
-    
-    // Simulate match events
-    this.simulateMatchEvents();
-    
-    // Update canvas if available
-    if (this.matchEngine) {
-      this.matchEngine.update();
-      this.matchEngine.draw();
-    }
-    
-    // End match after 90 minutes
-    if (this.currentMinute >= 90) {
-      this.endMatch();
-    }
-  }
-
-  simulateMatchEvents() {
-    // Simple event simulation - can be enhanced with real match engine
-    const eventChance = Math.random();
-    
-    if (eventChance < 0.02) { // 2% chance per minute
-      this.generateRandomEvent();
-    }
-    
-    // Update stats periodically
-    if (this.currentMinute % 10 === 0) {
-      this.updateMatchStats();
-    }
-  }
-
-  generateRandomEvent() {
-    const events = [
-      { type: 'goal', team: Math.random() < 0.5 ? 'home' : 'away' },
-      { type: 'card', team: Math.random() < 0.5 ? 'home' : 'away', cardType: 'yellow' },
-      { type: 'corner', team: Math.random() < 0.5 ? 'home' : 'away' },
-      { type: 'shot', team: Math.random() < 0.5 ? 'home' : 'away' }
-    ];
-    
-    const event = events[Math.floor(Math.random() * events.length)];
-    event.minute = this.currentMinute;
-    event.player = this.getRandomPlayer(event.team);
-    
-    this.processEvent(event);
-  }
-
-  processEvent(event) {
-    this.events.push(event);
-    
-    // Update score if goal
-    if (event.type === 'goal') {
-      this.score[event.team]++;
-      document.getElementById(`${event.team}-score`).textContent = this.score[event.team];
-    }
-    
-    // Update stats
-    if (event.type === 'shot') {
-      this.stats.shots[event.team]++;
-    } else if (event.type === 'corner') {
-      this.stats.corners[event.team]++;
-    }
-    
-    // Add to events list
-    this.addEventToUI(event);
-  }
-
-  addEventToUI(event) {
-    const eventsList = document.getElementById('events-list');
-    const eventElement = document.createElement('div');
-    eventElement.className = `event-item ${event.type}`;
-    
-    const eventIcon = this.getEventIcon(event.type);
-    const teamName = event.team === 'home' ? this.fixture.homeTeam.name : this.fixture.awayTeam.name;
-    
-    eventElement.innerHTML = `
-      <span class="event-minute">${event.minute}'</span>
-      <span class="event-icon">${eventIcon}</span>
-      <span class="event-description">
-        ${this.getEventDescription(event)} - ${event.player?.name || 'Player'} (${teamName})
-      </span>
-    `;
-    
-    eventsList.insertBefore(eventElement, eventsList.firstChild);
-    
-    // Limit to last 10 events
-    while (eventsList.children.length > 10) {
-      eventsList.removeChild(eventsList.lastChild);
-    }
-  }
-
-  updateMatchStats() {
-    // Update possession (simple simulation)
-    const homeAdvantage = (this.score.home - this.score.away) * 5;
-    this.stats.possession.home = Math.max(20, Math.min(80, 50 + homeAdvantage + (Math.random() - 0.5) * 20));
-    this.stats.possession.away = 100 - this.stats.possession.home;
-    
-    // Update UI
-    document.getElementById('shots-home').textContent = this.stats.shots.home;
-    document.getElementById('shots-away').textContent = this.stats.shots.away;
-    document.getElementById('possession-home').textContent = `${Math.round(this.stats.possession.home)}%`;
-    document.getElementById('possession-away').textContent = `${Math.round(this.stats.possession.away)}%`;
-    document.getElementById('corners-home').textContent = this.stats.corners.home;
-    document.getElementById('corners-away').textContent = this.stats.corners.away;
-  }
-
-  skipMatch() {
-    // Simulate entire match quickly
-    this.pauseMatch();
-    
-    // Generate final score and events
-    const finalScore = this.simulateFinalResult();
-    this.score = finalScore;
-    
-    // Update UI
-    document.getElementById('home-score').textContent = this.score.home;
-    document.getElementById('away-score').textContent = this.score.away;
-    document.getElementById('match-time').textContent = "90'";
-    
-    setTimeout(() => {
-      this.endMatch();
-    }, 1000);
-  }
-
-  simulateFinalResult() {
-    // Simple score simulation
-    const homeGoals = Math.floor(Math.random() * 4);
-    const awayGoals = Math.floor(Math.random() * 4);
-    return { home: homeGoals, away: awayGoals };
-  }
-
-  endMatch() {
-    this.isPlaying = false;
-    
-    if (this.updateInterval) {
-      clearInterval(this.updateInterval);
-      this.updateInterval = null;
-    }
-    
-    // Create match result
-    const result = {
-      fixtureId: this.fixture.id,
-      homeTeam: this.fixture.homeTeam,
-      awayTeam: this.fixture.awayTeam,
-      homeScore: this.score.home,
-      awayScore: this.score.away,
-      events: this.events,
-      stats: this.stats,
-      duration: this.currentMinute
-    };
-    
-    // Trigger match completion
-    if (this.gameState.eventCallbacks.matchCompleted) {
-      this.gameState.eventCallbacks.matchCompleted(result);
-    }
-    
-    console.log('🏁 Match completed:', result);
-  }
-
-  exitMatch() {
-    // Confirm exit if match is in progress
-    if (this.isPlaying && !this.isPaused) {
-      const confirm = window.confirm('Are you sure you want to exit the match? Progress will be lost.');
-      if (!confirm) return;
-    }
-    
-    this.cleanup();
-    
-    // Trigger UI return to main screen
-    if (this.gameState.eventCallbacks.matchExited) {
-      this.gameState.eventCallbacks.matchExited();
-    }
-  }
-
-  // Helper methods
-  getTeamBadge(team) {
-    return team.badge || '⚽';
-  }
-
-  getRandomPlayer(team) {
-    const teamObj = team === 'home' ? this.fixture.homeTeam : this.fixture.awayTeam;
-    const players = teamObj.players || [];
-    return players[Math.floor(Math.random() * players.length)];
-  }
-
-  getEventIcon(eventType) {
-    const icons = {
-      goal: '⚽',
-      card: '🟨',
-      corner: '🚩',
-      shot: '🎯',
-      substitution: '🔄'
-    };
-    return icons[eventType] || '📝';
-  }
-
-  getEventDescription(event) {
-    const descriptions = {
-      goal: 'Goal',
-      card: event.cardType === 'red' ? 'Red Card' : 'Yellow Card',
-      corner: 'Corner Kick',
-      shot: 'Shot',
-      substitution: 'Substitution'
-    };
-    return descriptions[event.type] || 'Event';
-  }
-
-  renderFormation(team) {
-    // Simple formation display
-    const formation = team.formation || '4-4-2';
-    const players = team.players?.slice(0, 11) || [];
-    
-    return `
-      <div class="formation-name">${formation}</div>
-      <div class="formation-players">
-        ${players.slice(0, 5).map(p => `<span class="player-name">${p.name}</span>`).join('')}
-      </div>
-    `;
   }
 
   handleKeyboard(e) {
-    switch (e.key) {
-      case ' ':
-      case 'Enter':
-        e.preventDefault();
-        this.togglePlayPause();
-        break;
-      case 'Escape':
-        this.exitMatch();
-        break;
-      case 's':
-      case 'S':
-        e.preventDefault();
-        this.skipMatch();
-        break;
-    }
+    if (!this.engine) return;
+    if (e.key === 'p' || e.key === 'P') { this.togglePause(); return; }
+    if (e.key === 'm' || e.key === 'M') { this.toggleMute(); return; }
+    if (e.key === 'Enter' && this.finished) { document.getElementById('match-continue')?.click(); return; }
+    if ([' ', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab', 'Shift'].includes(e.key)) e.preventDefault();
+    this.engine.keyDown(e.key);
   }
 
   cleanup() {
-    if (this.updateInterval) {
-      clearInterval(this.updateInterval);
-      this.updateInterval = null;
-    }
-    
-    if (this.matchEngine && this.matchEngine.cleanup) {
-      this.matchEngine.cleanup();
-    }
+    window.removeEventListener('resize', this.onResize);
+    document.removeEventListener('keyup', this.onKeyUp);
+    this.engine?.stop();
+    this.engine = null;
   }
 }

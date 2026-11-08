@@ -1,89 +1,102 @@
-// league.js - League class for Football Manager
+/**
+ * League - a group of teams, a double round-robin schedule and a table.
+ * All standings are kept in team.stats so the table and the UI agree.
+ */
 export class League {
   constructor({ name = 'Premier League', teams = [] }) {
     this.name = name;
-    this.teams = teams; // Array of Team objects
+    this.teams = teams;
     this.fixtures = [];
     this.results = [];
-    this.currentRound = 0;
     this.generateFixtures();
   }
 
+  /**
+   * Double round-robin using the circle method. Each entry of this.fixtures is
+   * one round: an array of { home, away } pairs in which every team appears once.
+   */
   generateFixtures() {
-    // Double round-robin (home/away) fixture generator with calendar dates
     const n = this.teams.length;
     this.fixtures = [];
-    this.calendar = [];
-    let teams = [...this.teams];
+    if (n < 2) return;
+    const rotation = [...this.teams];
+    const firstHalf = [];
     for (let round = 0; round < n - 1; round++) {
-      let roundMatches = [];
+      const roundMatches = [];
       for (let i = 0; i < n / 2; i++) {
-        const home = teams[i];
-        const away = teams[n - 1 - i];
-        roundMatches.push({ home, away });
+        const a = rotation[i];
+        const b = rotation[n - 1 - i];
+        // Alternate home advantage so no team plays every round at home.
+        const homeFirst = (round + i) % 2 === 0;
+        roundMatches.push(homeFirst ? { home: a, away: b } : { home: b, away: a });
       }
-      this.fixtures.push(roundMatches);
-      teams.splice(1, 0, teams.pop());
+      firstHalf.push(roundMatches);
+      rotation.splice(1, 0, rotation.pop());
     }
-    // Second half: reverse home/away
-    const firstHalf = this.fixtures.map(round => round.map(match => ({...match})));
-    const secondHalf = firstHalf.map(round => round.map(({home, away}) => ({home: away, away: home})));
+    const secondHalf = firstHalf.map(round => round.map(({ home, away }) => ({ home: away, away: home })));
     this.fixtures = [...firstHalf, ...secondHalf];
-
-    // Assign dates to each round (e.g., weekly, starting from today)
-    const startDate = new Date();
-    for (let i = 0; i < this.fixtures.length; i++) {
-      let date = new Date(startDate);
-      date.setDate(startDate.getDate() + i * 7); // 1 round per week
-      this.calendar.push({ round: i + 1, date, matches: this.fixtures[i] });
-    }
-  }
-  getCalendar() {
-    // Returns the full match calendar with dates
-    return this.calendar;
-  }
-  getTopScorers() {
-    // Return top 10 scorers in the league
-    let allPlayers = this.teams.flatMap(team => team.players);
-    return allPlayers.sort((a, b) => b.goals - a.goals).slice(0, 10);
   }
 
-  getTopAssists() {
-    // Return top 10 assist providers
-    let allPlayers = this.teams.flatMap(team => team.players);
-    return allPlayers.sort((a, b) => b.assists - a.assists).slice(0, 10);
+  resetTable() {
+    this.results = [];
+    this.teams.forEach(team => {
+      team.stats = { played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points: 0 };
+      team.points = 0;
+      team.goalsFor = 0;
+      team.goalsAgainst = 0;
+    });
   }
 
   recordResult(home, away, homeGoals, awayGoals) {
     this.results.push({ home, away, homeGoals, awayGoals });
-    home.goalsFor += homeGoals;
-    home.goalsAgainst += awayGoals;
-    away.goalsFor += awayGoals;
-    away.goalsAgainst += homeGoals;
-    if (homeGoals > awayGoals) home.points += 3;
-    else if (homeGoals < awayGoals) away.points += 3;
-    else { home.points += 1; away.points += 1; }
+    const update = (team, scored, conceded) => {
+      team.stats = team.stats || { played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points: 0 };
+      team.stats.played++;
+      team.stats.goalsFor += scored;
+      team.stats.goalsAgainst += conceded;
+      if (scored > conceded) { team.stats.won++; team.stats.points += 3; }
+      else if (scored < conceded) { team.stats.lost++; }
+      else { team.stats.drawn++; team.stats.points += 1; }
+      // Mirror onto the flat fields some older code still reads.
+      team.points = team.stats.points;
+      team.goalsFor = team.stats.goalsFor;
+      team.goalsAgainst = team.stats.goalsAgainst;
+    };
+    update(home, homeGoals, awayGoals);
+    update(away, awayGoals, homeGoals);
   }
 
-  getTable() {
-    // Return teams sorted by points, then goal difference
-    return [...this.teams].sort((a, b) =>
-      b.points - a.points || (b.goalsFor - b.goalsAgainst) - (a.goalsFor - a.goalsAgainst)
-    );
+  getTopScorers() {
+    const allPlayers = this.teams.flatMap(team => team.players);
+    return allPlayers
+      .filter(p => (p.stats?.goals || 0) > 0)
+      .sort((a, b) => (b.stats?.goals || 0) - (a.stats?.goals || 0))
+      .slice(0, 10);
+  }
+
+  getTopAssists() {
+    const allPlayers = this.teams.flatMap(team => team.players);
+    return allPlayers
+      .filter(p => (p.stats?.assists || 0) > 0)
+      .sort((a, b) => (b.stats?.assists || 0) - (a.stats?.assists || 0))
+      .slice(0, 10);
   }
 
   getStandings() {
-    // Returns the league table sorted by points, then goal difference, then goals for, then alphabetically
+    const s = team => team.stats || { points: 0, goalsFor: 0, goalsAgainst: 0 };
     return [...this.teams].sort((a, b) =>
-      b.points - a.points ||
-      (b.goalsFor - b.goalsAgainst) - (a.goalsFor - a.goalsAgainst) ||
-      b.goalsFor - a.goalsFor ||
+      s(b).points - s(a).points ||
+      (s(b).goalsFor - s(b).goalsAgainst) - (s(a).goalsFor - s(a).goalsAgainst) ||
+      s(b).goalsFor - s(a).goalsFor ||
       a.name.localeCompare(b.name)
     );
   }
 
+  getTable() {
+    return this.getStandings();
+  }
+
   getPosition(team) {
-    const standings = this.getStandings();
-    return standings.findIndex(t => t.id === team.id) + 1;
+    return this.getStandings().findIndex(t => t.id === team.id) + 1;
   }
 }

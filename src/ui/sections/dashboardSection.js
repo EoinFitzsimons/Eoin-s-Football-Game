@@ -153,9 +153,10 @@ export class DashboardSection extends BaseSection {
             <div class="match-date">${this.formatDate(nextFixture.date)}</div>
             <div class="match-venue">${isHome ? 'Home' : 'Away'}</div>
           </div>
-          <button id="play-next-match" class="primary-btn match-btn">
-            Play Match
-          </button>
+          <div class="match-actions">
+            <button id="play-next-match" class="primary-btn match-btn">Play on the pitch</button>
+            <button id="simulate-next-match" class="secondary-btn match-btn">Simulate</button>
+          </div>
         </div>
       </div>
     `;
@@ -347,9 +348,11 @@ export class DashboardSection extends BaseSection {
         console.log('🎯 Play next match clicked');
         this.playNextMatch();
       });
-    } else {
-      console.warn('⚠️ play-next-match button not found');
     }
+
+    document.getElementById('simulate-next-match')?.addEventListener('click', () => {
+      this.gameState.simulateNextFixture();
+    });
 
     // Continue/Pause simulation buttons
     const continueBtn = document.getElementById('continue-btn');

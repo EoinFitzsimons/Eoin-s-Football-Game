@@ -1,10 +1,17 @@
+/**
+ * MainMenuSection - title screen with a canvas-drawn crest, new game, continue,
+ * settings and a short how-to-play panel.
+ */
 import { BaseSection } from './baseSection.js';
+import { GameState } from '../../game.js';
+import { loadSettings, updateSettings } from '../../settings.js';
 
 export class MainMenuSection extends BaseSection {
   constructor(gameState) {
     super(gameState);
     this.sectionId = 'main-menu';
     this.title = "Eoin's Football Game";
+    this.animationId = null;
   }
 
   getTitle() {
@@ -12,423 +19,248 @@ export class MainMenuSection extends BaseSection {
   }
 
   render(container) {
-    const mainMenu = document.createElement('div');
-    mainMenu.className = 'main-menu-section';
-    
-    mainMenu.innerHTML = `
+    const save = GameState.readSaveSummary();
+    const menu = document.createElement('div');
+    menu.className = 'main-menu-section';
+    menu.innerHTML = `
+      <canvas id="menu-backdrop" class="menu-backdrop" aria-hidden="true"></canvas>
       <div class="main-menu-container">
         <div class="game-logo">
-          <h1>⚽ Eoin's Football Game</h1>
-          <p class="subtitle">Master the Beautiful Game</p>
+          <canvas id="menu-crest" class="menu-crest" width="140" height="140" aria-hidden="true"></canvas>
+          <h1>Eoin's Football Game</h1>
+          <p class="subtitle">Manage the club. Then step onto the pitch.</p>
         </div>
-        
+
         <div class="menu-options">
           <button id="new-game-btn" class="menu-btn primary">
-            <span class="btn-icon">🆕</span>
-            <span class="btn-text">New Game</span>
-            <span class="btn-description">Start your managerial career</span>
+            <span class="btn-text">New career</span>
+            <span class="btn-description">Pick a country, a league and a club</span>
           </button>
-          
-          <button id="load-game-btn" class="menu-btn secondary" disabled>
-            <span class="btn-icon">💾</span>
-            <span class="btn-text">Load Game</span>
-            <span class="btn-description">Continue your journey</span>
+          <button id="load-game-btn" class="menu-btn secondary" ${save ? '' : 'disabled'}>
+            <span class="btn-text">Continue</span>
+            <span class="btn-description">${save ? `${save.teamName} · ${save.leagueName} · ${save.season}/${String(save.season + 1).slice(-2)} · ${save.played} played` : 'No saved career yet'}</span>
           </button>
-          
-          <button id="settings-btn" class="menu-btn secondary" disabled>
-            <span class="btn-icon">⚙️</span>
+          <button id="settings-btn" class="menu-btn secondary">
             <span class="btn-text">Settings</span>
-            <span class="btn-description">Customize your experience</span>
+            <span class="btn-description">Sound, half length and difficulty</span>
           </button>
         </div>
-        
+
+        <div class="menu-howto">
+          <h3>How it works</h3>
+          <p>Run a club through a full league season. Simulate routine fixtures in a click, or take control on the pitch for the big ones: a top-down match with <kbd>Arrows</kbd> to move, <kbd>Space</kbd> to shoot and <kbd>Shift</kbd> to pass.</p>
+        </div>
+
         <div class="menu-footer">
-          <p>Version 1.0.0 | Built with passion for football</p>
+          <p>Everything you see and hear is drawn and synthesised in code. No images, no audio files.</p>
         </div>
       </div>
+      <div id="settings-panel" class="settings-panel hidden"></div>
     `;
 
-    this.setupEventListeners(mainMenu);
-    container.appendChild(mainMenu);
+    menu.querySelector('#new-game-btn').addEventListener('click', () => {
+      if (save && !window.confirm('Starting a new career will replace your saved one. Continue?')) return;
+      this.gameState.eventCallbacks.startTeamSelection?.();
+    });
+    menu.querySelector('#load-game-btn').addEventListener('click', () => this.continueCareer(menu));
+    menu.querySelector('#settings-btn').addEventListener('click', () => this.toggleSettings(menu));
+
+    container.appendChild(menu);
+    this.drawCrest(menu.querySelector('#menu-crest'));
+    this.startBackdrop(menu.querySelector('#menu-backdrop'));
   }
 
-  setupEventListeners(container) {
-    const newGameBtn = container.querySelector('#new-game-btn');
-    const loadGameBtn = container.querySelector('#load-game-btn');
-    const settingsBtn = container.querySelector('#settings-btn');
-
-    newGameBtn.addEventListener('click', () => {
-      console.log('🆕 New Game selected');
-      // Trigger team selection
-      if (this.gameState.eventCallbacks.startTeamSelection) {
-        this.gameState.eventCallbacks.startTeamSelection();
+  async continueCareer(menu) {
+    const button = menu.querySelector('#load-game-btn');
+    button.disabled = true;
+    button.querySelector('.btn-text').textContent = 'Loading…';
+    try {
+      const ok = await this.gameState.loadFromSave();
+      if (ok) {
+        this.gameState.eventCallbacks.teamSelected?.();
+      } else {
+        button.querySelector('.btn-text').textContent = 'Continue';
+        button.querySelector('.btn-description').textContent = 'The save could not be loaded';
       }
-    });
-
-    // Load game functionality
-    loadGameBtn.addEventListener('click', () => {
-      console.log('💾 Loading saved game...');
-      this.showLoadGameDialog();
-    });
-
-    // Settings functionality
-    settingsBtn.addEventListener('click', () => {
-      console.log('⚙️ Opening settings...');
-      this.showSettingsDialog();
-    });
-  }
-
-  showLoadGameDialog() {
-    // Create load game modal
-    const modal = document.createElement('div');
-    modal.className = 'load-game-modal';
-    modal.innerHTML = `
-      <div class="modal-backdrop">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h2>💾 Load Game</h2>
-            <button class="close-btn">&times;</button>
-          </div>
-          <div class="modal-body">
-            ${this.renderSaveSlots()}
-          </div>
-        </div>
-      </div>
-    `;
-    
-    document.body.appendChild(modal);
-    this.setupModalClosing(modal);
-  }
-
-  showSettingsDialog() {
-    // Create settings modal
-    const modal = document.createElement('div');
-    modal.className = 'settings-modal';
-    modal.innerHTML = `
-      <div class="modal-backdrop">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h2>⚙️ Game Settings</h2>
-            <button class="close-btn">&times;</button>
-          </div>
-          <div class="modal-body">
-            ${this.renderSettings()}
-          </div>
-          <div class="modal-footer">
-            <button class="save-settings-btn primary-btn">Save Settings</button>
-            <button class="cancel-btn secondary-btn">Cancel</button>
-          </div>
-        </div>
-      </div>
-    `;
-    
-    document.body.appendChild(modal);
-    this.setupModalClosing(modal);
-    this.setupSettingsHandlers(modal);
-  }
-
-  renderSaveSlots() {
-    const saveSlots = this.getSaveSlots();
-    
-    if (saveSlots.length === 0) {
-      return `
-        <div class="no-saves">
-          <p>No saved games found.</p>
-          <p>Start a new game to create your first save.</p>
-        </div>
-      `;
+    } catch (error) {
+      console.error('Load failed', error);
+      button.querySelector('.btn-description').textContent = 'The save could not be loaded';
     }
-    
-    return `
-      <div class="save-slots">
-        ${saveSlots.map((save, index) => `
-          <div class="save-slot" data-slot="${index}">
-            <div class="save-info">
-              <div class="save-team">${save.teamName}</div>
-              <div class="save-league">${save.leagueName}</div>
-              <div class="save-season">Season ${save.season}</div>
-              <div class="save-date">${new Date(save.saveDate).toLocaleDateString()}</div>
-            </div>
-            <div class="save-actions">
-              <button class="load-btn primary-btn" data-slot="${index}">Load</button>
-              <button class="delete-btn danger-btn" data-slot="${index}">Delete</button>
-            </div>
-          </div>
-        `).join('')}
-      </div>
-    `;
   }
 
-  renderSettings() {
-    const currentSettings = this.getGameSettings();
-    
-    return `
-      <div class="settings-groups">
-        ${this.renderAudioSettings(currentSettings)}
-        ${this.renderGameplaySettings(currentSettings)}
-        ${this.renderDisplaySettings(currentSettings)}
-      </div>
-    `;
-  }
-
-  renderAudioSettings(currentSettings) {
-    return `
-      <div class="setting-group">
-        <h3>Audio Settings</h3>
-        <div class="setting-item">
-          <label for="master-volume">Master Volume:</label>
-          <input type="range" id="master-volume" min="0" max="100" value="${currentSettings.audio.masterVolume}">
-          <span class="volume-display">${currentSettings.audio.masterVolume}%</span>
-        </div>
-        <div class="setting-item">
-          <label for="sound-effects">Sound Effects:</label>
-          <input type="checkbox" id="sound-effects" ${currentSettings.audio.soundEffects ? 'checked' : ''}>
-        </div>
-        <div class="setting-item">
-          <label for="background-music">Background Music:</label>
-          <input type="checkbox" id="background-music" ${currentSettings.audio.backgroundMusic ? 'checked' : ''}>
-        </div>
-      </div>
-    `;
-  }
-
-  renderGameplaySettings(currentSettings) {
-    return `
-      <div class="setting-group">
-        <h3>Gameplay Settings</h3>
-        <div class="setting-item">
-          <label for="match-speed">Default Match Speed:</label>
-          <select id="match-speed">
-            <option value="1" ${currentSettings.gameplay.matchSpeed === 1 ? 'selected' : ''}>1x (Normal)</option>
-            <option value="2" ${currentSettings.gameplay.matchSpeed === 2 ? 'selected' : ''}>2x (Fast)</option>
-            <option value="3" ${currentSettings.gameplay.matchSpeed === 3 ? 'selected' : ''}>3x (Very Fast)</option>
-          </select>
-        </div>
-        <div class="setting-item">
-          <label for="auto-save">Auto-save:</label>
-          <input type="checkbox" id="auto-save" ${currentSettings.gameplay.autoSave ? 'checked' : ''}>
-        </div>
-        <div class="setting-item">
-          <label for="skip-non-user-matches">Skip Non-User Matches:</label>
-          <input type="checkbox" id="skip-non-user-matches" ${currentSettings.gameplay.skipNonUserMatches ? 'checked' : ''}>
-        </div>
-      </div>
-    `;
-  }
-
-  renderDisplaySettings(currentSettings) {
-    return `
-      <div class="setting-group">
-        <h3>Display Settings</h3>
-        <div class="setting-item">
-          <label for="language">Language:</label>
-          <select id="language">
-            <option value="en" ${currentSettings.display.language === 'en' ? 'selected' : ''}>English</option>
-            <option value="es" ${currentSettings.display.language === 'es' ? 'selected' : ''}>Español</option>
-            <option value="fr" ${currentSettings.display.language === 'fr' ? 'selected' : ''}>Français</option>
-            <option value="de" ${currentSettings.display.language === 'de' ? 'selected' : ''}>Deutsch</option>
-          </select>
-        </div>
-        <div class="setting-item">
-          <label for="theme">Theme:</label>
-          <select id="theme">
-            <option value="dark" ${currentSettings.display.theme === 'dark' ? 'selected' : ''}>Dark</option>
-            <option value="light" ${currentSettings.display.theme === 'light' ? 'selected' : ''}>Light</option>
-            <option value="auto" ${currentSettings.display.theme === 'auto' ? 'selected' : ''}>Auto</option>
-          </select>
-        </div>
-        <div class="setting-item">
-          <label for="currency">Currency Display:</label>
-          <select id="currency">
-            <option value="GBP" ${currentSettings.display.currency === 'GBP' ? 'selected' : ''}>£ (Pounds)</option>
-            <option value="EUR" ${currentSettings.display.currency === 'EUR' ? 'selected' : ''}>€ (Euros)</option>
-            <option value="USD" ${currentSettings.display.currency === 'USD' ? 'selected' : ''}>$ (Dollars)</option>
-          </select>
-        </div>
-      </div>
-    `;
-  }
-
-  getSaveSlots() {
-    // Get saved games from localStorage
-    const saves = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key?.startsWith('football_manager_save_')) {
-        try {
-          const saveData = JSON.parse(localStorage.getItem(key));
-          saves.push({
-            slot: key,
-            teamName: saveData.userTeam?.name || 'Unknown Team',
-            leagueName: saveData.league?.name || 'Unknown League',
-            season: saveData.currentSeason || 2024,
-            saveDate: saveData.saveDate || Date.now()
-          });
-        } catch (error) {
-          console.error('Error parsing save data:', error);
-        }
-      }
+  toggleSettings(menu) {
+    const panel = menu.querySelector('#settings-panel');
+    if (!panel.classList.contains('hidden')) {
+      panel.classList.add('hidden');
+      return;
     }
-    
-    return saves.sort((a, b) => new Date(b.saveDate) - new Date(a.saveDate));
-  }
+    const s = loadSettings();
+    panel.innerHTML = `
+      <div class="settings-card">
+        <h2>Settings</h2>
+        <label class="setting-row">
+          <span>Sound</span>
+          <input type="checkbox" id="setting-sound" ${s.soundEnabled ? 'checked' : ''}>
+        </label>
+        <label class="setting-row">
+          <span>Half length</span>
+          <select id="setting-half">
+            <option value="1" ${s.halfLengthMinutes === 1 ? 'selected' : ''}>1 minute</option>
+            <option value="2" ${s.halfLengthMinutes === 2 ? 'selected' : ''}>2 minutes</option>
+            <option value="3" ${s.halfLengthMinutes === 3 ? 'selected' : ''}>3 minutes</option>
+          </select>
+        </label>
+        <label class="setting-row">
+          <span>Difficulty</span>
+          <select id="setting-difficulty">
+            ${['easy', 'normal', 'hard'].map(d => `<option value="${d}" ${s.difficulty === d ? 'selected' : ''}>${d[0].toUpperCase()}${d.slice(1)}</option>`).join('')}
+          </select>
+        </label>
+        <label class="setting-row">
+          <span>Auto-save after every match</span>
+          <input type="checkbox" id="setting-autosave" ${s.autoSave ? 'checked' : ''}>
+        </label>
+        <div class="settings-actions">
+          <button id="settings-done" class="primary-btn">Done</button>
+          ${GameState.hasSave() ? '<button id="settings-delete" class="danger-btn">Delete saved career</button>' : ''}
+        </div>
+      </div>
+    `;
+    panel.classList.remove('hidden');
 
-  getGameSettings() {
-    // Get settings from localStorage or use defaults
-    const defaultSettings = {
-      audio: {
-        masterVolume: 50,
-        soundEffects: true,
-        backgroundMusic: true
-      },
-      gameplay: {
-        matchSpeed: 2,
-        autoSave: true,
-        skipNonUserMatches: false
-      },
-      display: {
-        language: 'en',
-        theme: 'dark',
-        currency: 'GBP'
-      }
+    const apply = () => {
+      this.gameState.settings = updateSettings({
+        soundEnabled: panel.querySelector('#setting-sound').checked,
+        halfLengthMinutes: Number(panel.querySelector('#setting-half').value),
+        difficulty: panel.querySelector('#setting-difficulty').value,
+        autoSave: panel.querySelector('#setting-autosave').checked
+      });
     };
-    
-    try {
-      const savedSettings = localStorage.getItem('football_manager_settings');
-      return savedSettings ? { ...defaultSettings, ...JSON.parse(savedSettings) } : defaultSettings;
-    } catch (error) {
-      console.error('Error loading settings:', error);
-      return defaultSettings;
-    }
+    panel.querySelectorAll('input, select').forEach(el => el.addEventListener('change', apply));
+    panel.querySelector('#settings-done').addEventListener('click', () => panel.classList.add('hidden'));
+    panel.querySelector('#settings-delete')?.addEventListener('click', () => {
+      if (window.confirm('Delete the saved career? This cannot be undone.')) {
+        GameState.deleteSave();
+        window.gameUI.showSection('main-menu');
+      }
+    });
   }
 
-  setupModalClosing(modal) {
-    const closeBtn = modal.querySelector('.close-btn');
-    const backdrop = modal.querySelector('.modal-backdrop');
-    const cancelBtn = modal.querySelector('.cancel-btn');
-    
-    const closeModal = () => {
-      document.body.removeChild(modal);
+  /** A simple club crest: shield, stripes, ball and laurel ticks. */
+  drawCrest(canvas) {
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width;
+    const h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    const shield = () => {
+      ctx.beginPath();
+      ctx.moveTo(w * 0.15, h * 0.12);
+      ctx.lineTo(w * 0.85, h * 0.12);
+      ctx.lineTo(w * 0.85, h * 0.55);
+      ctx.quadraticCurveTo(w * 0.85, h * 0.85, w * 0.5, h * 0.95);
+      ctx.quadraticCurveTo(w * 0.15, h * 0.85, w * 0.15, h * 0.55);
+      ctx.closePath();
     };
-    
-    closeBtn?.addEventListener('click', closeModal);
-    cancelBtn?.addEventListener('click', closeModal);
-    backdrop?.addEventListener('click', (e) => {
-      if (e.target === backdrop) closeModal();
-    });
-    
-    // Close on Escape key
-    const escapeHandler = (e) => {
-      if (e.key === 'Escape') {
-        closeModal();
-        document.removeEventListener('keydown', escapeHandler);
+    shield();
+    ctx.fillStyle = '#1f6f3a';
+    ctx.fill();
+    ctx.save();
+    shield();
+    ctx.clip();
+    ctx.fillStyle = '#ffe66d';
+    for (let i = 0; i < 4; i++) ctx.fillRect(w * (0.15 + i * 0.35), 0, w * 0.09, h);
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.fillRect(0, h * 0.12, w, h * 0.16);
+    ctx.restore();
+    shield();
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#f6f6f6';
+    ctx.stroke();
+
+    ctx.fillStyle = '#f6f6f6';
+    ctx.font = `700 ${Math.round(h * 0.11)}px "Segoe UI", system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('EFG', w / 2, h * 0.2);
+
+    const bx = w / 2;
+    const by = h * 0.58;
+    const r = w * 0.17;
+    ctx.fillStyle = '#fafafa';
+    ctx.beginPath();
+    ctx.arc(bx, by, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#222';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = '#222';
+    ctx.beginPath();
+    for (let i = 0; i < 5; i++) {
+      const a = -Math.PI / 2 + (i * Math.PI * 2) / 5;
+      const px = bx + Math.cos(a) * r * 0.45;
+      const py = by + Math.sin(a) * r * 0.45;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+    for (let i = 0; i < 5; i++) {
+      const a = -Math.PI / 2 + (i * Math.PI * 2) / 5;
+      ctx.beginPath();
+      ctx.moveTo(bx + Math.cos(a) * r * 0.45, by + Math.sin(a) * r * 0.45);
+      ctx.lineTo(bx + Math.cos(a) * r * 0.95, by + Math.sin(a) * r * 0.95);
+      ctx.stroke();
+    }
+  }
+
+  /** Slowly drifting pitch lines behind the menu. */
+  startBackdrop(canvas) {
+    const ctx = canvas.getContext('2d');
+    let t = 0;
+    const draw = () => {
+      canvas.width = canvas.clientWidth;
+      canvas.height = canvas.clientHeight;
+      const { width, height } = canvas;
+      const gradient = ctx.createLinearGradient(0, 0, 0, height);
+      gradient.addColorStop(0, '#173b24');
+      gradient.addColorStop(1, '#0a1a10');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, width, height);
+
+      ctx.save();
+      ctx.translate(width / 2, height / 2);
+      ctx.scale(1.4, 1.4);
+      ctx.rotate(-0.12 + Math.sin(t * 0.0003) * 0.03);
+      ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+      ctx.lineWidth = 3;
+      const pw = Math.max(width, 900) * 0.7;
+      const ph = pw * 0.64;
+      ctx.strokeRect(-pw / 2, -ph / 2, pw, ph);
+      ctx.beginPath(); ctx.moveTo(0, -ph / 2); ctx.lineTo(0, ph / 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(0, 0, ph * 0.14, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeRect(-pw / 2, -ph * 0.3, pw * 0.16, ph * 0.6);
+      ctx.strokeRect(pw / 2 - pw * 0.16, -ph * 0.3, pw * 0.16, ph * 0.6);
+      ctx.restore();
+
+      // A ball rolling across the bottom.
+      const bx = ((t * 0.08) % (width + 80)) - 40;
+      const by = height * 0.9 + Math.sin(t * 0.004) * 4;
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      ctx.beginPath(); ctx.arc(bx, by, 9, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      for (let i = 0; i < 3; i++) {
+        const a = t * 0.006 + (i * Math.PI * 2) / 3;
+        ctx.beginPath(); ctx.arc(bx + Math.cos(a) * 4.5, by + Math.sin(a) * 4.5, 2.2, 0, Math.PI * 2); ctx.fill();
       }
+
+      t += 16;
+      this.animationId = requestAnimationFrame(draw);
     };
-    document.addEventListener('keydown', escapeHandler);
+    draw();
   }
 
-  setupSettingsHandlers(modal) {
-    // Volume slider updates
-    const volumeSlider = modal.querySelector('#master-volume');
-    const volumeDisplay = modal.querySelector('.volume-display');
-    if (volumeSlider && volumeDisplay) {
-      volumeSlider.addEventListener('input', (e) => {
-        volumeDisplay.textContent = `${e.target.value}%`;
-      });
-    }
-    
-    // Save settings button
-    const saveBtn = modal.querySelector('.save-settings-btn');
-    if (saveBtn) {
-      saveBtn.addEventListener('click', () => {
-        this.saveSettings(modal);
-      });
-    }
-    
-    // Load game buttons
-    modal.querySelectorAll('.load-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const slot = e.target.dataset.slot;
-        this.loadGame(slot);
-      });
-    });
-    
-    // Delete save buttons
-    modal.querySelectorAll('.delete-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const slot = e.target.dataset.slot;
-        this.deleteSave(slot);
-      });
-    });
-  }
-
-  saveSettings(modal) {
-    try {
-      const settings = {
-        audio: {
-          masterVolume: parseInt(modal.querySelector('#master-volume').value),
-          soundEffects: modal.querySelector('#sound-effects').checked,
-          backgroundMusic: modal.querySelector('#background-music').checked
-        },
-        gameplay: {
-          matchSpeed: parseInt(modal.querySelector('#match-speed').value),
-          autoSave: modal.querySelector('#auto-save').checked,
-          skipNonUserMatches: modal.querySelector('#skip-non-user-matches').checked
-        },
-        display: {
-          language: modal.querySelector('#language').value,
-          theme: modal.querySelector('#theme').value,
-          currency: modal.querySelector('#currency').value
-        }
-      };
-      
-      localStorage.setItem('football_manager_settings', JSON.stringify(settings));
-      alert('Settings saved successfully!');
-      document.body.removeChild(modal);
-    } catch (error) {
-      console.error('Error saving settings:', error);
-      alert('Error saving settings. Please try again.');
-    }
-  }
-
-  loadGame(slot) {
-    try {
-      const saveSlots = this.getSaveSlots();
-      const saveData = saveSlots[slot];
-      if (saveData) {
-        const gameData = JSON.parse(localStorage.getItem(saveData.slot));
-        // Trigger game load with the callback
-        if (this.onLoadGame) {
-          this.onLoadGame(gameData);
-        }
-        console.log('Game loaded successfully');
-      }
-    } catch (error) {
-      console.error('Error loading game:', error);
-      alert('Error loading game. Save file may be corrupted.');
-    }
-  }
-
-  deleteSave(slot) {
-    try {
-      const saveSlots = this.getSaveSlots();
-      const saveData = saveSlots[slot];
-      if (saveData && confirm(`Delete save: ${saveData.teamName}?`)) {
-        localStorage.removeItem(saveData.slot);
-        // Refresh the modal
-        const modal = document.querySelector('.load-game-modal');
-        if (modal) {
-          const modalBody = modal.querySelector('.modal-body');
-          modalBody.innerHTML = this.renderSaveSlots();
-        }
-      }
-    } catch (error) {
-      console.error('Error deleting save:', error);
-      alert('Error deleting save file.');
-    }
-  }
-
-  handleResize() {
-    // Main menu is responsive by default
+  cleanup() {
+    if (this.animationId) cancelAnimationFrame(this.animationId);
+    this.animationId = null;
   }
 }
