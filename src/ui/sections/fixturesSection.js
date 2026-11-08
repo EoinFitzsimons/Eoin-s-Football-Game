@@ -251,7 +251,7 @@ export class FixturesSection extends BaseSection {
     
     if (this.gameState.matchHistory && opponent.id) {
       const opponentMatches = this.gameState.matchHistory
-        .filter(match => match.homeTeam.id === opponent.id || match.awayTeam.id === opponent.id)
+        .filter(match => match.homeTeam?.id === opponent.id || match.awayTeam?.id === opponent.id)
         .sort((a, b) => new Date(a.date) - new Date(b.date))
         .slice(-5);
       
@@ -427,7 +427,7 @@ export class FixturesSection extends BaseSection {
     try {
       if (this.gameState.startMatch) {
         console.log('🏃‍♂️ Simulating match:', fixtureId);
-        this.gameState.startMatch(fixtureId, false); // Simulate without canvas
+        this.gameState.startMatch(fixtureId, 'simulate');
       } else {
         console.warn('⚠️ startMatch method not available on gameState');
       }
@@ -626,17 +626,12 @@ export class FixturesSection extends BaseSection {
 
   // Helper methods to control when matches can be played/simulated
   canPlayMatch(fixture) {
+    // Fixtures are played in order: only the next unplayed one is available.
     if (fixture.played) return false;
-    
-    const fixtureDate = new Date(fixture.date);
-    const today = new Date(this.gameState.currentDate || new Date());
-    
-    // Only allow matches scheduled for today
-    return fixtureDate.toDateString() === today.toDateString();
+    return this.gameState.getNextFixture()?.id === fixture.id;
   }
 
   canSimulateMatch(fixture) {
-    // Same logic as canPlayMatch - only today's matches
     return this.canPlayMatch(fixture);
   }
 }

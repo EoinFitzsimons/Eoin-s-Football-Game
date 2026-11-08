@@ -13,6 +13,7 @@ import { TransferSection } from './sections/transferSection.js';
 import { FixturesSection } from './sections/fixturesSection.js';
 import { LeagueSection } from './sections/leagueSection.js';
 import { StatsSection } from './sections/statsSection.js';
+import { SeasonSummarySection } from './sections/seasonSummarySection.js';
 
 export class GameUI {
   constructor(gameState) {
@@ -84,7 +85,9 @@ export class GameUI {
       { id: 'transfers', label: 'Transfers', icon: '💰' },
       { id: 'fixtures', label: 'Fixtures', icon: '📅' },
       { id: 'league', label: 'League', icon: '🏆' },
-      { id: 'stats', label: 'Statistics', icon: '📊' }
+      { id: 'stats', label: 'Statistics', icon: '📊' },
+      { id: 'season-summary', label: 'Season', icon: '🗓️' },
+      { id: 'main-menu', label: 'Menu', icon: '☰' }
     ];
 
     this.navigationController = new NavigationController(
@@ -154,6 +157,7 @@ export class GameUI {
       console.error('❌ Error creating StatsSection:', error);
     }
     
+    this.sections['season-summary'] = new SeasonSummarySection(this.gameState);
     console.log('✅ Sections setup completed:', Object.keys(this.sections));
   }
 
@@ -183,7 +187,12 @@ export class GameUI {
 
     // Listen for match end events
     this.gameState.eventCallbacks.matchCompleted = (result) => {
-      this.endMatchMode(result);
+      if (this.isMatchMode) this.endMatchMode(result);
+    };
+
+    this.gameState.eventCallbacks.seasonEnded = () => {
+      // Let the final result settle on screen before switching to the review.
+      setTimeout(() => this.showSection('season-summary'), 400);
     };
 
     // Keyboard navigation
@@ -292,8 +301,8 @@ export class GameUI {
     // Refresh current section to show updated data
     this.showSection(this.currentSection);
     
-    // Show match summary notification
-    this.showMatchSummary(result);
+    // The playable match shows its own full-time card; only simulated results need a toast.
+    if (!result.playedByUser) this.showMatchSummary(result);
     
     console.log('🏁 Exited match mode');
   }
@@ -393,56 +402,12 @@ export class GameUI {
 
   // Public methods for external use
   triggerMatch(fixture) {
-    console.log('🎯 Triggering match:', fixture.id);
-    
-    try {
-      // Validate fixture
-      if (!fixture || !fixture.id) {
-        console.error('❌ Invalid fixture provided');
-        return;
-      }
-
-      // Navigate to fixtures section to show match
-      this.showSection('fixtures');
-      
-      // Start the match using GameState's startMatch method
-      console.log('⚽ Starting match simulation...');
-      const matchResult = this.gameState.startMatch(fixture.id, false); // Use simulation
-      
-      if (matchResult) {
-        console.log('✅ Match started successfully:', matchResult);
-        
-        // Mark fixture as played
-        fixture.played = true;
-        fixture.result = matchResult;
-        
-        // Update match history
-        if (this.gameState.matchHistory) {
-          this.gameState.matchHistory.push({
-            fixture: fixture,
-            result: matchResult,
-            date: new Date()
-          });
-        }
-        
-        // Refresh the fixtures section to show match result
-        setTimeout(() => {
-          this.refreshCurrentSection();
-          console.log('🔄 Fixtures section refreshed with match result');
-        }, 500);
-        
-        // Trigger UI callbacks
-        if (this.gameState.eventCallbacks.matchCompleted) {
-          this.gameState.eventCallbacks.matchCompleted(matchResult);
-        }
-        
-      } else {
-        console.error('❌ Failed to start match - no result returned');
-      }
-      
-    } catch (error) {
-      console.error('❌ Error during match trigger:', error);
+    if (!fixture || !fixture.id) {
+      console.error('Invalid fixture provided');
+      return;
     }
+    if (fixture.played) return;
+    this.gameState.startMatch(fixture.id, 'play');
   }
 
   refreshCurrentSection() {
