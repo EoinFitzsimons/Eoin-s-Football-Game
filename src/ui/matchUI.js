@@ -59,6 +59,7 @@ export class MatchUI {
             <div class="dugout-grid">
               ${this.renderSelect('formation', 'Formation', Object.keys(FORMATIONS).map(f => ({ value: f, label: f })), tactics.formation)}
               ${['mentality', 'tempo', 'pressing', 'width', 'passing'].map(key => this.renderSelect(key, key.charAt(0).toUpperCase() + key.slice(1), TACTIC_OPTIONS[key], tactics[key])).join('')}
+              ${this.renderSelect('setPieceTaker', 'Corner taker', [{ value: '', label: 'Best available' }, ...this.gameState.userTeam.players.filter(p => p.position !== 'GK' && !p.injured).map(p => ({ value: p.id, label: p.name }))], tactics.setPieceTaker || '')}
             </div>
             <p class="controls-note">Two halves of ${this.gameState.settings.halfLengthMinutes} real minute${this.gameState.settings.halfLengthMinutes === 1 ? '' : 's'} each. <kbd>P</kbd> pause &nbsp; <kbd>M</kbd> mute.</p>
           </div>
@@ -95,7 +96,7 @@ export class MatchUI {
     });
     container.querySelectorAll('.dugout-select').forEach(select => {
       select.addEventListener('change', () => {
-        const next = this.gameState.setTactics({ [select.dataset.key]: select.value });
+        const next = this.gameState.setTactics({ [select.dataset.key]: select.value || null });
         this.engine?.setTactics(this.userSide, next);
       });
     });
