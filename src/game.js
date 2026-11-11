@@ -605,13 +605,22 @@ export class GameState {
     });
     // AI clubs' training is replayed from the seed, but only for careers that
     // trained at all; a save from before training existed stays as it was.
+    // seasonsCompleted is bumped when the final fixture is played, before the
+    // next season starts, so a save made in that gap still belongs to the
+    // season whose rounds are in `results`.
+    const seasonsCompleted = data.stats?.seasonsCompleted || 0;
+    const thisSeasonFinished = this.fixtures.length > 0 && this.fixtures.every(f => f.played);
+    const seasonIndex = Math.max(0, seasonsCompleted - (thisSeasonFinished ? 1 : 0));
+    const ageEveryone = () => this.worldSystem.allTeams.forEach(t => t.players.forEach(p => { p.age = (p.age || 20) + 1; }));
     if (data.training) {
-      const seasonsCompleted = data.stats?.seasonsCompleted || 0;
-      for (let season = 0; season < seasonsCompleted; season++) {
+      for (let season = 0; season < seasonIndex; season++) {
         this.rounds.forEach((_, index) => trainAiClubs(league.teams, team, index + 1, this.trainingSeed(season)));
+        ageEveryone();
       }
       const playedRounds = [...new Set(data.results.filter(r => r.user).map(r => r.r))].sort((a, b) => a - b);
-      playedRounds.forEach(round => trainAiClubs(league.teams, team, round, this.trainingSeed(seasonsCompleted)));
+      playedRounds.forEach(round => trainAiClubs(league.teams, team, round, this.trainingSeed(seasonIndex)));
+    } else {
+      for (let season = 0; season < seasonIndex; season++) ageEveryone();
     }
 
     const { matchesPlayedOnPitch, ...savedStats } = data.stats || {};
