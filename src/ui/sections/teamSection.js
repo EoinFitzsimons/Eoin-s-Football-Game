@@ -3,12 +3,17 @@
  */
 
 import { BaseSection } from './baseSection.js';
+import { playerRating, lineupForFormation } from '../../league/matchSimulator.js';
+import { trainingSummary, attributeLabel } from '../../training/training.js';
 
 export class TeamSection extends BaseSection {
   constructor(gameState) {
     super(gameState);
     this.selectedPlayer = null;
-    this.currentFormation = '4-4-2';
+  }
+
+  get currentFormation() {
+    return this.gameState.tactics?.formation || '4-3-3';
   }
 
   getTitle() {
@@ -23,12 +28,7 @@ export class TeamSection extends BaseSection {
       <div class="team-header">
         <h1>${this.gameState.userTeam?.name || 'Your Team'}</h1>
         <div class="team-actions">
-          <select id="formation-selector" class="formation-select">
-            <option value="4-4-2" ${this.currentFormation === '4-4-2' ? 'selected' : ''}>4-4-2</option>
-            <option value="4-3-3" ${this.currentFormation === '4-3-3' ? 'selected' : ''}>4-3-3</option>
-            <option value="3-5-2" ${this.currentFormation === '3-5-2' ? 'selected' : ''}>3-5-2</option>
-            <option value="4-2-3-1" ${this.currentFormation === '4-2-3-1' ? 'selected' : ''}>4-2-3-1</option>
-          </select>
+          <span class="formation-select" title="Change the formation on the Tactics screen">Formation ${this.currentFormation} · set in Tactics</span>
         </div>
       </div>
       
@@ -86,7 +86,7 @@ export class TeamSection extends BaseSection {
               <div class="position-slot" data-position="${pos}" data-line="${lineIndex}" data-slot="${posIndex}">
                 <div class="player-slot">
                   <div class="player-name">${this.getPlayerForPosition(pos)?.name || 'Empty'}</div>
-                  <div class="player-rating">${this.getPlayerForPosition(pos)?.getOverallRating?.() || '--'}</div>
+                  <div class="player-rating">${this.ratingOf(this.getPlayerForPosition(pos))}</div>
                 </div>
               </div>
             `).join('')}
@@ -103,10 +103,8 @@ export class TeamSection extends BaseSection {
         <div class="player-info">
           <div class="player-name">${player.name}</div>
           <div class="player-position">${player.position}</div>
-          <div class="player-rating">${player.getOverallRating?.() || 'N/A'}</div>
-        </div>
-        <div class="player-actions">
-          <button class="substitute-btn" data-player-id="${player.id}">Sub</button>
+          <div class="player-rating">${this.ratingOf(player)}</div>
+          ${this.renderDelta(player)}
         </div>
       </div>
     `).join('');
@@ -124,7 +122,8 @@ export class TeamSection extends BaseSection {
             <div class="player-position">${player.position}</div>
           </div>
           <div class="player-stats">
-            <div class="player-rating">${player.getOverallRating?.() || 'N/A'}</div>
+            <div class="player-rating">${this.ratingOf(player)}</div>
+            ${this.renderDelta(player)}
             <div class="player-age">${player.age}y</div>
           </div>
         </div>
@@ -162,15 +161,16 @@ export class TeamSection extends BaseSection {
         
         <div class="player-ratings">
           <div class="overall-rating">
-            <span class="rating-number">${player.getOverallRating?.() || 'N/A'}</span>
+            <span class="rating-number">${this.ratingOf(player)}</span>
             <span class="rating-label">Overall</span>
+            ${this.renderDelta(player, true)}
           </div>
           
           <div class="key-attributes">
             ${attributes.map(attr => `
               <div class="attribute-item">
                 <span class="attr-name">${this.formatAttributeName(attr.name)}</span>
-                <span class="attr-value">${attr.value}</span>
+                <span class="attr-value">${attr.value}${attr.delta ? `<span class="attr-delta ${attr.delta > 0 ? 'up' : 'down'}">${attr.delta > 0 ? '+' : ''}${attr.delta.toFixed(1)}</span>` : ''}</span>
               </div>
             `).join('')}
           </div>
@@ -214,12 +214,6 @@ export class TeamSection extends BaseSection {
       }
     };
 
-    // Formation selector
-    const formationSelect = document.getElementById('formation-selector');
-    formationSelect?.addEventListener('change', (e) => {
-      this.currentFormation = e.target.value;
-      this.refreshFormationDisplay();
-    });
 
     // Position filters
     document.querySelectorAll('.position-btn').forEach(btn => {
@@ -278,9 +272,15 @@ export class TeamSection extends BaseSection {
         ['CDM', 'CDM'],
         ['LB', 'CB', 'CB', 'RB'],
         ['GK']
+      ],
+      '5-3-2': [
+        ['ST', 'ST'],
+        ['CM', 'CM', 'CM'],
+        ['LB', 'CB', 'CB', 'CB', 'RB'],
+        ['GK']
       ]
     };
-    return formations[formation] || formations['4-4-2'];
+    return formations[formation] || formations['4-3-3'];
   }
 
   getPlayerForPosition(position) {
@@ -302,8 +302,20 @@ export class TeamSection extends BaseSection {
   }
 
   getStartingXI() {
-    const players = this.gameState.userTeam?.players || [];
-    return players.slice(0, 11); // Simple selection - can be enhanced
+    const team = this.gameState.userTeam;
+    return team ? lineupForFormation(team, this.currentFormation) : [];
+  }
+
+  ratingOf(player) {
+    return player ? Math.round(playerRating(player)) : '--';
+  }
+
+  /** Total movement from training since the user took charge, as a coloured badge. */
+  renderDelta(player, withLabel = false) {
+    const { total } = trainingSummary(player);
+    if (Math.abs(total) < 0.05) return '';
+    const text = `${total > 0 ? '+' : ''}${total.toFixed(1)}`;
+    return `<div class="player-delta ${total > 0 ? 'up' : 'down'}" title="Attribute change from training">${text}${withLabel ? ' from training' : ''}</div>`;
   }
 
   getSquadSize() {
@@ -323,21 +335,24 @@ export class TeamSection extends BaseSection {
   getKeyAttributes(player) {
     if (!player.attributes) return [];
     
-    // Get top 5 attributes for the player
-    const attrs = Object.entries(player.attributes);
-    attrs.sort((a, b) => b[1] - a[1]);
-    
-    return attrs.slice(0, 5).map(([name, value]) => ({
+    // The player's five best attributes, plus anything training has moved most.
+    const deltas = player.trainingDeltas || {};
+    const attrs = Object.entries(player.attributes).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([name]) => name);
+    Object.entries(deltas)
+      .filter(([, d]) => Math.abs(d) >= 0.5)
+      .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+      .slice(0, 3)
+      .forEach(([name]) => { if (!attrs.includes(name)) attrs.push(name); });
+
+    return attrs.map(name => ({
       name,
-      value: Math.round(value)
+      value: Math.round(player.attributes[name]),
+      delta: Math.abs(deltas[name] || 0) >= 0.05 ? deltas[name] : 0
     }));
   }
 
   formatAttributeName(attrName) {
-    // Convert camelCase to readable format
-    return attrName.replace(/([A-Z])/g, ' $1')
-      .replace(/^./, str => str.toUpperCase())
-      .trim();
+    return attributeLabel(attrName);
   }
 
   selectPlayer(playerId) {

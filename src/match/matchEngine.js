@@ -1,16 +1,21 @@
 /**
- * MatchEngine - the playable top-down football match.
+ * MatchEngine - the top-down football match the manager watches.
  *
  * Everything is simulated in metres on a 105 x 68 pitch and drawn to a canvas
- * each frame. One player on the user's side is keyboard controlled; the other
- * twenty-one are driven by simple role-based AI. Halves last a few real
- * minutes and the on-screen clock is scaled to 45 minutes each.
+ * each frame. All twenty-two players are driven by role-based AI; the manager
+ * never moves anyone directly. What the user does control is each side's
+ * tactics (formation, mentality, tempo, pressing, width, passing style and the
+ * set-piece taker), which tacticModifiers() turns into the numbers the AI
+ * reads, and the attributes the players bring from training. Halves last a few
+ * real minutes and the on-screen clock is scaled to 45 minutes each; the match
+ * can be paused, sped up or skipped to full time.
  *
  * All of the art (pitch, kits, ball, scoreboard) is drawn in code; there are no
  * image assets.
  */
 
-import { startingEleven } from '../league/matchSimulator.js';
+import { startingEleven, sortForFormation } from '../league/matchSimulator.js';
+import { formationSlots, formationRoleCounts, normaliseTactics, tacticModifiers, describeTactics } from '../tactics/tactics.js';
 
 export const PITCH = Object.freeze({
   length: 105,
@@ -24,39 +29,14 @@ export const PITCH = Object.freeze({
   penaltySpot: 11
 });
 
-const FORMATION_433 = [
-  { role: 'GK', x: 0.04, y: 0.5 },
-  { role: 'DEF', x: 0.2, y: 0.18 },
-  { role: 'DEF', x: 0.17, y: 0.4 },
-  { role: 'DEF', x: 0.17, y: 0.6 },
-  { role: 'DEF', x: 0.2, y: 0.82 },
-  { role: 'MID', x: 0.38, y: 0.3 },
-  { role: 'MID', x: 0.35, y: 0.5 },
-  { role: 'MID', x: 0.38, y: 0.7 },
-  { role: 'FWD', x: 0.56, y: 0.22 },
-  { role: 'FWD', x: 0.6, y: 0.5 },
-  { role: 'FWD', x: 0.56, y: 0.78 }
-];
-
 const DIFFICULTY = {
   easy: { aiSpeed: 0.82, aiAccuracy: 0.7, tackle: 0.35 },
   normal: { aiSpeed: 0.95, aiAccuracy: 0.85, tackle: 0.5 },
   hard: { aiSpeed: 1.08, aiAccuracy: 1, tackle: 0.65 }
 };
 
-const KEYS = {
-  up: ['ArrowUp', 'w', 'W'],
-  down: ['ArrowDown', 's', 'S'],
-  left: ['ArrowLeft', 'a', 'A'],
-  right: ['ArrowRight', 'd', 'D'],
-  shoot: [' ', 'Spacebar'],
-  pass: ['Shift', 'x', 'X'],
-  switch: ['q', 'Q', 'Tab'],
-  sprint: ['Control', 'c', 'C']
-};
-
 export class MatchEngine {
-  constructor({ homeTeam, awayTeam, userTeam, canvas, soundscape = null, halfLengthMinutes = 2, difficulty = 'normal', onEvent = () => {} }) {
+  constructor({ homeTeam, awayTeam, userTeam, homeTactics = null, awayTactics = null, canvas, soundscape = null, halfLengthMinutes = 2, difficulty = 'normal', onEvent = () => {} }) {
     this.homeTeam = homeTeam;
     this.awayTeam = awayTeam;
     this.userSide = userTeam === awayTeam ? 'away' : 'home';
@@ -64,7 +44,12 @@ export class MatchEngine {
     this.ctx = canvas.getContext('2d');
     this.sound = soundscape;
     this.onEvent = onEvent;
+    // Difficulty only ever strengthens the opposition's AI, never the user's side.
     this.difficulty = DIFFICULTY[difficulty] || DIFFICULTY.normal;
+    this.tactics = { home: normaliseTactics(homeTactics), away: normaliseTactics(awayTactics) };
+    this.modifiers = { home: tacticModifiers(this.tactics.home), away: tacticModifiers(this.tactics.away) };
+    this.speed = 1;
+    this.cornerTaker = null;
 
     this.halfSeconds = Math.max(30, halfLengthMinutes * 60);
     this.half = 1;
@@ -83,10 +68,6 @@ export class MatchEngine {
     this.homeAttacksRight = true;
     this.kits = { home: buildKit(homeTeam.color, '#ffffff'), away: buildKit(awayTeam.color, homeTeam.color) };
 
-    this.keys = new Set();
-    this.controlled = null;
-    this.switchCooldown = 0;
-
     this.ball = { x: PITCH.length / 2, y: PITCH.width / 2, vx: 0, vy: 0, owner: null, spin: 0 };
     this.players = [...this.createPlayers(homeTeam, 'home'), ...this.createPlayers(awayTeam, 'away')];
     this.lastFrame = null;
@@ -102,13 +83,18 @@ export class MatchEngine {
   // ---------------------------------------------------------------------------
 
   createPlayers(team, side) {
+    const formation = this.tactics[side].formation;
     const eleven = startingEleven(team);
-    const sorted = sortForFormation(eleven);
-    return FORMATION_433.map((slot, index) => {
+    const sorted = sortForFormation(eleven, formation);
+    return formationSlots(formation).map((slot, index) => {
       const source = sorted[index];
       const attrs = source?.attributes || {};
+      // Tired legs from an intense training week show up as a slower player.
+      const fitness = 1 - Math.min(100, Math.max(0, source?.fatigue ?? 0)) / 100 * 0.2;
       return {
         side,
+        id: source?.id || null,
+        position: source?.position || slot.role,
         role: slot.role,
         slot,
         name: source?.name || `${team.name} ${index + 1}`,
@@ -118,16 +104,54 @@ export class MatchEngine {
         vx: 0,
         vy: 0,
         facing: side === 'home' ? 0 : Math.PI,
-        speed: 5.2 + ((attrs.pace ?? 60) / 100) * 2.8,              // metres per second
+        speed: (5.2 + ((attrs.pace ?? 60) / 100) * 2.8) * fitness,  // metres per second
         skill: ((attrs.technique ?? 60) + (attrs.passing ?? 60)) / 200,
         finishing: (attrs.finishing ?? 60) / 100,
         tackling: (attrs.tackling ?? 60) / 100,
         keeping: ((attrs.gkreflexes ?? 60) + (attrs.gkpositioning ?? 60)) / 200,
+        setPieces: ((attrs.corner ?? 50) + (attrs.setpiece ?? 50)) / 200,
+        heading: (attrs.heading ?? 50) / 100,
         kickCooldown: 0,
-        decisionTimer: Math.random() * 0.3,
-        isUser: side === this.userSide
+        decisionTimer: Math.random() * 0.3
       };
     });
+  }
+
+  /**
+   * Change a side's tactics, including mid-match. A new formation re-slots the
+   * players on the pitch without moving them; they walk into the new shape.
+   */
+  setTactics(side, tactics) {
+    const next = normaliseTactics(tactics);
+    const previous = this.tactics[side];
+    this.tactics[side] = next;
+    this.modifiers[side] = tacticModifiers(next);
+    if (next.formation !== previous.formation) {
+      const slots = formationSlots(next.formation);
+      const onPitch = this.players.filter(p => p.side === side);
+      const ordered = sortForFormation(onPitch, next.formation);
+      slots.forEach((slot, index) => {
+        const player = ordered[index];
+        if (!player) return;
+        player.slot = slot;
+        player.role = slot.role;
+      });
+    }
+    this.onEvent('tactics', { side, tactics: next, summary: describeTactics(next) });
+  }
+
+  isUserSide(side) {
+    return side === this.userSide;
+  }
+
+  setPieceTakerFor(side) {
+    const wanted = this.tactics[side].setPieceTaker;
+    const candidates = this.players.filter(p => p.side === side && p.role !== 'GK');
+    if (wanted) {
+      const chosen = candidates.find(p => p.id === wanted);
+      if (chosen) return chosen;
+    }
+    return candidates.sort((a, b) => b.setPieces - a.setPieces)[0] || null;
   }
 
   attacksRight(side) {
@@ -145,11 +169,16 @@ export class MatchEngine {
 
   homePosition(player, ballX = this.ball.x) {
     const right = this.attacksRight(player.side);
-    // Formation spot, nudged along the pitch towards the ball to keep the team compact.
-    const baseX = player.slot.x * PITCH.length;
-    const shift = (ballX - PITCH.length / 2) * (player.role === 'GK' ? 0 : 0.35);
+    const m = this.modifiers[player.side];
+    const keeper = player.role === 'GK';
+    // Formation spot, pushed up or back by the mentality and nudged along the
+    // pitch towards the ball to keep the team compact. Width stretches or
+    // squeezes the shape around the centre line.
+    const baseX = (player.slot.x + (keeper ? 0 : m.lineShift)) * PITCH.length;
+    const shift = (ballX - PITCH.length / 2) * (keeper ? 0 : m.ballFollow);
     const x = right ? baseX + shift : PITCH.length - baseX + shift;
-    const y = player.slot.y * PITCH.width + (this.ball.y - PITCH.width / 2) * (player.role === 'GK' ? 0 : 0.2);
+    const spread = keeper ? 1 : m.widthScale;
+    const y = PITCH.width / 2 + (player.slot.y - 0.5) * PITCH.width * spread + (this.ball.y - PITCH.width / 2) * (keeper ? 0 : 0.2);
     return { x: clamp(x, 1, PITCH.length - 1), y: clamp(y, 1, PITCH.width - 1) };
   }
 
@@ -171,7 +200,9 @@ export class MatchEngine {
       player.kickCooldown = 0;
     });
 
-    const kicker = this.players.find(p => p.side === kickingSide && p.role === 'FWD' && Math.abs(p.slot.y - 0.5) < 0.01);
+    const kicker = this.players
+      .filter(p => p.side === kickingSide && p.role === 'FWD')
+      .sort((a, b) => Math.abs(a.slot.y - 0.5) - Math.abs(b.slot.y - 0.5))[0];
     if (kicker) {
       kicker.x = PITCH.length / 2 + (this.attacksRight(kickingSide) ? -1.2 : 1.2);
       kicker.y = PITCH.width / 2;
@@ -179,7 +210,7 @@ export class MatchEngine {
     this.phase = 'kickoff';
     this.phaseTimer = 1.2;
     this.kickingSide = kickingSide;
-    this.pickControlledPlayer(true);
+    this.cornerTaker = null;
   }
 
   // ---------------------------------------------------------------------------
@@ -194,7 +225,7 @@ export class MatchEngine {
       if (!this.running) return;
       const dt = Math.min(0.05, (now - this.lastFrame) / 1000);
       this.lastFrame = now;
-      if (!this.paused) this.update(dt);
+      if (!this.paused) this.advance(dt * this.speed);
       this.draw();
       this.rafId = requestAnimationFrame(frame);
     };
@@ -214,6 +245,38 @@ export class MatchEngine {
     if (this.phase === 'fullTime') return;
     this.paused = !this.paused;
     this.onEvent('pause', { paused: this.paused });
+  }
+
+  /** Playback speed: 1, 2 or 4 times real time. The physics step stays small. */
+  setSpeed(multiplier) {
+    this.speed = [1, 2, 4].includes(multiplier) ? multiplier : 1;
+    this.onEvent('speed', { speed: this.speed });
+  }
+
+  /** Step the simulation forward by `seconds`, in sub-steps the physics can cope with. */
+  advance(seconds) {
+    let remaining = seconds;
+    while (remaining > 0 && this.phase !== 'fullTime') {
+      const step = Math.min(0.025, remaining);
+      this.update(step);
+      remaining -= step;
+    }
+  }
+
+  /** Run the rest of the match instantly (silently) and show the final whistle. */
+  skipToEnd() {
+    if (this.phase === 'fullTime') return;
+    const sound = this.sound;
+    this.sound = null;
+    this.paused = false;
+    let guard = 0;
+    while (this.phase !== 'fullTime' && guard++ < 200000) {
+      if (this.phase === 'halfTime') this.startSecondHalf();
+      this.update(0.025);
+    }
+    this.sound = sound;
+    this.sound?.whistle('fullTime');
+    this.draw();
   }
 
   resize() {
@@ -240,53 +303,10 @@ export class MatchEngine {
   }
 
   // ---------------------------------------------------------------------------
-  // Input
-  // ---------------------------------------------------------------------------
-
-  keyDown(key) {
-    this.keys.add(key);
-    if (KEYS.switch.includes(key)) this.pickControlledPlayer(true);
-  }
-
-  keyUp(key) {
-    this.keys.delete(key);
-  }
-
-  isDown(action) {
-    return KEYS[action].some(k => this.keys.has(k));
-  }
-
-  inputVector() {
-    let dx = 0;
-    let dy = 0;
-    if (this.isDown('left')) dx -= 1;
-    if (this.isDown('right')) dx += 1;
-    if (this.isDown('up')) dy -= 1;
-    if (this.isDown('down')) dy += 1;
-    const length = Math.hypot(dx, dy) || 1;
-    return { x: dx / length, y: dy / length, active: dx !== 0 || dy !== 0 };
-  }
-
-  pickControlledPlayer(force = false) {
-    if (!force && this.switchCooldown > 0) return;
-    const candidates = this.players.filter(p => p.isUser && p.role !== 'GK');
-    if (this.ball.owner && this.ball.owner.isUser && this.ball.owner.role !== 'GK') {
-      this.controlled = this.ball.owner;
-    } else {
-      candidates.sort((a, b) => distance(a, this.ball) - distance(b, this.ball));
-      // Q cycles to the next nearest so the user can choose a different runner.
-      const nearest = candidates[0];
-      this.controlled = force && this.controlled === nearest && candidates[1] ? candidates[1] : nearest;
-    }
-    this.switchCooldown = 0.4;
-  }
-
-  // ---------------------------------------------------------------------------
   // Update
   // ---------------------------------------------------------------------------
 
   update(dt) {
-    this.switchCooldown = Math.max(0, this.switchCooldown - dt);
     if (this.messageTimer > 0) {
       this.messageTimer -= dt;
       if (this.messageTimer <= 0) this.message = null;
@@ -296,7 +316,7 @@ export class MatchEngine {
 
     if (this.phase === 'halfTime') {
       this.phaseTimer -= dt;
-      if (this.phaseTimer <= 0 || this.isDown('shoot')) this.startSecondHalf();
+      if (this.phaseTimer <= 0) this.startSecondHalf();
       return;
     }
 
@@ -317,7 +337,7 @@ export class MatchEngine {
         }
       } else if (this.phase !== 'goal') {
         // Let the players walk into position during the pause.
-        this.players.forEach(p => this.steerTowards(p, this.phase === 'kickoff' ? { x: p.x, y: p.y } : this.homePosition(p), dt, 0.6));
+        this.players.forEach(p => this.steerTowards(p, this.phase === 'kickoff' ? { x: p.x, y: p.y } : this.restartTarget(p), dt, 0.6));
         return;
       } else {
         return;
@@ -332,7 +352,6 @@ export class MatchEngine {
 
     if (this.ball.owner) this.possessionTicks[this.ball.owner.side] += dt;
 
-    this.updateUserPlayer(dt);
     this.updateAI(dt);
     this.updateBall(dt);
     this.resolveCollisions();
@@ -374,7 +393,7 @@ export class MatchEngine {
       awayScorers: this.scorers.away,
       shots: { ...this.shots },
       possession: this.possessionShare(),
-      playedByUser: true
+      watched: true
     };
   }
 
@@ -389,89 +408,19 @@ export class MatchEngine {
     this.messageTimer = seconds;
   }
 
-  // --- User -----------------------------------------------------------------
-
-  updateUserPlayer(dt) {
-    if (!this.controlled || !this.controlled.isUser) this.pickControlledPlayer(true);
-    const player = this.controlled;
-    if (!player) return;
-    if (!this.ball.owner || !this.ball.owner.isUser) this.pickControlledPlayer();
-
-    const input = this.inputVector();
-    const sprint = this.isDown('sprint') ? 1.18 : 1;
-    const hasBall = this.ball.owner === player;
-    const speed = player.speed * sprint * (hasBall ? 0.86 : 1);
-
-    // If the user leaves the controls alone, the highlighted player keeps the
-    // game moving on his own rather than standing on the ball.
-    this.userIdle = input.active || this.isDown('shoot') || this.isDown('pass') ? 0 : (this.userIdle || 0) + dt;
-    if (this.userIdle > 1.5) {
-      player.kickCooldown = Math.max(0, player.kickCooldown - dt);
-      player.decisionTimer -= dt;
-      if (hasBall) this.aiWithBall(player, dt, 1);
-      else this.steerTowards(player, distance(player, this.ball) < 12 ? this.ball : this.homePosition(player), dt, 0.9);
-      return;
-    }
-
-    if (input.active) {
-      player.vx = input.x * speed;
-      player.vy = input.y * speed;
-      player.facing = Math.atan2(input.y, input.x);
-    } else {
-      player.vx *= 0.75;
-      player.vy *= 0.75;
-    }
-    player.x = clamp(player.x + player.vx * dt, -1, PITCH.length + 1);
-    player.y = clamp(player.y + player.vy * dt, -1, PITCH.width + 1);
-
-    if (hasBall) {
-      if (this.isDown('shoot') && player.kickCooldown <= 0) {
-        this.userShoot(player, input);
-      } else if (this.isDown('pass') && player.kickCooldown <= 0) {
-        this.userPass(player, input);
-      }
-    } else if (this.isDown('shoot') && player.kickCooldown <= 0 && distance(player, this.ball) < 1.6) {
-      // A first-time kick or tackle on a loose ball.
-      this.kickBall(player, player.facing, 18);
-    }
-  }
-
-  userShoot(player, input) {
-    const goal = this.goalFor(player.side);
-    let angle = Math.atan2(goal.y - player.y, goal.x - player.x);
-    if (input.active) {
-      // Aim with the stick: blend towards the goal so shots stay on target-ish.
-      const aim = Math.atan2(input.y, input.x);
-      angle = lerpAngle(angle, aim, 0.45);
-    }
-    const dist = distance(player, goal);
-    const power = clamp(16 + (dist / PITCH.length) * 26, 16, 30);
-    this.shoot(player, angle, power);
-  }
-
-  userPass(player, input) {
-    const teammates = this.players.filter(p => p.side === player.side && p !== player);
-    let target = null;
-    if (input.active) {
-      const aim = Math.atan2(input.y, input.x);
-      target = teammates
-        .map(p => ({ p, score: angleDiff(aim, Math.atan2(p.y - player.y, p.x - player.x)) + distance(p, player) / 60 }))
-        .sort((a, b) => a.score - b.score)[0]?.p;
-    } else {
-      target = this.bestPassOption(player);
-    }
-    if (target) this.passTo(player, target);
-  }
-
   // --- AI -------------------------------------------------------------------
 
   updateAI(dt) {
     const owner = this.ball.owner;
+    const chasersBySide = {
+      home: this.chasers('home', owner),
+      away: this.chasers('away', owner)
+    };
     this.players.forEach(player => {
-      if (player === this.controlled && player.isUser) return;
       player.kickCooldown = Math.max(0, player.kickCooldown - dt);
       player.decisionTimer -= dt;
-      const aiFactor = player.isUser ? 1 : this.difficulty.aiSpeed;
+      const aiFactor = this.isUserSide(player.side) ? 1 : this.difficulty.aiSpeed;
+      const m = this.modifiers[player.side];
 
       if (player.role === 'GK') {
         this.updateGoalkeeper(player, dt, aiFactor);
@@ -487,57 +436,96 @@ export class MatchEngine {
       const home = this.homePosition(player);
 
       if (teamHasBall) {
-        // Support: push up towards the attacking goal and spread out.
         const goal = this.goalFor(player.side);
-        const target = {
-          x: lerp(home.x, goal.x, player.role === 'FWD' ? 0.5 : player.role === 'MID' ? 0.3 : 0.1),
-          y: home.y
-        };
-        this.steerTowards(player, target, dt, 0.8 * aiFactor);
-      } else {
-        // Defend: the two nearest outfield players chase, the rest hold shape.
-        const chasers = this.players
-          .filter(p => p.side === player.side && p.role !== 'GK' && !(p === this.controlled && p.isUser))
-          .sort((a, b) => distance(a, this.ball) - distance(b, this.ball))
-          .slice(0, owner ? 2 : 1);
-        if (chasers.includes(player)) {
-          this.steerTowards(player, this.ball, dt, 0.95 * aiFactor);
-          if (owner && owner.side !== player.side && distance(player, owner) < 1.4 && player.kickCooldown <= 0) {
-            this.attemptTackle(player, owner);
-          } else if (!owner && distance(player, this.ball) < 1.7 && player.kickCooldown <= 0) {
-            this.takePossession(player);
-          }
-        } else {
-          const goal = this.ownGoal(player.side);
-          const target = { x: lerp(home.x, goal.x, 0.12), y: home.y };
-          this.steerTowards(player, target, dt, 0.8 * aiFactor);
+        if (this.cornerTaker && this.cornerTaker.side === player.side) {
+          this.steerTowards(player, this.restartTarget(player), dt, 0.8 * aiFactor);
+          return;
         }
+        // Support: push up towards the attacking goal; how far depends on the mentality.
+        const base = player.role === 'FWD' ? 0.5 : player.role === 'MID' ? 0.3 : 0.1;
+        const target = { x: lerp(home.x, goal.x, Math.min(0.85, base * m.supportRun)), y: home.y };
+        this.steerTowards(player, target, dt, 0.8 * aiFactor);
+      } else if (this.cornerTaker && this.cornerTaker.side !== player.side) {
+        // Defend the corner: mark space in the box.
+        this.steerTowards(player, this.restartTarget(player), dt, 0.8 * aiFactor);
+      } else if (chasersBySide[player.side].includes(player)) {
+        // Press: the number of players who hunt the ball is set by the pressing instruction.
+        this.steerTowards(player, this.ball, dt, 0.95 * aiFactor);
+        if (owner && owner.side !== player.side && distance(player, owner) < 1.4 && player.kickCooldown <= 0) {
+          this.attemptTackle(player, owner);
+        } else if (!owner && distance(player, this.ball) < 1.7 && player.kickCooldown <= 0) {
+          this.takePossession(player);
+        }
+      } else {
+        // Hold shape, dropping a little towards goal; a low block drops further.
+        const goal = this.ownGoal(player.side);
+        const drop = 0.12 - m.lineShift;
+        const target = { x: lerp(home.x, goal.x, drop), y: home.y };
+        this.steerTowards(player, target, dt, 0.8 * aiFactor);
       }
     });
   }
 
+  /** Where a player heads while play is stopped: the box for a corner, otherwise their shape. */
+  restartTarget(player) {
+    if (this.cornerTaker && player !== this.cornerTaker && player.role !== 'GK') {
+      const attacking = this.cornerTaker.side === player.side;
+      if (attacking && player.role === 'DEF') return this.homePosition(player);
+      const goal = this.goalFor(this.cornerTaker.side);
+      const inward = this.attacksRight(this.cornerTaker.side) ? -1 : 1;
+      const depth = attacking ? PITCH.penaltySpot + (player.slot.x - 0.5) * 10 : 6 + Math.abs(player.slot.x - 0.3) * 14;
+      return { x: clamp(goal.x + inward * depth, 1, PITCH.length - 1), y: clamp(goal.y + (player.slot.y - 0.5) * (attacking ? 20 : 16), 1, PITCH.width - 1) };
+    }
+    return this.homePosition(player);
+  }
+
+  /** The outfield players who press the ball when the other side has it. */
+  chasers(side, owner) {
+    const m = this.modifiers[side];
+    const candidates = this.players
+      .filter(p => p.side === side && p.role !== 'GK')
+      .sort((a, b) => distance(a, this.ball) - distance(b, this.ball));
+    if (!owner) return candidates.slice(0, 1);
+    if (owner.side === side) return [];
+    // Beyond the pressing distance only the nearest man goes.
+    const withinRange = candidates.filter(p => distance(p, this.ball) < m.pressDistance);
+    return withinRange.length ? withinRange.slice(0, m.pressers) : candidates.slice(0, 1);
+  }
+
   aiWithBall(player, dt, aiFactor) {
+    const m = this.modifiers[player.side];
     const goal = this.goalFor(player.side);
     const distToGoal = distance(player, goal);
     const nearestOpponent = nearestPlayer(this.players.filter(p => p.side !== player.side), player);
     const pressure = nearestOpponent ? distance(nearestOpponent, player) : 99;
 
+    if (this.cornerTaker === player) {
+      // Wait for the box to fill before swinging it in.
+      this.cornerTimer -= dt;
+      if (this.cornerTimer <= 0 && player.kickCooldown <= 0) this.deliverCorner(player);
+      return;
+    }
+
     if (player.decisionTimer <= 0 && player.kickCooldown <= 0) {
-      player.decisionTimer = 0.25 + Math.random() * 0.25;
-      const shootChance = distToGoal < 15 ? 0.95
-        : distToGoal < 25 ? 0.5 + player.finishing * 0.3
-        : distToGoal < 32 && pressure < 3 ? 0.25
+      player.decisionTimer = m.decisionTime + Math.random() * m.decisionTime;
+      const nearRange = 15 + m.shootRange;
+      const midRange = 25 + m.shootRange;
+      const longRange = 32 + m.shootRange;
+      const shootChance = distToGoal < nearRange ? 0.95
+        : distToGoal < midRange ? 0.5 + player.finishing * 0.3 + m.shootBias
+        : distToGoal < longRange && pressure < 3 ? 0.25 + m.shootBias
+        : distToGoal < longRange + 4 && m.shootBias > 0 ? 0.08
         : 0;
       if (Math.random() < shootChance) {
-        const accuracy = (player.isUser ? 1 : this.difficulty.aiAccuracy) * (0.6 + player.finishing * 0.4);
+        const accuracy = (this.isUserSide(player.side) ? 1 : this.difficulty.aiAccuracy) * (0.6 + player.finishing * 0.4);
         const spread = (1 - accuracy) * 0.4 + 0.03;
         const angle = Math.atan2(goal.y + (Math.random() - 0.5) * PITCH.goalWidth * 0.8 - player.y, goal.x - player.x) + (Math.random() - 0.5) * spread;
         this.shoot(player, angle, clamp(18 + distToGoal * 0.35, 18, 30));
         return;
       }
-      // Pass when closed down, or occasionally to move the ball on; otherwise
-      // keep running with it. Only clearly useful passes are played.
-      if (pressure < 2.2 || Math.random() < 0.08) {
+      // Pass when closed down, or to move the ball on at a rate set by the
+      // tempo and passing style; otherwise keep running with it.
+      if (pressure < 2.2 || Math.random() < m.passUrge) {
         const option = this.bestPassOption(player, pressure < 2.2 ? -6 : 2);
         if (option) {
           this.passTo(player, option);
@@ -558,6 +546,23 @@ export class MatchEngine {
     player.facing = angle;
     player.x = clamp(player.x + player.vx * dt, 0.5, PITCH.length - 0.5);
     player.y = clamp(player.y + player.vy * dt, 0.5, PITCH.width - 0.5);
+  }
+
+  /** The set-piece taker swings a corner towards the best header in the box. */
+  deliverCorner(taker) {
+    const goal = this.goalFor(taker.side);
+    const teammates = this.players.filter(p => p.side === taker.side && p !== taker && p.role !== 'GK' && distance(p, goal) < 24);
+    const target = teammates.sort((a, b) => (b.heading - distance(b, goal) / 40) - (a.heading - distance(a, goal) / 40))[0]
+      || nearestPlayer(this.players.filter(p => p.side === taker.side && p !== taker), goal);
+    this.cornerTaker = null;
+    if (!target) return;
+    const dx = target.x - taker.x;
+    const dy = target.y - taker.y;
+    const error = (1 - taker.setPieces) * 0.25;
+    const angle = Math.atan2(dy, dx) + (Math.random() - 0.5) * error;
+    this.kickBall(taker, angle, clamp(Math.hypot(dx, dy) * 0.75, 12, 24));
+    target.kickCooldown = 0;
+    this.onEvent('corner', { minute: this.matchMinute(), player: taker.name, side: taker.side });
   }
 
   updateGoalkeeper(keeper, dt, aiFactor) {
@@ -624,17 +629,18 @@ export class MatchEngine {
   bestPassOption(player, minimumScore = -Infinity) {
     const goal = this.goalFor(player.side);
     const opponents = this.players.filter(p => p.side !== player.side);
+    const m = this.modifiers[player.side];
     const options = this.players
       .filter(p => p.side === player.side && p !== player && p.role !== 'GK')
       .map(p => {
         const dist = distance(p, player);
-        if (dist < 4 || dist > 42) return null;
+        if (dist < 4 || dist > m.passRange) return null;
         const marker = nearestPlayer(opponents, p);
         const space = marker ? Math.min(distance(marker, p), 10) : 10;
         const progress = distance(player, goal) - distance(p, goal);
         if (progress < -12) return null;
         const laneBlocked = opponents.some(o => pointToSegment(o, player, p) < 1.2);
-        const score = space * 0.8 + progress * 0.9 - dist * 0.05 - (laneBlocked ? 8 : 0);
+        const score = space * 0.8 + progress * 0.9 * m.progressWeight - dist * 0.05 - (laneBlocked ? 8 : 0);
         return { p, score };
       })
       .filter(option => option && option.score >= minimumScore)
@@ -649,7 +655,6 @@ export class MatchEngine {
     this.ball.vx = 0;
     this.ball.vy = 0;
     this.lastTouch = player;
-    if (player.isUser && player.role !== 'GK') this.controlled = player;
   }
 
   kickBall(player, angle, power) {
@@ -674,7 +679,7 @@ export class MatchEngine {
     const dx = target.x + target.vx * 0.35 - player.x;
     const dy = target.y + target.vy * 0.35 - player.y;
     const dist = Math.hypot(dx, dy);
-    const error = (1 - player.skill) * 0.12 * (player.isUser ? 0.5 : 1);
+    const error = (1 - player.skill) * 0.12;
     const angle = Math.atan2(dy, dx) + (Math.random() - 0.5) * error;
     const power = clamp(4 + dist * 0.7, 8, 26) * powerScale;
     this.kickBall(player, angle, power);
@@ -684,7 +689,7 @@ export class MatchEngine {
 
   attemptTackle(tackler, owner) {
     tackler.kickCooldown = 0.7;
-    const chance = (tackler.isUser ? 0.5 : this.difficulty.tackle) * (0.5 + tackler.tackling * 0.5) * (1.1 - owner.skill * 0.5);
+    const chance = (this.isUserSide(tackler.side) ? 0.5 : this.difficulty.tackle) * (0.5 + tackler.tackling * 0.5) * (1.1 - owner.skill * 0.5);
     if (Math.random() < chance) {
       this.ball.owner = null;
       const angle = Math.atan2(tackler.y - owner.y, tackler.x - owner.x) + (Math.random() - 0.5);
@@ -780,9 +785,12 @@ export class MatchEngine {
         const keeper = this.players.find(p => p.side === defendingSide && p.role === 'GK');
         this.restart(keeper, { x: ball.x < 0 ? 5.5 : PITCH.length - 5.5, y: PITCH.width / 2 }, 'Goal kick');
       } else {
-        // Corner.
-        const taker = nearestPlayer(this.players.filter(p => p.side === attackingSide && p.role !== 'GK'), ball);
+        // Corner, taken by the side's chosen set-piece taker.
+        const taker = this.setPieceTakerFor(attackingSide) || nearestPlayer(this.players.filter(p => p.side === attackingSide && p.role !== 'GK'), ball);
         this.restart(taker, { x: ball.x < 0 ? 0.5 : PITCH.length - 0.5, y: ball.y < PITCH.width / 2 ? 0.5 : PITCH.width - 0.5 }, 'Corner');
+        this.cornerTaker = taker;
+        this.cornerTimer = 1.2;
+        this.phaseTimer = 1.2;
       }
       return;
     }
@@ -851,6 +859,7 @@ export class MatchEngine {
     drawables.forEach(item => item.ball ? this.drawBall(ctx) : this.drawPlayer(ctx, item.p));
 
     this.drawScoreboard(ctx);
+    this.drawTacticsStrip(ctx);
     if (this.message) this.drawMessage(ctx);
     if (this.paused) this.drawCentreText(ctx, 'Paused', 'Press P to resume');
   }
@@ -991,22 +1000,6 @@ export class MatchEngine {
     ctx.ellipse(pos.x + radius * 0.25, pos.y + radius * 0.45, radius * 1.05, radius * 0.55, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Controlled player marker.
-    if (player === this.controlled) {
-      ctx.strokeStyle = '#ffe66d';
-      ctx.lineWidth = Math.max(2, s * 0.22);
-      ctx.beginPath();
-      ctx.arc(pos.x, pos.y, radius * 1.6, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.fillStyle = '#ffe66d';
-      ctx.beginPath();
-      ctx.moveTo(pos.x, pos.y - radius * 2.9);
-      ctx.lineTo(pos.x - radius * 0.6, pos.y - radius * 3.7);
-      ctx.lineTo(pos.x + radius * 0.6, pos.y - radius * 3.7);
-      ctx.closePath();
-      ctx.fill();
-    }
-
     // Body: shirt with a contrasting sleeve band and a facing stripe.
     ctx.fillStyle = player.role === 'GK' ? kit.keeper : kit.shirt;
     ctx.beginPath();
@@ -1119,6 +1112,35 @@ export class MatchEngine {
     ctx.fillText(clock, x + boardW / 2, y + h + 3 + font * 0.65);
   }
 
+  /** HUD line along the bottom edge summarising both sides' tactics. */
+  drawTacticsStrip(ctx) {
+    const s = this.view.scale;
+    const { width, height } = this.view;
+    const font = Math.max(10, s * 1.05);
+    ctx.font = `600 ${font}px "Segoe UI", system-ui, sans-serif`;
+    ctx.textBaseline = 'middle';
+    const y = height - font * 0.95;
+    const maxW = width / 2 - font * 2;
+    const left = this.homeAttacksRight ? 'home' : 'away';
+    const right = left === 'home' ? 'away' : 'home';
+    const label = side => `${this.isUserSide(side) ? 'You' : (side === 'home' ? this.homeTeam : this.awayTeam).name}: ${describeTactics(this.tactics[side], { short: true })}`;
+
+    ctx.fillStyle = 'rgba(8, 20, 12, 0.7)';
+    roundRect(ctx, font * 0.6, y - font * 0.8, width - font * 1.2, font * 1.6, font * 0.5);
+    ctx.fill();
+    ctx.fillStyle = this.isUserSide(left) ? '#ffe66d' : 'rgba(255,255,255,0.9)';
+    ctx.textAlign = 'left';
+    ctx.fillText(fitText(ctx, label(left), maxW), font * 1.4, y);
+    ctx.fillStyle = this.isUserSide(right) ? '#ffe66d' : 'rgba(255,255,255,0.9)';
+    ctx.textAlign = 'right';
+    ctx.fillText(fitText(ctx, label(right), maxW), width - font * 1.4, y);
+    if (this.speed > 1 && this.phase !== 'fullTime') {
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#ffe66d';
+      ctx.fillText(`${this.speed}× speed`, width / 2, y);
+    }
+  }
+
   drawMessage(ctx) {
     const { width, height } = this.view;
     const s = this.view.scale;
@@ -1151,23 +1173,6 @@ export class MatchEngine {
 // -----------------------------------------------------------------------------
 // Helpers
 // -----------------------------------------------------------------------------
-
-function sortForFormation(players) {
-  const order = { GK: 0, CB: 1, LB: 1, RB: 1, DM: 2, CM: 2, AM: 2, LW: 3, RW: 3, ST: 3 };
-  const buckets = [[], [], [], []];
-  players.forEach(p => buckets[order[p.position] ?? 2].push(p));
-  const slotsPerRole = [1, 4, 3, 3];
-  const result = [];
-  const overflow = [];
-  buckets.forEach((bucket, index) => {
-    result.push(...bucket.slice(0, slotsPerRole[index]));
-    overflow.push(...bucket.slice(slotsPerRole[index]));
-    while (result.length < slotsPerRole.slice(0, index + 1).reduce((a, b) => a + b, 0) && overflow.length) {
-      result.push(overflow.shift());
-    }
-  });
-  return result;
-}
 
 export function buildKit(primary, clashWith) {
   let shirt = normaliseColour(primary) || '#c0392b';

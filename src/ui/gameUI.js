@@ -9,6 +9,8 @@ import { MainMenuSection } from './sections/mainMenuSection.js';
 import { TeamSelectionSection } from './sections/teamSelectionSection.js';
 import { DashboardSection } from './sections/dashboardSection.js';
 import { TeamSection } from './sections/teamSection.js';
+import { TacticsSection } from './sections/tacticsSection.js';
+import { TrainingSection } from './sections/trainingSection.js';
 import { TransferSection } from './sections/transferSection.js';
 import { FixturesSection } from './sections/fixturesSection.js';
 import { LeagueSection } from './sections/leagueSection.js';
@@ -82,6 +84,8 @@ export class GameUI {
     const navConfig = [
       { id: 'dashboard', label: 'Dashboard', icon: '🏠' },
       { id: 'team', label: 'Team', icon: '👥' },
+      { id: 'tactics', label: 'Tactics', icon: '📋' },
+      { id: 'training', label: 'Training', icon: '🏃' },
       { id: 'transfers', label: 'Transfers', icon: '💰' },
       { id: 'fixtures', label: 'Fixtures', icon: '📅' },
       { id: 'league', label: 'League', icon: '🏆' },
@@ -157,6 +161,8 @@ export class GameUI {
       console.error('❌ Error creating StatsSection:', error);
     }
     
+    this.sections.tactics = new TacticsSection(this.gameState);
+    this.sections.training = new TrainingSection(this.gameState);
     this.sections['season-summary'] = new SeasonSummarySection(this.gameState);
     console.log('✅ Sections setup completed:', Object.keys(this.sections));
   }
@@ -301,8 +307,8 @@ export class GameUI {
     // Refresh current section to show updated data
     this.showSection(this.currentSection);
     
-    // The playable match shows its own full-time card; only simulated results need a toast.
-    if (!result.playedByUser) this.showMatchSummary(result);
+    // The watched match shows its own full-time card; only simulated results need a toast.
+    if (!result.watched) this.showMatchSummary(result);
     
     console.log('🏁 Exited match mode');
   }
@@ -407,7 +413,7 @@ export class GameUI {
       return;
     }
     if (fixture.played) return;
-    this.gameState.startMatch(fixture.id, 'play');
+    this.gameState.startMatch(fixture.id, 'watch');
   }
 
   refreshCurrentSection() {

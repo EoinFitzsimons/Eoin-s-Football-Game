@@ -167,7 +167,7 @@ export class FixturesSection extends BaseSection {
     const canSimulate = this.canSimulateMatch(fixture);
     
     if (canPlay) {
-      return `<button class="play-match-btn primary-btn" data-fixture-id="${fixture.id}">Play Match</button>`;
+      return `<button class="play-match-btn primary-btn" data-fixture-id="${fixture.id}">Watch match</button>`;
     }
     
     if (canSimulate) {
