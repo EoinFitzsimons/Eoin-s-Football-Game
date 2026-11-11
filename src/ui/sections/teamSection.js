@@ -83,14 +83,16 @@ export class TeamSection extends BaseSection {
         <div class="pitch-lines"></div>
         ${positions.map((line, lineIndex) => `
           <div class="formation-line line-${lineIndex}">
-            ${line.map((pos, posIndex) => `
+            ${line.map((pos, posIndex) => {
+              const player = this.getPlayerForPosition(pos);
+              return `
               <div class="position-slot" data-position="${pos}" data-line="${lineIndex}" data-slot="${posIndex}">
                 <div class="player-slot">
-                  <div class="player-name">${this.getPlayerForPosition(pos)?.name || 'Empty'}</div>
-                  <div class="player-rating">${this.ratingOf(this.getPlayerForPosition(pos))}</div>
+                  <div class="player-name">${player?.name || 'Empty'}</div>
+                  <div class="player-rating">${this.ratingOf(player)}</div>
                 </div>
-              </div>
-            `).join('')}
+              </div>`;
+            }).join('')}
           </div>
         `).join('')}
       </div>
