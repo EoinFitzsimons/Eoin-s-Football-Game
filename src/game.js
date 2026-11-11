@@ -208,9 +208,14 @@ export class GameState {
   runTrainingWeek(round) {
     if (!this.userTeam || !this.league) return null;
     this.lastTrainingReport = applyTrainingWeek(this.userTeam, this.training, Math.random, { week: round });
-    trainAiClubs(this.league.teams, this.userTeam, round, this.worldSeed);
+    trainAiClubs(this.league.teams, this.userTeam, round, this.trainingSeed(this.stats.seasonsCompleted));
     if (this.eventCallbacks.playerUpdate) this.eventCallbacks.playerUpdate();
     return this.lastTrainingReport;
+  }
+
+  /** Seed for the AI clubs' training in a given season, so a load can replay it. */
+  trainingSeed(seasonIndex) {
+    return ((this.worldSeed >>> 0) ^ Math.imul(seasonIndex + 1, 0x85EBCA6B)) >>> 0;
   }
 
   // ---------------------------------------------------------------------------
@@ -530,10 +535,12 @@ export class GameState {
         training: this.training,
         lastTrainingReport: this.lastTrainingReport,
         playerDeltas: this.userTeam.players
-          .filter(player => player.trainingDeltas && Object.keys(player.trainingDeltas).length)
+          .filter(player => (player.trainingDeltas && Object.keys(player.trainingDeltas).length) || player.injured || player.fatigue > 0)
           .map(player => ({
             id: player.id,
-            d: Object.fromEntries(Object.entries(player.trainingDeltas).map(([k, v]) => [k, Math.round(v * 100) / 100]))
+            d: Object.fromEntries(Object.entries(player.trainingDeltas || {}).map(([k, v]) => [k, Math.round(v * 100) / 100])),
+            inj: player.injured ? Math.max(1, Math.round(player.injuryDays || 1)) : 0,
+            fat: Math.round(player.fatigue || 0)
           }))
       };
       localStorage.setItem(SAVE_KEY, JSON.stringify(data));
@@ -583,16 +590,29 @@ export class GameState {
     this.lastTrainingReport = data.lastTrainingReport || null;
     (data.playerDeltas || []).forEach(saved => {
       const player = team.players.find(p => p.id === saved.id);
-      if (!player || !saved.d) return;
+      if (!player) return;
       player.trainingDeltas = {};
-      for (const [key, delta] of Object.entries(saved.d)) {
+      for (const [key, delta] of Object.entries(saved.d || {})) {
         if (!(key in player.attributes) || typeof delta !== 'number') continue;
         player.attributes[key] = Math.max(1, Math.min(99, player.attributes[key] + delta));
         player.trainingDeltas[key] = delta;
       }
+      if (saved.inj > 0) {
+        player.injured = true;
+        player.injuryDays = saved.inj;
+      }
+      if (typeof saved.fat === 'number') player.fatigue = saved.fat;
     });
-    const playedRounds = [...new Set(data.results.filter(r => r.user).map(r => r.r))].sort((a, b) => a - b);
-    playedRounds.forEach(round => trainAiClubs(league.teams, team, round, this.worldSeed));
+    // AI clubs' training is replayed from the seed, but only for careers that
+    // trained at all; a save from before training existed stays as it was.
+    if (data.training) {
+      const seasonsCompleted = data.stats?.seasonsCompleted || 0;
+      for (let season = 0; season < seasonsCompleted; season++) {
+        this.rounds.forEach((_, index) => trainAiClubs(league.teams, team, index + 1, this.trainingSeed(season)));
+      }
+      const playedRounds = [...new Set(data.results.filter(r => r.user).map(r => r.r))].sort((a, b) => a - b);
+      playedRounds.forEach(round => trainAiClubs(league.teams, team, round, this.trainingSeed(seasonsCompleted)));
+    }
 
     const { matchesPlayedOnPitch, ...savedStats } = data.stats || {};
     this.stats = { ...this.stats, ...savedStats };

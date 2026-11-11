@@ -83,7 +83,7 @@ function recordDelta(player, key, delta) {
  * Apply one week of training to a team. Returns a report describing what
  * changed, with the biggest movers first.
  */
-export function applyTrainingWeek(team, training, rng = Math.random, { week = 0 } = {}) {
+export function applyTrainingWeek(team, training, rng = Math.random, { week = 0, condition = true } = {}) {
   const plan = normaliseTraining(training);
   const intensity = intensityById(plan.intensity);
   const report = { week, focus: plan.focus, intensity: plan.intensity, players: [], injuries: [] };
@@ -118,12 +118,13 @@ export function applyTrainingWeek(team, training, rng = Math.random, { week = 0 
       }
     }
 
-    player.fatigue = Math.max(0, Math.min(100, (player.fatigue || 0) + (focus.id === 'rest' ? -10 : intensity.fatigue)));
-
-    if (!player.injured && focus.id !== 'rest' && rng() < intensity.injuryRisk * (player.hasTrait?.('InjuryProne') ? 2 : 1)) {
-      player.injured = true;
-      player.injuryDays = 5 + Math.floor(rng() * 14);
-      report.injuries.push({ id: player.id, name: player.name, days: player.injuryDays });
+    if (condition) {
+      player.fatigue = Math.max(0, Math.min(100, (player.fatigue || 0) + (focus.id === 'rest' ? -10 : intensity.fatigue)));
+      if (!player.injured && focus.id !== 'rest' && rng() < intensity.injuryRisk * (player.hasTrait?.('InjuryProne') ? 2 : 1)) {
+        player.injured = true;
+        player.injuryDays = 5 + Math.floor(rng() * 14);
+        report.injuries.push({ id: player.id, name: player.name, days: player.injuryDays });
+      }
     }
 
     const total = Object.values(changes).reduce((sum, d) => sum + d, 0);
@@ -150,7 +151,8 @@ export function trainAiClubs(teams, userTeam, round, seed) {
   const plan = { focus: AI_FOCUS, intensity: 'normal', individual: {} };
   for (const team of teams) {
     if (team === userTeam) continue;
-    applyTrainingWeek(team, plan, rng, { week: round });
+    // Attributes only: fatigue and injuries would not survive the seeded replay on load.
+    applyTrainingWeek(team, plan, rng, { week: round, condition: false });
   }
 }
 
