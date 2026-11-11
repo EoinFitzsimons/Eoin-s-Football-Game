@@ -76,6 +76,7 @@ export class TeamSection extends BaseSection {
   }
 
   renderFormationDisplay() {
+    this.slotPool = null;
     const positions = this.getFormationPositions(this.currentFormation);
     return `
       <div class="pitch">
@@ -284,11 +285,17 @@ export class TeamSection extends BaseSection {
   }
 
   getPlayerForPosition(position) {
-    // Simple position matching - can be enhanced
-    const players = this.gameState.userTeam?.players || [];
-    return players.find(p => p.position === position) || players.find(p => 
-      this.getPositionCategory(p.position) === this.getPositionCategory(position)
-    );
+    // Hand out the starting eleven slot by slot so no player appears twice.
+    if (!this.slotPool || this.slotPool.formation !== this.currentFormation) {
+      const pool = { GK: [], DEF: [], MID: [], FWD: [] };
+      this.getStartingXI().forEach(p => pool[this.getPositionCategory(p.position)]?.push(p));
+      this.slotPool = { formation: this.currentFormation, pool, used: new Set() };
+    }
+    const { pool, used } = this.slotPool;
+    const category = this.getPositionCategory(position);
+    const next = pool[category].find(p => !used.has(p)) || Object.values(pool).flat().find(p => !used.has(p));
+    if (next) used.add(next);
+    return next;
   }
 
   getPositionCategory(position) {

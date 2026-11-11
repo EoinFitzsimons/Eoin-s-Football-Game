@@ -604,6 +604,7 @@ export class GameState {
       this.seasonComplete = true;
       this.lastSeasonSummary = this.buildSeasonSummary();
     }
+    this.save();
     if (this.eventCallbacks.uiUpdate) this.eventCallbacks.uiUpdate();
     console.log(`Loaded ${team.name}, season ${this.currentSeason}`);
     return true;
