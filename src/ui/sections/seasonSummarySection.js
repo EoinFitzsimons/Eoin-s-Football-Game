@@ -58,7 +58,7 @@ export class SeasonSummarySection extends BaseSection {
           <dl class="summary-facts">
             <dt>Biggest win</dt><dd>${summary.biggestWin || '—'}</dd>
             <dt>Heaviest defeat</dt><dd>${summary.heaviestDefeat || '—'}</dd>
-            <dt>Matches you played on the pitch</dt><dd>${summary.playedOnPitch}</dd>
+            <dt>Matches watched on the pitch</dt><dd>${summary.watched}</dd>
             <dt>Matches simulated</dt><dd>${summary.simulated}</dd>
           </dl>
         </section>

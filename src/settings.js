@@ -8,8 +8,8 @@ const STORAGE_KEY = 'efg_settings';
 
 export const DEFAULT_SETTINGS = Object.freeze({
   soundEnabled: true,
-  halfLengthMinutes: 2,      // real minutes per half in the playable match (2 or 3)
-  difficulty: 'normal',      // 'easy' | 'normal' | 'hard'
+  halfLengthMinutes: 2,      // real minutes per half in the watched match (1, 2 or 3)
+  difficulty: 'normal',      // opposition strength: 'easy' | 'normal' | 'hard'
   autoSave: true
 });
 

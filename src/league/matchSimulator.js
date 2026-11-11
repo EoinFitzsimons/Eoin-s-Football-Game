@@ -1,11 +1,15 @@
 /**
- * Quick match simulator used for every fixture the user does not play on the
+ * Quick match simulator used for every fixture the user does not watch on the
  * pitch: the "Simulate" button and all of the AI-versus-AI matches in a round.
  *
- * Expected goals are derived from the two squads' ratings, with a home
- * advantage, and converted to a score with a Poisson draw. Scorers are picked
- * with a bias towards forwards and players with good finishing.
+ * Expected goals are derived from the two squads' ratings (so training that
+ * moves attributes moves results), adjusted by each side's tactics through
+ * tacticsEffect(), with a home advantage, and converted to a score with a
+ * Poisson draw. Scorers are picked with a bias towards forwards and players
+ * with good finishing.
  */
+
+import { tacticsEffect, formationRoleCounts } from '../tactics/tactics.js';
 
 const KEY_ATTRIBUTES = ['pace', 'passing', 'finishing', 'tackling', 'positioning', 'stamina', 'technique', 'composure'];
 
@@ -24,6 +28,33 @@ export function startingEleven(team) {
   const keeper = byRating.find(p => p.position === 'GK') || byRating[0];
   const outfield = byRating.filter(p => p !== keeper && p.position !== 'GK').slice(0, 10);
   return keeper ? [keeper, ...outfield] : outfield.slice(0, 11);
+}
+
+/**
+ * Order a set of players into formation slots: keeper, then defenders,
+ * midfielders and forwards, filling any short role from the overflow.
+ */
+export function sortForFormation(players, formation) {
+  const order = { GK: 0, CB: 1, LB: 1, RB: 1, DM: 2, CM: 2, AM: 2, LW: 3, RW: 3, ST: 3 };
+  const buckets = [[], [], [], []];
+  players.forEach(p => buckets[order[p.position] ?? 2].push(p));
+  const counts = formationRoleCounts(formation);
+  const slotsPerRole = [counts.GK, counts.DEF, counts.MID, counts.FWD];
+  const result = [];
+  const overflow = [];
+  buckets.forEach((bucket, index) => {
+    result.push(...bucket.slice(0, slotsPerRole[index]));
+    overflow.push(...bucket.slice(slotsPerRole[index]));
+    while (result.length < slotsPerRole.slice(0, index + 1).reduce((a, b) => a + b, 0) && overflow.length) {
+      result.push(overflow.shift());
+    }
+  });
+  return result;
+}
+
+/** The eleven who start in the given formation, in slot order. */
+export function lineupForFormation(team, formation) {
+  return sortForFormation(startingEleven(team), formation);
 }
 
 export function teamRating(team) {
@@ -47,13 +78,15 @@ function poisson(lambda, rng) {
   return k - 1;
 }
 
-export function expectedGoals(homeTeam, awayTeam) {
+export function expectedGoals(homeTeam, awayTeam, homeTactics = null, awayTactics = null) {
   const home = teamRating(homeTeam);
   const away = teamRating(awayTeam);
   const diff = (home - away) / 12;
+  const homeEffect = tacticsEffect(homeTactics, awayTactics);
+  const awayEffect = tacticsEffect(awayTactics, homeTactics);
   return {
-    home: Math.max(0.25, 1.45 + diff),
-    away: Math.max(0.2, 1.1 - diff)
+    home: Math.max(0.25, (1.45 + diff) * homeEffect.attack * awayEffect.defence),
+    away: Math.max(0.2, (1.1 - diff) * awayEffect.attack * homeEffect.defence)
   };
 }
 
@@ -79,8 +112,8 @@ export function pickScorers(team, goals, rng) {
   return scorers.sort((a, b) => a.minute - b.minute);
 }
 
-export function simulateMatch(homeTeam, awayTeam, rng = Math.random) {
-  const xg = expectedGoals(homeTeam, awayTeam);
+export function simulateMatch(homeTeam, awayTeam, rng = Math.random, homeTactics = null, awayTactics = null) {
+  const xg = expectedGoals(homeTeam, awayTeam, homeTactics, awayTactics);
   const homeScore = poisson(xg.home, rng);
   const awayScore = poisson(xg.away, rng);
   return {

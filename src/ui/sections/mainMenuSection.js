@@ -28,7 +28,7 @@ export class MainMenuSection extends BaseSection {
         <div class="game-logo">
           <canvas id="menu-crest" class="menu-crest" width="140" height="140" aria-hidden="true"></canvas>
           <h1>Eoin's Football Game</h1>
-          <p class="subtitle">Manage the club. Then step onto the pitch.</p>
+          <p class="subtitle">Pick the tactics. Run the training. Watch it play out.</p>
         </div>
 
         <div class="menu-options">
@@ -42,13 +42,13 @@ export class MainMenuSection extends BaseSection {
           </button>
           <button id="settings-btn" class="menu-btn secondary">
             <span class="btn-text">Settings</span>
-            <span class="btn-description">Sound, half length and difficulty</span>
+            <span class="btn-description">Sound, half length and opposition strength</span>
           </button>
         </div>
 
         <div class="menu-howto">
           <h3>How it works</h3>
-          <p>Run a club through a full league season. Simulate routine fixtures in a click, or take control on the pitch for the big ones: a top-down match with <kbd>Arrows</kbd> to move, <kbd>Space</kbd> to shoot and <kbd>Shift</kbd> to pass.</p>
+          <p>Run a club through a full league season. You never touch the players: set the formation, mentality, pressing and passing style on the <strong>Tactics</strong> screen, choose what the squad works on in <strong>Training</strong>, then simulate routine fixtures in a click or watch the big ones unfold on a top-down pitch with every player AI-controlled. Pause, speed up or skip to full time whenever you like.</p>
         </div>
 
         <div class="menu-footer">
@@ -111,7 +111,7 @@ export class MainMenuSection extends BaseSection {
           </select>
         </label>
         <label class="setting-row">
-          <span>Difficulty</span>
+          <span>Opposition strength</span>
           <select id="setting-difficulty">
             ${['easy', 'normal', 'hard'].map(d => `<option value="${d}" ${s.difficulty === d ? 'selected' : ''}>${d[0].toUpperCase()}${d.slice(1)}</option>`).join('')}
           </select>

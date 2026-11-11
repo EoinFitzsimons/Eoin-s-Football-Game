@@ -2,9 +2,11 @@
  * GameState - the single source of truth for a managerial career.
  *
  * Owns the generated football world, the user's club, the league schedule,
- * results, the season lifecycle and saving/loading. The UI talks to it through
- * eventCallbacks; the playable match and the quick simulator both finish by
- * calling completeMatch().
+ * results, the season lifecycle and saving/loading. It also holds the manager's
+ * two levers, tactics and training: tactics are handed to the canvas match and
+ * the quick simulator, and training is applied to the squad after every match
+ * week. The UI talks to it through eventCallbacks; the watched match and the
+ * quick simulator both finish by calling completeMatch().
  */
 
 import { generateWorldFootballSystem } from './utils/randomData.js';
@@ -14,6 +16,8 @@ import { RegistrationRules } from './transfers/registrationRules.js';
 import { withSeededRandom, randomSeed, createSeededRandom } from './utils/seededRandom.js';
 import { simulateMatch, startingEleven } from './league/matchSimulator.js';
 import { loadSettings } from './settings.js';
+import { normaliseTactics, aiTacticsFor } from './tactics/tactics.js';
+import { defaultTraining, normaliseTraining, applyTrainingWeek, trainAiClubs } from './training/training.js';
 
 const SAVE_KEY = 'efg_career_save';
 const SAVE_VERSION = 1;
@@ -43,6 +47,12 @@ export class GameState {
     this.transferWindow = null;
     this.registrationRules = null;
 
+    // Management levers. AI clubs get a fixed style each, derived from their name.
+    this.tactics = normaliseTactics();
+    this.training = defaultTraining();
+    this.lastTrainingReport = null;
+    this.aiTactics = new Map();
+
     this.eventCallbacks = {
       uiUpdate: null,
       playerUpdate: null,
@@ -59,7 +69,7 @@ export class GameState {
 
     this.stats = {
       matchesPlayed: 0,
-      matchesPlayedOnPitch: 0,
+      matchesWatched: 0,
       transfersCompleted: 0,
       seasonsCompleted: 0
     };
@@ -94,6 +104,9 @@ export class GameState {
     this.league = league;
     this.userCountry = country;
     this.userTeam.manager = 'You';
+    this.tactics = normaliseTactics();
+    this.training = defaultTraining();
+    this.lastTrainingReport = null;
 
     this.league.resetTable();
     this.generateSeasonFixtures();
@@ -158,12 +171,63 @@ export class GameState {
   // ---------------------------------------------------------------------------
   // Matches
   // ---------------------------------------------------------------------------
+  // Tactics and training
+  // ---------------------------------------------------------------------------
+
+  tacticsForTeam(team) {
+    if (team === this.userTeam) return this.tactics;
+    if (!this.aiTactics.has(team)) this.aiTactics.set(team, aiTacticsFor(team));
+    return this.aiTactics.get(team);
+  }
+
+  setTactics(patch) {
+    this.tactics = normaliseTactics({ ...this.tactics, ...patch });
+    this.save();
+    if (this.eventCallbacks.teamUpdate) this.eventCallbacks.teamUpdate(this.userTeam);
+    return this.tactics;
+  }
+
+  setTraining(patch) {
+    this.training = normaliseTraining({ ...this.training, ...patch, individual: patch.individual ?? this.training.individual });
+    this.save();
+    return this.training;
+  }
+
+  setIndividualTraining(playerId, focus) {
+    const individual = { ...this.training.individual };
+    if (!focus || focus === 'team') delete individual[playerId];
+    else individual[playerId] = focus;
+    return this.setTraining({ individual });
+  }
 
   /**
-   * mode 'play' hands the fixture to the playable match screen; mode 'simulate'
-   * resolves it immediately with the quick simulator.
+   * One training week for every club, run after each match week. The user's
+   * plan produces a report for the training screen; AI clubs follow a seeded
+   * balanced plan so a loaded save replays the same development.
    */
-  startMatch(fixtureId, mode = 'play') {
+  runTrainingWeek(round) {
+    if (!this.userTeam || !this.league) return null;
+    this.lastTrainingReport = applyTrainingWeek(this.userTeam, this.training, Math.random, { week: round });
+    trainAiClubs(this.league.teams, this.userTeam, round, this.trainingSeed(this.stats.seasonsCompleted));
+    if (this.eventCallbacks.playerUpdate) this.eventCallbacks.playerUpdate();
+    return this.lastTrainingReport;
+  }
+
+  /** Seed for the AI clubs' training in a given season, so a load can replay it. */
+  trainingSeed(seasonIndex) {
+    return ((this.worldSeed >>> 0) ^ Math.imul(seasonIndex + 1, 0x85EBCA6B)) >>> 0;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Matches
+  // ---------------------------------------------------------------------------
+
+  /**
+   * mode 'watch' hands the fixture to the canvas match screen, where both
+   * sides are AI-controlled; mode 'simulate' resolves it immediately with the
+   * quick simulator. Either way the user's tactics are applied.
+   */
+  startMatch(fixtureId, mode = 'watch') {
     const fixture = this.fixtures.find(f => f.id === fixtureId);
     if (!fixture) {
       console.error('Fixture not found:', fixtureId);
@@ -171,14 +235,14 @@ export class GameState {
     }
     if (fixture.played) return fixture.result;
 
-    if (mode === 'play') {
+    if (mode === 'watch' || mode === 'play') {
       this.currentMatch = fixture;
       if (this.eventCallbacks.matchStarted) this.eventCallbacks.matchStarted(fixture);
       return fixture;
     }
 
-    const outcome = simulateMatch(fixture.homeTeam, fixture.awayTeam);
-    return this.completeMatch(fixture, { ...outcome, playedByUser: false });
+    const outcome = this.quickSimulate(fixture);
+    return this.completeMatch(fixture, { ...outcome, watched: false });
   }
 
   simulateNextFixture() {
@@ -202,9 +266,10 @@ export class GameState {
 
     const result = this.applyResult(fixture, outcome);
     this.stats.matchesPlayed++;
-    if (outcome.playedByUser) this.stats.matchesPlayedOnPitch++;
+    if (result.watched) this.stats.matchesWatched++;
 
     this.simulateRestOfRound(fixture.round);
+    this.runTrainingWeek(fixture.round);
 
     if (this.currentDate < fixture.date) this.currentDate = new Date(fixture.date);
     this.currentMatch = null;
@@ -229,7 +294,7 @@ export class GameState {
       awayScore: outcome.awayScore,
       homeScorers: outcome.homeScorers || [],
       awayScorers: outcome.awayScorers || [],
-      playedByUser: Boolean(outcome.playedByUser)
+      watched: Boolean(outcome.watched ?? outcome.playedByUser)
     };
     match.played = true;
     match.result = result;
@@ -261,7 +326,11 @@ export class GameState {
     if (!round) return;
     round.matches
       .filter(match => !match.played && !this.isUserFixture(match))
-      .forEach(match => this.applyResult(match, { ...simulateMatch(match.homeTeam, match.awayTeam), playedByUser: false }));
+      .forEach(match => this.applyResult(match, { ...this.quickSimulate(match), watched: false }));
+  }
+
+  quickSimulate(match) {
+    return simulateMatch(match.homeTeam, match.awayTeam, Math.random, this.tacticsForTeam(match.homeTeam), this.tacticsForTeam(match.awayTeam));
   }
 
   // ---------------------------------------------------------------------------
@@ -359,8 +428,8 @@ export class GameState {
       record: { ...stats },
       biggestWin: biggestWin && describeFixture(biggestWin.fixture, this.userTeam),
       heaviestDefeat: heaviestDefeat && describeFixture(heaviestDefeat.fixture, this.userTeam),
-      playedOnPitch: userMatches.filter(f => f.result.playedByUser).length,
-      simulated: userMatches.filter(f => !f.result.playedByUser).length,
+      watched: userMatches.filter(f => f.result.watched).length,
+      simulated: userMatches.filter(f => !f.result.watched).length,
       topScorers,
       standings: standings.map((team, index) => ({
         position: index + 1,
@@ -425,8 +494,11 @@ export class GameState {
   }
 
   /**
-   * The save stores the world seed, who the user manages and every result so
-   * far. Everything else is regenerated. Transfers are not persisted.
+   * The save stores the world seed, who the user manages, every result so far,
+   * the tactics and training plan, and what training has done to the user's
+   * squad (as per-attribute deltas). Everything else is regenerated; AI clubs'
+   * training is replayed from the seed. Transfers are not persisted. Saves
+   * written before tactics and training existed simply lack those fields.
    */
   save() {
     if (!this.userTeam || !this.league) return;
@@ -457,8 +529,19 @@ export class GameState {
             hsc: packScorers(match.result.homeScorers),
             asc: packScorers(match.result.awayScorers),
             user: this.isUserFixture(match),
-            u: match.result.playedByUser
-          })))
+            u: match.result.watched
+          }))),
+        tactics: this.tactics,
+        training: this.training,
+        lastTrainingReport: this.lastTrainingReport,
+        playerDeltas: this.userTeam.players
+          .filter(player => (player.trainingDeltas && Object.keys(player.trainingDeltas).length) || player.injured || player.fatigue > 0)
+          .map(player => ({
+            id: player.id,
+            d: Object.fromEntries(Object.entries(player.trainingDeltas || {}).map(([k, v]) => [k, Math.round(v * 100) / 100])),
+            inj: player.injured ? Math.max(1, Math.round(player.injuryDays || 1)) : 0,
+            fat: Math.round(player.fatigue || 0)
+          }))
       };
       localStorage.setItem(SAVE_KEY, JSON.stringify(data));
     } catch (error) {
@@ -497,12 +580,52 @@ export class GameState {
             awayScore: saved.as,
             homeScorers: unpackScorers(saved.hsc),
             awayScorers: unpackScorers(saved.asc),
-            playedByUser: Boolean(saved.u)
+            watched: Boolean(saved.u)
           });
         }
       });
 
-    this.stats = { ...this.stats, ...data.stats };
+    this.tactics = normaliseTactics(data.tactics);
+    this.training = normaliseTraining(data.training);
+    this.lastTrainingReport = data.lastTrainingReport || null;
+    (data.playerDeltas || []).forEach(saved => {
+      const player = team.players.find(p => p.id === saved.id);
+      if (!player) return;
+      player.trainingDeltas = {};
+      for (const [key, delta] of Object.entries(saved.d || {})) {
+        if (!(key in player.attributes) || typeof delta !== 'number') continue;
+        player.attributes[key] = Math.max(1, Math.min(99, player.attributes[key] + delta));
+        player.trainingDeltas[key] = delta;
+      }
+      if (saved.inj > 0) {
+        player.injured = true;
+        player.injuryDays = saved.inj;
+      }
+      if (typeof saved.fat === 'number') player.fatigue = saved.fat;
+    });
+    // AI clubs' training is replayed from the seed, but only for careers that
+    // trained at all; a save from before training existed stays as it was.
+    // seasonsCompleted is bumped when the final fixture is played, before the
+    // next season starts, so a save made in that gap still belongs to the
+    // season whose rounds are in `results`.
+    const seasonsCompleted = data.stats?.seasonsCompleted || 0;
+    const thisSeasonFinished = this.fixtures.length > 0 && this.fixtures.every(f => f.played);
+    const seasonIndex = Math.max(0, seasonsCompleted - (thisSeasonFinished ? 1 : 0));
+    const ageEveryone = () => this.worldSystem.allTeams.forEach(t => t.players.forEach(p => { p.age = (p.age || 20) + 1; }));
+    if (data.training) {
+      for (let season = 0; season < seasonIndex; season++) {
+        this.rounds.forEach((_, index) => trainAiClubs(league.teams, team, index + 1, this.trainingSeed(season)));
+        ageEveryone();
+      }
+      const playedRounds = [...new Set(data.results.filter(r => r.user).map(r => r.r))].sort((a, b) => a - b);
+      playedRounds.forEach(round => trainAiClubs(league.teams, team, round, this.trainingSeed(seasonIndex)));
+    } else {
+      for (let season = 0; season < seasonIndex; season++) ageEveryone();
+    }
+
+    const { matchesPlayedOnPitch, ...savedStats } = data.stats || {};
+    this.stats = { ...this.stats, ...savedStats };
+    if (matchesPlayedOnPitch !== undefined && savedStats.matchesWatched === undefined) this.stats.matchesWatched = matchesPlayedOnPitch;
     this.currentDate = new Date(data.currentDate);
     this.transferWindow.updateTransferWindows(this.currentDate);
 
@@ -510,6 +633,7 @@ export class GameState {
       this.seasonComplete = true;
       this.lastSeasonSummary = this.buildSeasonSummary();
     }
+    this.save();
     if (this.eventCallbacks.uiUpdate) this.eventCallbacks.uiUpdate();
     console.log(`Loaded ${team.name}, season ${this.currentSeason}`);
     return true;

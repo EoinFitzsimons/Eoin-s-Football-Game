@@ -3,6 +3,8 @@
  */
 
 import { BaseSection } from './baseSection.js';
+import { describeTactics } from '../../tactics/tactics.js';
+import { focusById } from '../../training/training.js';
 
 export class DashboardSection extends BaseSection {
   getTitle() {
@@ -154,8 +156,11 @@ export class DashboardSection extends BaseSection {
             <div class="match-venue">${isHome ? 'Home' : 'Away'}</div>
           </div>
           <div class="match-actions">
-            <button id="play-next-match" class="primary-btn match-btn">Play on the pitch</button>
+            <button id="play-next-match" class="primary-btn match-btn">Watch the match</button>
             <button id="simulate-next-match" class="secondary-btn match-btn">Simulate</button>
+          </div>
+          <div class="match-tactics-note">Your tactics: ${describeTactics(this.gameState.tactics)}</div>
+          <div class="match-tactics-note">Training: ${focusById(this.gameState.training?.focus).label}, ${this.gameState.training?.intensity || 'normal'} intensity
           </div>
         </div>
       </div>
